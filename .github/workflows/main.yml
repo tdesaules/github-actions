@@ -6,6 +6,10 @@ on:
     tags: ['*']
   workflow_dispatch:
     inputs:
+      maintenance:
+        description: Rescan published images and check documentation links without building
+        type: boolean
+        default: false
       qualify-runner:
         description: Compare Docker profiles and native actions on both hosted architectures
         type: boolean
@@ -37,7 +41,7 @@ env:
 
 jobs:
   check:
-    if: github.event_name != 'schedule'
+    if: github.event_name != 'schedule' && !inputs.maintenance
     strategy:
       fail-fast: false
       matrix:
@@ -436,7 +440,7 @@ jobs:
           include-hidden-files: true
 
   maintenance:
-    if: github.event_name == 'schedule'
+    if: github.event_name == 'schedule' || inputs.maintenance
     runs-on: ubuntu-24.04
     permissions:
       contents: read

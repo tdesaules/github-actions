@@ -9,6 +9,8 @@ from reports import reports
 def main():
     _, owners = discover()
     failures = []
+    database_directory = ROOT / '.build/maintenance-db'
+    update_database = True
     for image, directory in sorted(owners.items()):
         reference = IMAGE.search((ROOT / directory / "action.yml").read_text())[1]
         if "@sha256:" not in reference:
@@ -18,7 +20,8 @@ def main():
             out = ROOT / ".build/maintenance" / image / arch
             out.mkdir(parents=True, exist_ok=True)
             try:
-                reports(out, 'registry:'+reference, 'linux/'+arch)
+                reports(out, 'registry:'+reference, 'linux/'+arch, database_directory, update_database)
+                update_database = False
             except subprocess.CalledProcessError:
                 failures.append(image+"/"+arch)
     if failures:

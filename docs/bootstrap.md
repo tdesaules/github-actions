@@ -99,6 +99,9 @@ publication. Pour reprendre un échec du job de publication, relancer les jobs
 
 Le job planifié réactualise la base Grype, rescane les deux architectures des
 images épinglées et vérifie les liens de documentation avec Lychee conteneurisé.
+L'entrée manuelle `maintenance` permet d'exécuter ce même job sans construction.
+Une seule base Grype actualisée est partagée entre les dix scans ; elle n'est
+pas incluse dans les artefacts de rapports.
 Les politiques de revue de dépendances restent identiques à celles des builds.
 `renovate.json` configure les mises à jour des bases, actions et dépendances Go ;
 l'installation/activation de l'application Renovate sur le dépôt reste une

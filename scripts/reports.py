@@ -13,13 +13,19 @@ SYFT = "docker.io/anchore/syft:v1.54.1@sha256:3eb5379ba7b409c3f4069b686110527af0
 GRYPE = "docker.io/anchore/grype:v0.120.1@sha256:e4a44ef45d285b829ce6efe2642980329661bd2d18eab5fc539138d4adaebbbe"
 
 
-def reports(directory, source='oci-archive:/reports/image.oci.tar', platform=None):
+def reports(directory, source='oci-archive:/reports/image.oci.tar', platform=None,
+            database_directory=None, update_database=True):
     bind = mount(directory.resolve(), "/reports")
     platform_args = ['--platform', platform] if platform else []
     run(ENGINE, "run", "--rm", "--user=0", "-v", bind, '-e', 'SYFT_GOLANG_CAPTURE_SYMBOLS=all', SYFT, "scan", source, *platform_args, "-o", "spdx-json=/reports/sbom.spdx.json", '-o', 'syft-json=/reports/sbom.syft.json')
     # Save database metadata separately so reports remain attributable to a DB snapshot.
-    command = [ENGINE, "run", "--rm", "--user=0", "-v", bind, "-e", "GRYPE_DB_CACHE_DIR=/reports/grype-db", GRYPE]
-    run(*command, "db", "update")
+    database_directory = database_directory or directory / 'grype-db'
+    database_directory.mkdir(parents=True, exist_ok=True)
+    command = [ENGINE, "run", "--rm", "--user=0", "-v", bind,
+               '-v', mount(database_directory.resolve(), '/grype-db'),
+               "-e", "GRYPE_DB_CACHE_DIR=/grype-db", '-e', 'GRYPE_DB_AUTO_UPDATE=false', GRYPE]
+    if update_database:
+        run(*command, "db", "update")
     status = subprocess.check_output(command+["db", "status", "-o", "json"])
     (directory / "grype-db.json").write_bytes(status)
     configuration, evidence = review(json.loads((directory / 'sbom.syft.json').read_text()),
