@@ -61,4 +61,4 @@ if __name__ == "__main__":
     paths = sorted(Path("oci").glob("*/action.yml"))
     for path in paths:
         validate(path)
-    print(f"Validated {len(paths)} native Docker action metadata files")
+    print(f"Validated {len(paths)} action metadata files (native tools and qualified Buildah launchers)")

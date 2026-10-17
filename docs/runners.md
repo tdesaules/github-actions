@@ -1,12 +1,16 @@
 # Runners et exécution
 
-## Production : actions Docker natives
+## Production : actions conteneurisées
 
 - Runner Linux, moteur **Docker réel** accessible par le runner GitHub.
 - Runners natifs AMD64 et ARM64 ; la matrice emploie `ubuntu-24.04` et
   `ubuntu-24.04-arm`. Vérifier l'accès à ces labels pour le dépôt et son plan GitHub.
 - Aucun Buildah ou Skopeo installé sur l'hôte, aucun socket monté dans les actions.
 - Les actions ne lancent pas de daemon Docker interne.
+- Les deux opérations Buildah utilisent un lanceur composite Python 3/Docker
+  avec `--security-opt=seccomp=unconfined` et
+  `--security-opt=apparmor=unconfined`, qualifié sur les deux runners hébergés.
+  Les huit autres opérations sont des actions Docker natives.
 - Accès réseau aux registres amont, GHCR et, selon l'opération, aux services
   Anchore/Sigstore/GitHub.
 
@@ -29,10 +33,9 @@ d'input pour ajouter `--privileged` ou `--cap-add` au lancement GitHub.
 profil Docker d'un runner GitHub.** Le workflow doit qualifier ce dernier, avec
 de vrais steps `uses:` et des constructions contenant `RUN` pendant le bootstrap.
 
-Le bootstrap échoue explicitement si les permissions du runner sont
-insuffisantes. Il n'active pas de privilèges supplémentaires automatiquement.
-Un éventuel profil self-hosted devra être qualifié et documenté à partir des
-échecs effectivement observés.
+Le bootstrap applique ces deux exceptions uniquement aux conteneurs Buildah
+lancés par Docker. Il n'ajoute ni `--privileged`, ni capability, ni modification
+globale du daemon. Voir la [qualification](hosted-runner-qualification.md).
 
 ## Développement local
 

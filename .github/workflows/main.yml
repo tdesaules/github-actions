@@ -179,6 +179,9 @@ jobs:
       - name: Test qualified Buildah container
         if: matrix.image == 'buildah'
         run: python3 scripts/testing.py --image buildah --version "$VERSION"
+      - name: Test read-only SBOM runtime and permission failures
+        if: matrix.image == 'syft'
+        run: python3 scripts/testing.py --image syft --version "$VERSION"
       - name: Test public Buildah launcher
         if: matrix.image == 'buildah'
         uses: ./.candidate-actions/build-image
@@ -189,25 +192,58 @@ jobs:
           version: 0.0.0-bootstrap
           platform: linux/${{ matrix.arch }}
           output: .build/fixtures/public.oci.tar
-      - name: Test native index input validation
+      - name: Test index publication in an isolated TLS registry
+        if: matrix.image == 'buildah'
+        run: python3 scripts/test-registry.py --index-only --version "$VERSION"
+      - name: Test public index input validation
         if: matrix.image == 'buildah'
         id: invalid-index
         continue-on-error: true
-        run: |
-          python3 - <<'PY'
-          import os, sys
-          from pathlib import Path
-          sys.path.insert(0, 'scripts')
-          from images import container, local_ref
-          container(local_ref('buildah', os.environ['VERSION']), 'merge-image-index', Path.cwd(),
-                    {'sources': '[]', 'destination': 'docker://invalid.example/fixture:0.0.0-bootstrap'})
-          PY
+        uses: ./.candidate-actions/merge-image-index
+        with:
+          sources: '[]'
+          destination: docker://invalid.example/fixture:0.0.0-bootstrap
       - name: Test native import action
         if: matrix.image == 'skopeo'
         uses: ./.candidate-actions/import-image
         with:
           source: oci-archive:.build/fixtures/fixture.oci.tar
           destination: oci:.build/fixtures/layout with spaces:fixture
+      - name: Prepare native publication registry
+        if: matrix.image == 'skopeo' || matrix.image == 'cosign'
+        id: registry
+        run: |
+          args=()
+          if [ "$IMAGE" = cosign ]; then args+=(--signer-version "$VERSION"); fi
+          python3 scripts/native-registry.py "${args[@]}"
+      - name: Test native publication to TLS registry
+        if: matrix.image == 'skopeo'
+        uses: ./.candidate-actions/publish-image
+        env:
+          SSL_CERT_FILE: /github/workspace/.build/fixtures/registry-cert.pem
+        with:
+          source: oci-archive:.build/fixtures/fixture.oci.tar
+          destination: ${{ steps.registry.outputs.destination }}
+      - name: Test native signing with ephemeral key
+        if: matrix.image == 'cosign'
+        uses: ./.candidate-actions/new-image-signature
+        env:
+          SSL_CERT_FILE: /github/workspace/.build/fixtures/registry-cert.pem
+          COSIGN_PASSWORD: ''
+        with:
+          image: ${{ steps.registry.outputs.reference }}
+          key: .build/fixtures/cosign.key
+          transparency-log: 'false'
+      - name: Test native signature verification with ephemeral key
+        if: matrix.image == 'cosign'
+        uses: ./.candidate-actions/test-image-signature
+        env:
+          SSL_CERT_FILE: /github/workspace/.build/fixtures/registry-cert.pem
+        with:
+          image: ${{ steps.registry.outputs.reference }}
+          key: .build/fixtures/cosign.pub
+          transparency-log: 'false'
+          output: .build/fixtures/verified-signature.json
       - name: Test native export action
         if: matrix.image == 'skopeo'
         uses: ./.candidate-actions/export-image
@@ -286,6 +322,9 @@ jobs:
             .build/${{ matrix.image }}/${{ matrix.arch }}/*.json
           if-no-files-found: error
           include-hidden-files: true
+      - name: Remove test registry
+        if: always() && (matrix.image == 'skopeo' || matrix.image == 'cosign')
+        run: docker rm -f action-test-registry || true
 
   release:
     needs: [check, lint, build]

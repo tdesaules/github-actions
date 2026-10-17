@@ -56,9 +56,9 @@ def prepare(workspace):
     fixture_archive(workspace / "fixture.oci.tar")
 
 
-def negative(ref, operation, workspace, inputs):
+def negative(ref, operation, workspace, inputs, extra=None):
     try:
-        container(ref, operation, workspace, inputs)
+        container(ref, operation, workspace, inputs, extra=extra or [])
     except subprocess.CalledProcessError:
         return
     raise AssertionError(f"invalid {operation} input unexpectedly succeeded")
@@ -81,14 +81,26 @@ def test(image, version):
             assert tarfile.is_tarfile(workspace / "result with spaces.oci.tar")
             negative(ref, "import-image", workspace, {"source": "oci-archive:missing.tar", "destination": "oci:invalid"})
         elif image == "syft":
-            container(ref, "new-sbom", workspace, {"source": "dir:fixture with spaces", "output": "reports with spaces/sbom.json"})
+            container(ref, "new-sbom", workspace, {"source": "dir:fixture with spaces", "output": "reports with spaces/sbom.json"},
+                      extra=['--read-only', '--tmpfs', '/tmp:rw,mode=1777'])
             assert json.loads((workspace / "reports with spaces/sbom.json").read_text())["spdxVersion"].startswith("SPDX-")
             negative(ref, "new-sbom", workspace, {"source": "dir:missing", "output": "invalid.json"})
+            workspace.chmod(0o555)
+            try:
+                negative(ref, 'new-sbom', workspace, {'source': 'dir:fixture with spaces', 'output': 'unwritable.json'},
+                         extra=['--user=65532:65532'])
+                assert not (workspace / 'unwritable.json').exists()
+            finally:
+                workspace.chmod(0o700)
         elif image == "grype":
             # An actual database download and scan, not a mocked successful report.
             container(local_ref("syft", version), "new-sbom", workspace, {"source": "oci-archive:fixture.oci.tar", "output": "sbom.json"})
             container(ref, "test-vulnerabilities", workspace, {"sbom": "sbom.json", "output": "reports with spaces/grype.json"})
             assert "matches" in json.loads((workspace / "reports with spaces/grype.json").read_text())
+            workspace.chmod(0o1777)
+            container(ref, 'test-vulnerabilities', workspace,
+                      {'sbom': 'sbom.json', 'output': 'nonroot-grype.json'}, extra=['--user=65532:65532'])
+            assert 'matches' in json.loads((workspace / 'nonroot-grype.json').read_text())
             negative(ref, "test-vulnerabilities", workspace, {"sbom": "missing.json", "fail-on": "invalid"})
         elif image == "cosign":
             container(ref, "new-image-signature", workspace, {"enabled": "false"})

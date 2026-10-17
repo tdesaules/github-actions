@@ -464,7 +464,9 @@ func merge() error {
 	if !strings.HasPrefix(dest, "docker://") {
 		return errors.New("index destination must start with docker://")
 	}
-	return run("--storage-driver=vfs", "manifest", "push", "--all", name, dest)
+	// Children must already be published by publish-image with preserved digests.
+	// Copying them again lets Buildah recompress layers and change tested digests.
+	return run("--storage-driver=vfs", "manifest", "push", "--all=false", name, dest)
 }
 
 func execute(op string) error {

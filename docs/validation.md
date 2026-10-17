@@ -4,12 +4,26 @@
 
 Le run `39030971131` confirme que les tests Buildah passent sur les deux
 architectures ; ses jobs Buildah échouent ensuite au scan. La reconstruction
-locale de Syft avec Go 1.27.2 et les dépendances corrigées passe ses tests et le
-seuil Grype `high`. Les reconstructions des autres outils et la nouvelle
-qualification complète sont en cours. Les résultats des sections suivantes
+locale des cinq outils avec Go 1.27.2 et les dépendances corrigées passe le
+seuil Grype `high`, avec la revue ciblée décrite ci-dessous. Les tests du registre
+TLS et des signatures avec une clé éphémère passent également. La nouvelle
+qualification GitHub complète est en cours. Les résultats des sections suivantes
 décrivent les versions antérieures. Aucun résultat local ne vaut publication.
 
 Voir la [méthode de correction et de revue](dependency-remediation.md).
+
+Scans locaux des candidats reconstruits (avant les derniers ajouts de tests) :
+
+| Image | Critical | High | Medium | Unknown | Revue ciblée |
+|---|---:|---:|---:|---:|---:|
+| Buildah | 0 | 0 | 4 | 1 | 1 |
+| Skopeo | 0 | 0 | 2 | 1 | 1 |
+| Syft | 0 | 0 | 0 | 0 | 0 |
+| Grype | 0 | 0 | 1 | 0 | 1 |
+| Cosign | 0 | 0 | 0 | 2 | 0 |
+
+La colonne de revue correspond uniquement à `GO-2026-4887`, avec les preuves
+de symboles conservées. Les correspondances Medium/Unknown restent visibles.
 
 ## Complément : chemin Buildah validé sur GitHub
 

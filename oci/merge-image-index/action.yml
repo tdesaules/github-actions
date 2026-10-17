@@ -1,5 +1,5 @@
 name: Merge OCI image index
-description: Assemble and publish an index from two tested architecture archives
+description: Publish an index for two tested archives whose exact children are already in the destination repository
 inputs:
   sources:
     description: JSON array of amd64 and arm64 OCI archive paths
