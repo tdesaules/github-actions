@@ -1,6 +1,6 @@
 # GitHub Docker actions — socle OCI
 
-Huit actions **Docker natives** (`runs.using: docker`) et deux actions Buildah
+Neuf actions **Docker natives** (`runs.using: docker`) et une action Buildah
 utilisant un lanceur composite avec le profil Docker qualifié sur les runners
 hébergés. Aucun socket moteur monté dans les conteneurs, aucune installation de
 Buildah/Skopeo/Syft/Grype/Cosign sur le runner consommateur. Le lanceur Buildah
@@ -8,19 +8,21 @@ utilise Docker et Python 3, présents sur les runners Ubuntu GitHub.
 
 ## État du premier lot
 
-Ce lot implémente les dix opérations OCI, cinq images finales `scratch`, le
+Ce lot implémente les dix opérations OCI, dix images finales `scratch`, le
 bootstrap local, les tests et le workflow de qualification/publication bootstrap.
 Les variantes `linux/amd64` et `linux/arm64` sont obligatoires pour publier : le
 workflow les construit et les teste sur deux runners natifs.
 
-**Les cinq images sont publiées sur GHCR**, pour AMD64 et ARM64, sous
-`0.0.0-bootstrap`. Les dix actions référencent leurs index par digest immuable.
-Les manifestes et index sont signés et vérifiés via GitHub OIDC/Sigstore.
-Le [bootstrap complet](https://github.com/tdesaules/github-actions/actions/runs/39034741897)
-est réussi. La validation des tags refuse toute référence mutable.
+La migration vers les images spécialisées `oci-<action>` est en qualification.
+Les références `:unpublished` sont des marqueurs d'amorçage et seront remplacées
+par les digests réels après publication et vérification. Le
+[bootstrap historique à cinq images](https://github.com/tdesaules/github-actions/actions/runs/39034741897)
+ne constitue pas une validation de cette nouvelle architecture.
 
 Voir [les résultats de validation](docs/validation.md),
 [l'amorçage](docs/bootstrap.md) et [les prérequis](docs/runners.md).
+La [migration vers les images spécialisées](docs/action-images.md) décrit
+le nouveau contrat et son état de qualification.
 
 ## Actions
 
@@ -31,23 +33,25 @@ Voir [les résultats de validation](docs/validation.md),
 | [`oci/import-image`](oci/import-image/README.md) | Skopeo `copy --all --preserve-digests` | Layout OCI |
 | [`oci/publish-image`](oci/publish-image/README.md) | Skopeo `copy --all --preserve-digests` | Image publiée |
 | [`oci/get-image-digest`](oci/get-image-digest/README.md) | Skopeo `inspect --raw` | Digest du manifeste/index |
-| [`oci/merge-image-index`](oci/merge-image-index/README.md) | Buildah `manifest` | Index AMD64 + ARM64 publié |
+| [`oci/merge-image-index`](oci/merge-image-index/README.md) | Assemblage Go et Skopeo `copy` | Index AMD64 + ARM64 publié par digest |
 | [`oci/new-image-signature`](oci/new-image-signature/README.md) | Cosign `sign` | Signature par digest |
 | [`oci/test-image-signature`](oci/test-image-signature/README.md) | Cosign `verify` | Rapport JSON |
 | [`oci/new-sbom`](oci/new-sbom/README.md) | Syft `scan` | SPDX JSON ou CycloneDX JSON |
 | [`oci/test-vulnerabilities`](oci/test-vulnerabilities/README.md) | Grype `sbom:` | Rapport JSON et statut du seuil |
 
 Chaque `action.yml` documente l'intégralité des inputs et outputs. Les arguments
-sont construits sans shell et sans `eval`. Les inputs sont transmis par le runner
-dans `INPUT_<NOM>` ; le même entrypoint peut être testé localement avec ces variables.
+sont construits sans shell et sans `eval`. Chaque image exécute une opération
+fixe ; les inputs sont transmis sous forme `--nom=valeur` via `runs.args` (ou le
+lanceur Buildah). Priorité : argument explicite, variable `INPUT_<NOM>`, défaut
+du programme. Un argument vide explicite remplace aussi la variable d'environnement.
 
 ## Structure
 
 ```text
 .github/workflows/main.yml  # check, lint, build, release, maintenance
 oci/<verbe-nom>/action.yml  # interface publique de chaque action
-oci/<propriétaire>/Containerfile + .containerignore
-shared/runtime/            # entrypoint Go statique, tests, collecte des dépendances
+oci/<verbe-nom>/Containerfile + main.go # image et exécutable spécialisés
+shared/runtime/            # utilitaires Go, tests, collecte des dépendances
 scripts/                   # orchestration Python, découverte et publication
 tests/unit/                # sélection, versions, agrégation, reprise
 taskfile.yml               # commandes locales
@@ -56,8 +60,10 @@ docs/                      # architecture, prérequis, amorçage et résultats
 
 Pas de catalogue central : découverte des `action.yml` et `Containerfile`. Les
 versions amont et les digests sont épinglés directement dans les Containerfiles.
-Les images Skopeo, Cosign et Buildah sont partagées entre opérations utilisant le
-même outil ; il n'existe pas d'image globale contenant tous les outils.
+Chaque action possède son image `oci-<verbe-nom>`, même lorsque plusieurs actions
+utilisent le même outil. Les images du catalogue sont publiées par digest ;
+SemVer identifie les tags Git et les GitHub Releases. Les images inchangées
+conservent leur digest entre versions du catalogue.
 
 ## Utilisation de la préversion bootstrap
 
