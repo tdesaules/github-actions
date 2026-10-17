@@ -1,6 +1,19 @@
-# Validation effectuée localement
+# Validation du catalogue
 
-## Itération en cours
+## État actuel
+
+Le [bootstrap 39034741897](https://github.com/tdesaules/github-actions/actions/runs/39034741897)
+du commit `644bb15` est **entièrement réussi** : les dix builds/tests/scans
+natifs, puis la publication des archives testées, sans reconstruction.
+Les cinq index et leurs dix manifestes sont publiés sous `0.0.0-bootstrap`,
+signés via GitHub OIDC et vérifiés avec l'identité exacte de `main.yml@refs/heads/main`
+et l'émetteur `https://token.actions.githubusercontent.com`.
+Les dix métadonnées d'action intègrent les digests issus du journal de publication.
+Les rapports, checksums, signatures et le patch sont conservés dans les artefacts
+de ce run. Le push automatique des releases SemVer reste conditionné à la
+configuration de l'App (`RELEASE_APP_ID`, `RELEASE_APP_PRIVATE_KEY`).
+
+## Historique des itérations
 
 Le [run 39033229840](https://github.com/tdesaules/github-actions/actions/runs/39033229840)
 du commit `5cb81d5` est **réussi** : `check`, `lint` et les dix variantes des

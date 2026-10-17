@@ -19,5 +19,5 @@ outputs:
     description: Published transport reference
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/skopeo:0.0.0-bootstrap
+  image: docker://ghcr.io/tdesaules/github-actions/skopeo@sha256:287cddd46de87e6631bac08b4debfbb5dfd1ec0093c57704810472f14a6839b6
   args: [publish-image]

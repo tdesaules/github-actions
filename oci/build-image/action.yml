@@ -43,7 +43,7 @@ runs:
     - id: builder
       shell: bash
       env:
-        BUILDER_IMAGE: docker://ghcr.io/tdesaules/github-actions/buildah:0.0.0-bootstrap
+        BUILDER_IMAGE: docker://ghcr.io/tdesaules/github-actions/buildah@sha256:d62d7e41de4afd83b4d73fbe49dc60255caf7d0f2c5079e85e4e2da585bffdb7
         BUILDER_OPERATION: build-image
         BUILDER_INPUTS: ${{ toJSON(inputs) }}
       run: python3 "$GITHUB_ACTION_PATH/../../shared/run-builder.py"

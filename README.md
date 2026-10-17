@@ -13,11 +13,11 @@ bootstrap local, les tests et le workflow de qualification/publication bootstrap
 Les variantes `linux/amd64` et `linux/arm64` sont obligatoires pour publier : le
 workflow les construit et les teste sur deux runners natifs.
 
-**Les images ne sont pas encore publiées.** Les références `0.0.0-bootstrap` dans
-les métadonnées sont des références d'amorçage, pas des versions consommables ni
-des références autorisées pour une release. La publication produit un patch
-remplaçant toutes ces références par les digests des index multiarchitectures.
-La validation des tags refuse toute référence mutable.
+**Les cinq images sont publiées sur GHCR**, pour AMD64 et ARM64, sous
+`0.0.0-bootstrap`. Les dix actions référencent leurs index par digest immuable.
+Les manifestes et index sont signés et vérifiés via GitHub OIDC/Sigstore.
+Le [bootstrap complet](https://github.com/tdesaules/github-actions/actions/runs/39034741897)
+est réussi. La validation des tags refuse toute référence mutable.
 
 Voir [les résultats de validation](docs/validation.md),
 [l'amorçage](docs/bootstrap.md) et [les prérequis](docs/runners.md).

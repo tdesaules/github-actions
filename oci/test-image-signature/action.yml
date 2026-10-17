@@ -28,5 +28,5 @@ outputs:
     description: Verification report path
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/cosign:0.0.0-bootstrap
+  image: docker://ghcr.io/tdesaules/github-actions/cosign@sha256:d057ebc2ff1ede7a3d9c88ce3d16f722105270656f72c6aa5f006430defcfa15
   args: [test-image-signature]

@@ -18,5 +18,5 @@ outputs:
     description: Report path, including on threshold failure
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/grype:0.0.0-bootstrap
+  image: docker://ghcr.io/tdesaules/github-actions/grype@sha256:1736c2a48e8c145ec03effe5c3ce18163ebe57e317d8de62cc8ebc6218f9e5ff
   args: [test-vulnerabilities]
