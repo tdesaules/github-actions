@@ -20,10 +20,11 @@ GitHub Releases, pas des tags OCI. Une image inchangée conserve sa référence.
 ## Migration
 
 Les cinq anciens packages `buildah`, `skopeo`, `syft`, `grype` et `cosign` sont
-remplacés par dix packages spécialisés. La suppression demandée des anciens
-packages intervient après validation et épinglage des nouveaux. Les anciens
-tags Git restent historiques : une fois leurs packages supprimés, leurs actions
-ne pourront plus télécharger ces images.
+remplacés par dix packages spécialisés. Les cinq anciens packages ont été
+supprimés après validation et épinglage des nouveaux, dans le
+[run 39053157264](https://github.com/tdesaules/github-actions/actions/runs/39053157264).
+Les anciens tags Git restent historiques : leurs actions ne peuvent plus
+télécharger ces images supprimées.
 
 Pour `merge-image-index`, fournir `docker://registre/dépôt` sans tag et récupérer
 la référence immuable via la sortie `image`. La publication préalable des enfants
@@ -47,6 +48,12 @@ Pantavisor ne sont pas modifiés.
 - Vérification indépendante locale sans authentification GHCR : dix index et
   trente signatures accessibles et vérifiés avec l'identité exacte du workflow
   et l'émetteur `https://token.actions.githubusercontent.com`.
+- [Consommation 39052824512](https://github.com/tdesaules/github-actions/actions/runs/39052824512)
+  réussie au commit `c254b423947352a98a8bdf67e35c7d8fd6595477` : les vingt
+  variantes utilisent les images publiées, avec `rebuild: false`.
+- Maintenance et retrait `39053157264` réussis : vingt rescans avec une base
+  Grype actualisée, liens HTTP, trente signatures et suppression des cinq
+  anciens packages après vérification des remplacements.
 
 ### Limite GHCR : découverte des signatures
 

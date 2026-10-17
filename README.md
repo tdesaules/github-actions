@@ -81,7 +81,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: tdesaules/github-actions/oci/build-image@main # Épingler un SHA validé en production.
+      - uses: tdesaules/github-actions/oci/build-image@c254b423947352a98a8bdf67e35c7d8fd6595477
         with:
           context: .
           containerfile: Containerfile
