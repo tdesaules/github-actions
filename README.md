@@ -59,7 +59,7 @@ versions amont et les digests sont épinglés directement dans les Containerfile
 Les images Skopeo, Cosign et Buildah sont partagées entre opérations utilisant le
 même outil ; il n'existe pas d'image globale contenant tous les outils.
 
-## Utilisation future après première publication
+## Utilisation de la préversion bootstrap
 
 ```yaml
 jobs:
@@ -74,8 +74,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      # Exemple : 1.0.0 n'existe pas encore.
-      - uses: tdesaules/github-actions/oci/build-image@1.0.0
+      - uses: tdesaules/github-actions/oci/build-image@0.0.0-bootstrap
         with:
           context: .
           containerfile: Containerfile
@@ -99,15 +98,16 @@ task new-candidate-actions
 
 Python 3.11+, Go 1.25+ et Task sont des outils de développement local. Go peut être
 exécuté dans l'image de compilation épinglée, comme dans le workflow. Les actions
-publiées ne nécessitent aucun de ces outils sur le runner consommateur.
+publiées ne nécessitent ni Go ni Task sur le runner consommateur. Le lanceur
+Buildah utilise Python 3 fourni par les runners Ubuntu GitHub.
 
 ## Suite du catalogue
 
-Le lot OCI ne contient pas encore les actions `check`, les linters, git-cliff,
-GitHub Releases, Renovate et Lychee. Leur ajout utilisera ce socle. En particulier,
-le workflow actuel publie le **bootstrap** et valide les tags ; il n'implémente pas
-encore la préparation automatique d'une release SemVer, le commit/tag via GitHub
-App, ni la création de GitHub Releases. Aucun succès de ces étapes n'est simulé.
+Le workflow intègre git-cliff, la préparation SemVer, le push atomique commit/tag
+via GitHub App, la validation des signatures et la création des GitHub Releases.
+Le push automatique nécessite encore la configuration de l'App ; le bootstrap
+est publié avec `GITHUB_TOKEN`. La maintenance inclut les rescans Grype et Lychee.
+La configuration Renovate est fournie ; son application doit être activée.
 
-Les futurs contrôles `check` auront chacun leur commande et leur image. Le
-contrôle TOML accompagnera l'introduction de `cliff.toml` à la racine.
+Les futurs contrôles `check`, absents de ce lot OCI, auront chacun leur commande
+et leur image. Les configurations TOML de la racine sont contrôlées par le lint.

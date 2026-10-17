@@ -13,6 +13,20 @@ Les rapports, checksums, signatures et le patch sont conservés dans les artefac
 de ce run. Le push automatique des releases SemVer reste conditionné à la
 configuration de l'App (`RELEASE_APP_ID`, `RELEASE_APP_PRIVATE_KEY`).
 
+Le [run du tag 39036476600](https://github.com/tdesaules/github-actions/actions/runs/39036476600)
+est réussi : appartenance à l'historique de `main`, références immuables,
+architectures et signatures sont vérifiées avant la création de la
+[GitHub préversion 0.0.0-bootstrap](https://github.com/tdesaules/github-actions/releases/tag/0.0.0-bootstrap).
+Le tag bootstrap a été poussé manuellement ; la création de cette GitHub Release
+a bien été effectuée par le workflow. Une vérification locale indépendante des
+cinq index et quinze signatures a également réussi sans authentification GHCR.
+
+Le [run consommateur 39036429441](https://github.com/tdesaules/github-actions/actions/runs/39036429441)
+est réussi pour les dix variantes, toutes avec `rebuild: false`. Il tire les
+images GHCR épinglées puis réexécute les tests d'actions sur les deux architectures,
+sans reconstruire les images du catalogue. Cela valide le parcours des changements
+limités aux métadonnées d'action après la première publication.
+
 ## Historique des itérations
 
 Le [run 39033229840](https://github.com/tdesaules/github-actions/actions/runs/39033229840)

@@ -3,12 +3,13 @@
 Aucun fichier de `pantavisor-system`, `pantavisor-core` ou `pantavisor-k0s` n'est
 modifié par cette livraison.
 
-Après publication et qualification du catalogue :
+Le bootstrap qualifié est disponible sous `0.0.0-bootstrap`. Pour migrer :
 
 1. Vérifier un runner Linux Docker compatible avec Buildah imbriqué pour chaque
    architecture ; ne pas annoncer ARM64 à partir d'un test AMD64.
 2. Conserver les jobs du consommateur et remplacer uniquement leurs steps outils
-   par `uses: tdesaules/github-actions/oci/<opération>@<version-sans-v>`.
+   par `uses: tdesaules/github-actions/oci/<opération>@0.0.0-bootstrap`
+   (ou le SHA Git du tag pour épingler aussi l'interface de l'action).
 3. Passer explicitement `Containerfile` ou `Containerfile.tools`, le contexte,
    la plateforme, les labels et les chemins de sorties.
 4. Utiliser les archives OCI comme contrat entre jobs ; ne pas compter sur la
