@@ -5,13 +5,14 @@
 `task initialize-bootstrap` construit sur l'architecture native :
 
 1. L'image Buildah amont, épinglée par digest multiarchitecture, construit notre
-   image Buildah finale `scratch` et l'exporte en archive OCI.
+   image `oci-build-image` finale `scratch` et l'exporte en archive OCI.
 2. L'archive est chargée et explicitement taguée par son ID de configuration.
-3. Notre candidate Buildah construit les images Cosign, Grype, Skopeo et Syft.
+3. Notre candidate Buildah construit les neuf autres images spécialisées.
 4. Chaque outil est démarré et son architecture/entrypoint contrôlés.
 
-Résultats : `.build/<outil>/<architecture>/image.oci.tar` et tags locaux
-`localhost/github-actions/<outil>:0.0.0-bootstrap`.
+Résultats : `.build/oci-<action>/<architecture>/image.oci.tar` et tags locaux
+`localhost/github-actions/oci-<action>:0.0.0-bootstrap`. Ces tags servent
+uniquement à l'exécution locale ; la publication GHCR utilise les digests.
 
 Le bootstrap local n'annonce pas une validation GitHub, ni une publication
 multiarchitecture si une seule architecture a été exécutée.
@@ -77,9 +78,9 @@ Les publications GitHub sont sérialisées sans annulation. Les branches de
 développement peuvent annuler leurs pipelines obsolètes.
 
 En cas d'échec partiel, conserver les **mêmes archives et métadonnées** et relancer
-la publication. Les tags déjà publiés sont réutilisés uniquement si leurs digests
-correspondent. Un contenu différent est refusé ; aucun tag n'est déplacé pour
-réparer un état partiel. Une reconstruction n'est pas une reprise de publication.
+la publication. Les manifestes déjà publiés sont vérifiés à leur adresse par
+digest. Aucun tag OCI n'est créé ou déplacé pour réparer un état partiel.
+Une reconstruction n'est pas une reprise de publication.
 
 Le journal `publication.json` et les rapports sont archivés même en cas d'échec.
 Les signatures peuvent être retentées pour les mêmes digests. Le patch n'est
@@ -100,9 +101,16 @@ publication. Pour reprendre un échec du job de publication, relancer les jobs
 Le job planifié réactualise la base Grype, rescane les deux architectures des
 images épinglées et vérifie les liens de documentation avec Lychee conteneurisé.
 L'entrée manuelle `maintenance` permet d'exécuter ce même job sans construction.
-Une seule base Grype actualisée est partagée entre les dix scans ; elle n'est
+Une seule base Grype actualisée est partagée entre les vingt scans ; elle n'est
 pas incluse dans les artefacts de rapports.
 Les politiques de revue de dépendances restent identiques à celles des builds.
 `renovate.json` configure les mises à jour des bases, actions et dépendances Go ;
 l'installation/activation de l'application Renovate sur le dépôt reste une
 configuration externe. L'automerge est désactivé.
+
+Pour la migration ponctuelle depuis les images partagées, l'entrée
+`retire-shared-images` avec `maintenance` sur `main` supprime les cinq anciens
+packages GHCR après rescan et vérification des nouvelles références et signatures.
+Le token du workflow doit disposer des droits d'administration sur ces packages.
+Les tags Git historiques ne sont pas déplacés ; leurs images supprimées ne
+seront plus téléchargeables.

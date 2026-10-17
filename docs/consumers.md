@@ -3,13 +3,15 @@
 Aucun fichier de `pantavisor-system`, `pantavisor-core` ou `pantavisor-k0s` n'est
 modifié par cette livraison.
 
-Le bootstrap qualifié est disponible sous `0.0.0-bootstrap`. Pour migrer :
+La migration vers les [images spécialisées](action-images.md) est en cours.
+Le tag historique `0.0.0-bootstrap` dépend des cinq anciens packages, dont la
+suppression est demandée. Attendre les nouveaux digests validés et sélectionner
+le nouveau tag Git ou SHA publié avant de migrer :
 
 1. Vérifier un runner Linux Docker compatible avec Buildah imbriqué pour chaque
    architecture ; ne pas annoncer ARM64 à partir d'un test AMD64.
 2. Conserver les jobs du consommateur et remplacer uniquement leurs steps outils
-   par `uses: tdesaules/github-actions/oci/<opération>@0.0.0-bootstrap`
-   (ou le SHA Git du tag pour épingler aussi l'interface de l'action).
+    par `uses: tdesaules/github-actions/oci/<opération>@<tag-ou-SHA-validé>`.
 3. Passer explicitement `Containerfile` ou `Containerfile.tools`, le contexte,
    la plateforme, les labels et les chemins de sorties.
 4. Utiliser les archives OCI comme contrat entre jobs ; ne pas compter sur la

@@ -13,11 +13,12 @@ bootstrap local, les tests et le workflow de qualification/publication bootstrap
 Les variantes `linux/amd64` et `linux/arm64` sont obligatoires pour publier : le
 workflow les construit et les teste sur deux runners natifs.
 
-La migration vers les images spécialisées `oci-<action>` est en qualification.
-Les références `:unpublished` sont des marqueurs d'amorçage et seront remplacées
-par les digests réels après publication et vérification. Le
-[bootstrap historique à cinq images](https://github.com/tdesaules/github-actions/actions/runs/39034741897)
-ne constitue pas une validation de cette nouvelle architecture.
+Les dix images spécialisées `oci-<action>` sont publiées et signées sur GHCR.
+Les vingt variantes AMD64/ARM64 ont passé les tests et scans ; les actions
+référencent les index publiés par digest. Voir la
+[publication 39051866118](https://github.com/tdesaules/github-actions/actions/runs/39051866118).
+GHCR utilise des tags techniques `sha256-…` pour découvrir les signatures
+Cosign ; aucun tag OCI SemVer n'est créé.
 
 Voir [les résultats de validation](docs/validation.md),
 [l'amorçage](docs/bootstrap.md) et [les prérequis](docs/runners.md).
@@ -65,7 +66,7 @@ utilisent le même outil. Les images du catalogue sont publiées par digest ;
 SemVer identifie les tags Git et les GitHub Releases. Les images inchangées
 conservent leur digest entre versions du catalogue.
 
-## Utilisation de la préversion bootstrap
+## Utilisation
 
 ```yaml
 jobs:
@@ -80,7 +81,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: tdesaules/github-actions/oci/build-image@0.0.0-bootstrap
+      - uses: tdesaules/github-actions/oci/build-image@main # Épingler un SHA validé en production.
         with:
           context: .
           containerfile: Containerfile

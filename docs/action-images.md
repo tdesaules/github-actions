@@ -31,15 +31,34 @@ n'est plus obligatoire : cette action les copie avec leurs digests exacts.
 Les autres interfaces d'inputs restent identiques. Les dépôts consommateurs
 Pantavisor ne sont pas modifiés.
 
-## Qualification en cours
+## Qualification
 
 - Tests Go, 23 tests Python, métadonnées des dix actions, actionlint et Hadolint :
   réussis localement.
 - Registre TLS local : index et enfants publiés par digest, sans tag, avec
   conservation des digests.
-- GHCR, signatures et exécution native des vingt variantes : à qualifier.
-- Les marqueurs `:unpublished` ne sont pas des images publiées ; ils seront
-  remplacés uniquement par les digests obtenus lors de cette qualification.
+- Les vingt variantes passent les builds, tests d'actions natives/composite et
+  scans au seuil `high` dans le [run 39049490277](https://github.com/tdesaules/github-actions/actions/runs/39049490277),
+  commit `ddc6bd73fd1acef4b3426ead6203d08fd0ba6792`.
+- [Publication 39051866118](https://github.com/tdesaules/github-actions/actions/runs/39051866118)
+  réussie à partir des archives de ce run, sans reconstruction : dix index,
+  vingt enfants, trente signatures OIDC vérifiées. Les références des actions
+  sont épinglées aux digests réels.
+- Vérification indépendante locale sans authentification GHCR : dix index et
+  trente signatures accessibles et vérifiés avec l'identité exacte du workflow
+  et l'émetteur `https://token.actions.githubusercontent.com`.
+
+### Limite GHCR : découverte des signatures
+
+Les images et index sont poussés par digest et ne portent aucun tag SemVer.
+La publication totalement dépourvue de tags, signatures comprises, n'est pas
+obtenue sur GHCR : son endpoint `/v2/<dépôt>/referrers/<digest>` renvoie 404.
+Cosign utilise donc le mécanisme de repli OCI avec trois tags `sha256-<digest>`
+par package, un pour chaque enfant et un pour l'index. Ces tags pointent vers
+des index d'artefacts `application/vnd.dev.sigstore.bundle.v0.3+json`, pas vers
+les images exécutables. Ils sont nécessaires à la découverte des signatures.
+Leur suppression casserait la vérification Cosign standard. Ce comportement a
+été constaté par interrogation anonyme des dix packages publiés.
 
 Les résultats historiques de `0.0.0-bootstrap` concernent la précédente
 architecture à cinq images et ne valident pas cette migration.

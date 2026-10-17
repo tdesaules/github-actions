@@ -3,7 +3,7 @@
 ## Images minimales
 
 Toutes les étapes finales utilisent `FROM scratch`. Le wrapper Go est statique.
-Syft, Grype et Cosign sont copiés depuis des images amont épinglées. Buildah et
+Les cinq outils sont reconstruits depuis leurs sources amont épinglées. Buildah et
 Skopeo sont accompagnés de leurs bibliothèques dynamiques réellement résolues,
 des certificats et configurations nécessaires. Buildah embarque aussi crun,
 netavark et aardvark-dns. Aucun compilateur ni shell n'est copié dans l'image finale.
@@ -33,16 +33,17 @@ Avant la première publication, un changement d'action seul ne peut pas tirer un
 image épinglée inexistante : effectuer une qualification bootstrap complète.
 
 La matrice couvre composant × architecture, avec `fail-fast: false` et
-`max-parallel: 2`. GitHub limite une matrice à 256 jobs ; le parallélisme effectif
+`max-parallel: 4`. GitHub limite une matrice à 256 jobs ; le parallélisme effectif
 dépend des runners disponibles. Les résultats sont des fichiers par composant
 et architecture, jamais un output matriciel partagé.
 
 ## Ajouter une opération ou un outil
 
 1. Créer `oci/<verbe-approuvé>-<nom>/action.yml` et son README.
-2. Réutiliser l'image de l'outil si elle existe ; sinon ajouter un Containerfile
-   multi-stage avec bases épinglées et étape finale scratch, et `.containerignore`.
-3. Ajouter une opération explicite au wrapper, sans interprétation de commande.
+2. Ajouter son propre Containerfile multi-stage avec bases épinglées et étape
+   finale scratch. Son image se nomme `oci-<verbe-approuvé>-<nom>`.
+3. Ajouter son `main.go` fixant l'opération et ses arguments autorisés, sans
+   sélecteur d'opération à l'exécution ni interprétation de commande.
 4. Ajouter fixtures positives/négatives et tests de scripts, d'image et d'action.
 5. Ajouter un step `uses:` explicite dans `main.yml` pour le test GitHub natif :
    GitHub n'accepte pas un chemin `uses:` calculé à partir de la matrice.

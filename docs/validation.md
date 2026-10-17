@@ -1,6 +1,12 @@
 # Validation du catalogue
 
-## État actuel
+## Images spécialisées
+
+La qualification réussie des dix images spécialisées est suivie dans
+[Images spécialisées par action](action-images.md). Les résultats ci-dessous
+concernent l'architecture historique à cinq images.
+
+## Résultats historiques
 
 La [dernière qualification complète 39037204784](https://github.com/tdesaules/github-actions/actions/runs/39037204784)
 du commit `b3a4ec7` est réussie : contrôles, lint et dix variantes construites,

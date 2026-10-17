@@ -7,10 +7,10 @@
   `ubuntu-24.04-arm`. Vérifier l'accès à ces labels pour le dépôt et son plan GitHub.
 - Aucun Buildah ou Skopeo installé sur l'hôte, aucun socket monté dans les actions.
 - Les actions ne lancent pas de daemon Docker interne.
-- Les deux opérations Buildah utilisent un lanceur composite Python 3/Docker
+- L'action `build-image` utilise un lanceur composite Python 3/Docker
   avec `--security-opt=seccomp=unconfined` et
   `--security-opt=apparmor=unconfined`, qualifié sur les deux runners hébergés.
-  Les huit autres opérations sont des actions Docker natives.
+  Les neuf autres opérations sont des actions Docker natives.
 - Accès réseau aux registres amont, GHCR et, selon l'opération, aux services
   Anchore/Sigstore/GitHub.
 
