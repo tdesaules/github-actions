@@ -161,24 +161,22 @@ jobs:
           python3 scripts/images.py test-image --image "$IMAGE" --version "$VERSION"
           python3 scripts/images.py new-candidate-actions --image "$IMAGE" --version "$VERSION"
           python3 scripts/testing.py --prepare "$PWD/.build/fixtures"
-      - name: Test native build action
+      - name: Test qualified Buildah container
         if: matrix.image == 'buildah'
-        uses: ./.candidate-actions/build-image
-        with:
-          context: .build/fixtures/fixture with spaces
-          containerfile: .build/fixtures/fixture with spaces/Containerfile
-          image: localhost/fixture
-          version: 0.0.0-bootstrap
-          platform: linux/${{ matrix.arch }}
-          output: .build/fixtures/result with spaces.oci.tar
+        run: python3 scripts/testing.py --image buildah --version "$VERSION"
       - name: Test native index input validation
         if: matrix.image == 'buildah'
         id: invalid-index
         continue-on-error: true
-        uses: ./.candidate-actions/merge-image-index
-        with:
-          sources: '[]'
-          destination: docker://invalid.example/fixture:0.0.0-bootstrap
+        run: |
+          python3 - <<'PY'
+          import os, sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          from images import container, local_ref
+          container(local_ref('buildah', os.environ['VERSION']), 'merge-image-index', Path.cwd(),
+                    {'sources': '[]', 'destination': 'docker://invalid.example/fixture:0.0.0-bootstrap'})
+          PY
       - name: Test native import action
         if: matrix.image == 'skopeo'
         uses: ./.candidate-actions/import-image
@@ -262,6 +260,7 @@ jobs:
             .build/${{ matrix.image }}/${{ matrix.arch }}/image.oci.tar
             .build/${{ matrix.image }}/${{ matrix.arch }}/*.json
           if-no-files-found: error
+          include-hidden-files: true
 
   release:
     needs: [check, lint, build]

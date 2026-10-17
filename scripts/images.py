@@ -31,6 +31,11 @@ def architecture():
     return {"x86_64": "amd64", "aarch64": "arm64"}[platform.machine()]
 
 
+def builder_options():
+    # Qualified on hosted Ubuntu AMD64/ARM64; scope only to Buildah containers.
+    return ['--security-opt=seccomp=unconfined', '--security-opt=apparmor=unconfined'] if ENGINE == 'docker' else []
+
+
 def local_ref(image, version):
     return f"localhost/github-actions/{image}:{version}"
 
@@ -62,6 +67,8 @@ def mount(path, target, readonly=False):
 
 def container(ref, operation, workspace, inputs=None, extra=None):
     cmd = [ENGINE, "run", "--rm", "-v", mount(workspace, "/github/workspace"), "-w", "/github/workspace"]
+    if operation in ('build-image', 'merge-image-index'):
+        cmd += builder_options()
     # Root in rootless Podman maps to the invoking host user. No privileged mode.
     env = os.environ.copy()
     for key, value in (inputs or {}).items():
@@ -89,7 +96,7 @@ def build(image, version, direct=False):
         workspace = Path(tmp)
         shutil.copytree(ROOT, workspace / "source", ignore=shutil.ignore_patterns(".git", ".build", ".candidate-actions", "__pycache__"))
         if image == "buildah":
-            command = [ENGINE, "run", "--rm", "--user=0", "-v", mount(workspace, "/workspace"), "-w", "/workspace/source", "--entrypoint=/bin/sh", BOOTSTRAP,
+            command = [ENGINE, "run", "--rm", *builder_options(), "--user=0", "-v", mount(workspace, "/workspace"), "-w", "/workspace/source", "--entrypoint=/bin/sh", BOOTSTRAP,
                        "-ec", 'buildah --storage-driver=vfs bud --isolation=chroot --network=host --format=oci --label "org.opencontainers.image.version=$3" --label "org.opencontainers.image.revision=$4" -f "$1" -t "$2" .; buildah --storage-driver=vfs push "$2" oci-archive:/workspace/image.oci.tar',
                        "bootstrap", owners[image]+"/Containerfile", ref, version, revision]
             run(*command)
