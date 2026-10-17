@@ -1,0 +1,38 @@
+#!/bin/sh
+# Rebuild pinned upstream source with explicitly selected dependency fixes.
+set -eu
+mkdir -p /runtime/tmp
+chmod 1777 /runtime/tmp
+module=$1
+version=$2
+checksum=$3
+command=$4
+shift 4
+go mod download -json "$module@$version" > /tmp/module.json
+grep -F "\"Sum\": \"$checksum\"" /tmp/module.json
+mkdir -p /tool-source
+cp -R "$(go env GOPATH)/pkg/mod/$module@$version/." /tool-source/
+chmod -R u+w /tool-source
+cd /tool-source
+for requirement in "$@"; do
+  go mod edit "-require=$requirement"
+done
+if [ "$command" = buildah ] || [ "$command" = skopeo ] || [ "$command" = cosign ]; then
+  go mod edit -require=google.golang.org/grpc@v1.83.2
+fi
+if [ "$command" = buildah ] || [ "$command" = skopeo ]; then
+  # New securejoin/go-archive APIs require their callers to move in lockstep.
+  go mod edit -require=go.podman.io/storage@v1.64.2
+fi
+if [ "$command" = buildah ]; then
+  go mod edit -require=github.com/fsouza/go-dockerclient@v1.13.3
+fi
+linkflags=''
+cgo=0
+if [ "$command" = buildah ]; then
+  # Namespace setup uses a C constructor before Go starts; disabling CGO
+  # otherwise makes the reexec path recurse without entering the namespace.
+  cgo=1
+  linkflags='-linkmode external -extldflags -static'
+fi
+CGO_ENABLED=$cgo go build -p 2 -tags "${BUILDTAGS:-}" -mod=mod -trimpath -ldflags="-s -w $linkflags -X main.version=${version#v} -X main.gitDescription=$version -X sigs.k8s.io/release-utils/version.gitVersion=$version" -o /tool "./cmd/$command"

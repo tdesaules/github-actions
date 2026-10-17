@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the Docker-action metadata subset used by this repository."""
+"""Validate native actions and the narrowly scoped Buildah composite exception."""
 from pathlib import Path
 import re
 
@@ -32,9 +32,16 @@ def validate(path):
     if unknown:
         raise ValueError(f"{path}: unknown metadata fields {unknown}")
     runs = data["runs"]
-    if runs.get("using") != "docker" or not runs.get("image", "").startswith("docker://"):
+    builder = path.parent.name in ('build-image', 'merge-image-index')
+    if builder:
+        if runs.get('using') != 'composite' or len(runs.get('steps', [])) != 1:
+            raise ValueError(f'{path}: Buildah requires the qualified launcher')
+        env = runs['steps'][0]['env']
+        if env['BUILDER_OPERATION'] != path.parent.name or not env['BUILDER_IMAGE'].startswith('docker://'):
+            raise ValueError(f'{path}: invalid builder image or operation')
+    elif runs.get("using") != "docker" or not runs.get("image", "").startswith("docker://"):
         raise ValueError(f"{path}: must be a native prebuilt Docker action")
-    if runs.get("args") != [path.parent.name]:
+    if not builder and runs.get("args") != [path.parent.name]:
         raise ValueError(f"{path}: entrypoint operation must match action directory")
     for field in ("inputs", "outputs"):
         for name, spec in data.get(field, {}).items():

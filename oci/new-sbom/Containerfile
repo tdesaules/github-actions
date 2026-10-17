@@ -4,13 +4,14 @@ COPY go.mod ./
 COPY shared/runtime/ ./shared/runtime/
 RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w -X main.tool=syft' -o /entrypoint ./shared/runtime
 
-FROM docker.io/anchore/syft:v1.54.1@sha256:3eb5379ba7b409c3f4069b686110527af0c47df993fa5c10d13e7cf34f49b1aa AS upstream
+FROM entrypoint AS upstream
+RUN sh shared/runtime/compile-tool.sh github.com/anchore/syft v1.54.1 h1:IdNS5Ha7WfatXHDL0qzjdf7DBVnfb8OI3FpSbltv0nc= syft golang.org/x/net@v0.60.0
 
 FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
-COPY --from=upstream /syft /usr/bin/syft
+COPY --from=upstream /tool /usr/bin/syft
 COPY --from=entrypoint /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=entrypoint --chmod=1777 /tmp /tmp
+COPY --from=upstream /runtime/ /
 COPY --from=entrypoint /entrypoint /entrypoint
 ENV PATH=/usr/bin HOME=/tmp SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt SYFT_CHECK_FOR_APP_UPDATE=false
 # Entrypoint adopts the runner UID for writable bind mounts.

@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """Rescan both published variants, updating Grype's DB explicitly."""
-import json
 import subprocess
 
 from ci import ROOT, IMAGE, discover
-from images import ENGINE, mount, run
-from reports import SYFT, GRYPE
+from reports import reports
 
 
 def main():
@@ -19,13 +17,8 @@ def main():
         for arch in ("amd64", "arm64"):
             out = ROOT / ".build/maintenance" / image / arch
             out.mkdir(parents=True, exist_ok=True)
-            bind = mount(out.resolve(), "/reports")
             try:
-                run(ENGINE, "run", "--rm", "--user=0", "-v", bind, SYFT, "scan", "registry:"+reference, "--platform", "linux/"+arch, "-o", "spdx-json=/reports/sbom.spdx.json")
-                command = [ENGINE, "run", "--rm", "--user=0", "-v", bind, "-e", "GRYPE_DB_CACHE_DIR=/reports/db", GRYPE]
-                run(*command, "db", "update")
-                (out / "database.json").write_bytes(subprocess.check_output(command+["db", "status", "-o", "json"]))
-                run(*command, "sbom:/reports/sbom.spdx.json", "--fail-on", "high", "-o", "json", "--file", "/reports/grype.json")
+                reports(out, 'registry:'+reference, 'linux/'+arch)
             except subprocess.CalledProcessError:
                 failures.append(image+"/"+arch)
     if failures:

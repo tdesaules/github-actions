@@ -43,7 +43,7 @@ tasks:
     desc: Parse and validate native Docker metadata in an ephemeral validator container
     cmds:
       - >-
-        {{default "podman" .CONTAINER_ENGINE}} run --rm -v "$PWD:/repo:ro" -w /repo
+        {{default "podman" .CONTAINER_ENGINE}} run --rm -v "$PWD:/repo:ro,z" -w /repo
         docker.io/library/python:3.14.0-alpine3.22@sha256:8373231e1e906ddfb457748bfc032c4c06ada8c759b7b62d9c73ec2a3c56e710
         sh -ec 'pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: --no-deps PyYAML==6.0.3; python scripts/validate-actions.py'
   publish-bootstrap:

@@ -128,17 +128,23 @@ def candidates(image, version):
         text = (ROOT / directory / "action.yml").read_text()
         # Native Docker actions pull docker:// references even if already loaded.
         # A temporary Dockerfile uses the locally loaded candidate instead.
-        text = IMAGE.sub("  image: Dockerfile", text)
+        if tool == 'buildah':
+            text = IMAGE.sub('        BUILDER_IMAGE: docker://'+local_ref(tool, version), text)
+        else:
+            text = IMAGE.sub("  image: Dockerfile", text)
         (target / "action.yml").write_text(text)
         (target / "Dockerfile").write_text("FROM "+local_ref(tool, version)+"\n")
 
 
 def metadata(image, version):
+    from oci_archive import check_temporary_directory
     directory = ROOT / ".build" / image / architecture()
     archive = directory / "image.oci.tar"
+    check_temporary_directory(archive)
     with archive.open("rb") as stream:
         checksum = hashlib.file_digest(stream, "sha256").hexdigest()
     data = {"image": image, "arch": architecture(), "version": version,
+            "revision": subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
             "archive_sha256": checksum,
             "tested": True}
     (directory / "metadata.json").write_text(json.dumps(data, indent=2)+"\n")

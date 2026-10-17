@@ -28,3 +28,18 @@ def inspect_archive(path):
         if config.get("os") != "linux" or config.get("architecture") not in ("amd64", "arm64"):
             raise ValueError("archive must contain linux/amd64 or linux/arm64")
         return {"digest": index["manifests"][0]["digest"], "image_id": manifest["config"]["digest"], "arch": config["architecture"]}
+
+
+def check_temporary_directory(path):
+    """Check the delivered layer metadata, not the assembly-stage permissions."""
+    mode = None
+    with tarfile.open(path) as archive:
+        index = json.load(archive.extractfile('index.json'))
+        manifest = json.load(archive.extractfile('blobs/sha256/'+index['manifests'][0]['digest'].split(':')[1]))
+        for descriptor in manifest['layers']:
+            with tarfile.open(fileobj=archive.extractfile('blobs/sha256/'+descriptor['digest'].split(':')[1])) as layer:
+                for entry in layer:
+                    if entry.name.rstrip('/') == 'tmp':
+                        mode = entry.mode
+    if mode != 0o1777:
+        raise ValueError(f'{path}: /tmp must be 01777 for the runner UID, got {mode!r}')

@@ -33,9 +33,17 @@ inputs:
 outputs:
   archive:
     description: Absolute archive path inside the workspace mount
+    value: ${{ steps.builder.outputs.archive }}
   archive-sha256:
     description: SHA-256 of the archive file, not the image manifest
+    value: ${{ steps.builder.outputs.archive-sha256 }}
 runs:
-  using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/buildah:0.0.0-bootstrap
-  args: [build-image]
+  using: composite
+  steps:
+    - id: builder
+      shell: bash
+      env:
+        BUILDER_IMAGE: docker://ghcr.io/tdesaules/github-actions/buildah:0.0.0-bootstrap
+        BUILDER_OPERATION: build-image
+        BUILDER_INPUTS: ${{ toJSON(inputs) }}
+      run: python3 "$GITHUB_ACTION_PATH/../../shared/run-builder.py"

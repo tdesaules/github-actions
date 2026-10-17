@@ -1,8 +1,10 @@
 # GitHub Docker actions — socle OCI
 
-Actions **Docker natives** (`runs.using: docker`), exécutées directement par le
-runner GitHub. Aucun wrapper composite, aucun socket moteur monté, aucune
-installation de Buildah/Skopeo/Syft/Grype/Cosign sur le runner consommateur.
+Huit actions **Docker natives** (`runs.using: docker`) et deux actions Buildah
+utilisant un lanceur composite avec le profil Docker qualifié sur les runners
+hébergés. Aucun socket moteur monté dans les conteneurs, aucune installation de
+Buildah/Skopeo/Syft/Grype/Cosign sur le runner consommateur. Le lanceur Buildah
+utilise Docker et Python 3, présents sur les runners Ubuntu GitHub.
 
 ## État du premier lot
 

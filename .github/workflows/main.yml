@@ -122,7 +122,7 @@ jobs:
       needs.lint.result == 'success' && needs.check.outputs.has-work == 'true'
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 4
       matrix: ${{ fromJSON(needs.check.outputs.matrix) }}
     runs-on: ${{ matrix.runner }}
     permissions:
@@ -150,7 +150,7 @@ jobs:
           import os, re, subprocess
           from pathlib import Path
           text = Path(os.environ['DIRECTORY'], 'action.yml').read_text()
-          reference = re.search(r'^  image: docker://(\S+)$', text, re.M)[1]
+          reference = re.search(r'^(?:  image|        BUILDER_IMAGE): docker://(\S+)$', text, re.M)[1]
           if '@sha256:' not in reference:
               raise SystemExit('Action-only test requires published digests. Run bootstrap first.')
           subprocess.run(['docker', 'pull', reference], check=True)
@@ -164,6 +164,16 @@ jobs:
       - name: Test qualified Buildah container
         if: matrix.image == 'buildah'
         run: python3 scripts/testing.py --image buildah --version "$VERSION"
+      - name: Test public Buildah launcher
+        if: matrix.image == 'buildah'
+        uses: ./.candidate-actions/build-image
+        with:
+          context: .build/fixtures/fixture with spaces
+          containerfile: .build/fixtures/fixture with spaces/Containerfile
+          image: localhost/fixture
+          version: 0.0.0-bootstrap
+          platform: linux/${{ matrix.arch }}
+          output: .build/fixtures/public.oci.tar
       - name: Test native index input validation
         if: matrix.image == 'buildah'
         id: invalid-index

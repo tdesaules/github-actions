@@ -12,7 +12,7 @@ from oci_archive import inspect_archive
 
 ROOT = Path(__file__).resolve().parents[1]
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$")
-IMAGE = re.compile(r"^  image: docker://([^\s]+)$", re.M)
+IMAGE = re.compile(r"^(?:  image|        BUILDER_IMAGE): docker://([^\s]+)$", re.M)
 
 
 def git(*args):
@@ -46,9 +46,11 @@ def select(paths, full=False, root=ROOT):
         images.update(owners)
         selected_actions.update(actions)
     for path in paths:
-        if path.startswith(".github/workflows/"):
+        if path.startswith(".github/workflows/") or path == 'grype-review.json':
             selected_actions.update(actions)
-        if path.startswith(("shared/", "scripts/", "tasks/")) or path in ("go.mod", "go.sum", ".containerignore", ".dockerignore", "taskfile.yml"):
+        if path == 'shared/run-builder.py':
+            selected_actions.update(a for a, tool in actions.items() if tool == 'buildah')
+        elif path.startswith(("shared/", "scripts/", "tasks/")) or path in ("go.mod", "go.sum", ".containerignore", ".dockerignore", "taskfile.yml"):
             images.update(owners)
             selected_actions.update(actions)
         for directory, image in actions.items():
@@ -140,9 +142,14 @@ def main():
             text = (ROOT / directory / "Containerfile").read_text()
             if "FROM scratch AS final" not in text:
                 raise ValueError(f"{name}: final stage must use scratch")
+            stages = set()
             for line in text.splitlines():
-                if line.startswith("FROM ") and not line.startswith("FROM scratch ") and "@sha256:" not in line:
-                    raise ValueError(f"{name}: unpinned base")
+                if line.startswith('FROM '):
+                    words = line.split()
+                    if words[1] != 'scratch' and words[1] not in stages and '@sha256:' not in words[1]:
+                        raise ValueError(f"{name}: unpinned base")
+                    if len(words) == 4 and words[2].upper() == 'AS':
+                        stages.add(words[3])
         print(f"Validated {len(actions)} Docker actions and {len(owners)} scratch image definitions")
         return
     event = os.environ.get("GITHUB_EVENT_NAME", "push")

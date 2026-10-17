@@ -1,5 +1,16 @@
 # Validation effectuée localement
 
+## Itération en cours
+
+Le run `39030971131` confirme que les tests Buildah passent sur les deux
+architectures ; ses jobs Buildah échouent ensuite au scan. La reconstruction
+locale de Syft avec Go 1.27.2 et les dépendances corrigées passe ses tests et le
+seuil Grype `high`. Les reconstructions des autres outils et la nouvelle
+qualification complète sont en cours. Les résultats des sections suivantes
+décrivent les versions antérieures. Aucun résultat local ne vaut publication.
+
+Voir la [méthode de correction et de revue](dependency-remediation.md).
+
 ## Complément : chemin Buildah validé sur GitHub
 
 Les campagnes `39030091316` et `39030331639` ont qualifié les runners hébergés

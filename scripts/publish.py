@@ -113,7 +113,7 @@ def main():
         for action, image in sorted(actions.items()):
             path = ROOT / action / "action.yml"
             old = path.read_text()
-            new = IMAGE.sub("  image: docker://"+state["images"][image]["reference"], old)
+            new = IMAGE.sub(lambda m: m[0].replace(m[1], state["images"][image]["reference"]), old)
             patch.extend(difflib.unified_diff(old.splitlines(True), new.splitlines(True), fromfile="a/"+str(path.relative_to(ROOT)), tofile="b/"+str(path.relative_to(ROOT))))
         (directory / "action-digests.patch").write_text("".join(patch))
 

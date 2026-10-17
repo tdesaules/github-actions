@@ -15,6 +15,12 @@ inputs:
   registry-password:
     description: Registry token
 runs:
-  using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/buildah:0.0.0-bootstrap
-  args: [merge-image-index]
+  using: composite
+  steps:
+    - id: builder
+      shell: bash
+      env:
+        BUILDER_IMAGE: docker://ghcr.io/tdesaules/github-actions/buildah:0.0.0-bootstrap
+        BUILDER_OPERATION: merge-image-index
+        BUILDER_INPUTS: ${{ toJSON(inputs) }}
+      run: python3 "$GITHUB_ACTION_PATH/../../shared/run-builder.py"
