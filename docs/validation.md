@@ -2,6 +2,10 @@
 
 ## État actuel
 
+La [dernière qualification complète 39037204784](https://github.com/tdesaules/github-actions/actions/runs/39037204784)
+du commit `b3a4ec7` est réussie : contrôles, lint et dix variantes construites,
+testées et scannées. Les images déjà publiées et leurs digests restent inchangés.
+
 Le [bootstrap 39034741897](https://github.com/tdesaules/github-actions/actions/runs/39034741897)
 du commit `644bb15` est **entièrement réussi** : les dix builds/tests/scans
 natifs, puis la publication des archives testées, sans reconstruction.
@@ -26,6 +30,17 @@ est réussi pour les dix variantes, toutes avec `rebuild: false`. Il tire les
 images GHCR épinglées puis réexécute les tests d'actions sur les deux architectures,
 sans reconstruire les images du catalogue. Cela valide le parcours des changements
 limités aux métadonnées d'action après la première publication.
+
+Le [run documentaire 39036695371](https://github.com/tdesaules/github-actions/actions/runs/39036695371)
+est réussi avec `build` ignoré : une modification documentaire ne reconstruit
+aucune image.
+
+La [maintenance hébergée 39037204658](https://github.com/tdesaules/github-actions/actions/runs/39037204658)
+est réussie : rescans des dix variantes publiées avec une base Grype partagée,
+actualisée une seule fois, et contrôle HTTP des liens. Le même parcours local
+réussit avec dix rapports et aucune correspondance High/Critical non écartée.
+Le premier essai local avait saturé le disque en dupliquant la base par variante ;
+le cache partagé corrige ce problème et reste exclu des artefacts de rapports.
 
 ## Historique des itérations
 
