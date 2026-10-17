@@ -1,0 +1,8 @@
+name: Qualify native Buildah
+description: Exercise Buildah under the actual GitHub Docker action runtime
+runs:
+  using: docker
+  image: docker://quay.io/buildah/stable@sha256:07e637ad7a1df37f44afea8287935b350224ac193d63e5cc96debb50a366853c
+  args:
+    - /bin/sh
+    - tests/runner/build.sh

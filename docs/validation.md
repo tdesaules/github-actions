@@ -1,5 +1,19 @@
 # Validation effectuée localement
 
+## Première qualification GitHub
+
+Le commit `3209df8` a été poussé sur `main` et exécuté dans le
+[run 39029565392](https://github.com/tdesaules/github-actions/actions/runs/39029565392).
+Les jobs `check` et `lint` passent. Les dix variantes de build échouent au
+bootstrap Buildah sur les runners hébergés AMD64 et ARM64. Le journal AMD64
+confirme `Error during unshare(CLONE_NEWUSER): Operation not permitted`.
+Les actions candidates, scans et publication ne sont donc pas atteints.
+Les erreurs d'upload d'artefacts sont secondaires : aucune archive n'a été créée.
+
+Le profil Docker hébergé testé ne permet pas ce bootstrap. Il faut qualifier
+un profil de runner autorisant les namespaces nécessaires avant de pouvoir
+publier. Les résultats locaux ci-dessous ne constituent pas cette qualification.
+
 Date : 17 octobre 2026. Hôte Linux AMD64, Podman 5.8.7 rootless.
 La commande locale `docker` est un alias d'émulation Podman : aucun daemon
 Docker réel ni runner GitHub n'a été utilisé pour ces résultats.

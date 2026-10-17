@@ -6,6 +6,10 @@ on:
     tags: ['*']
   workflow_dispatch:
     inputs:
+      qualify-runner:
+        description: Compare Docker profiles and native actions on both hosted architectures
+        type: boolean
+        default: false
       publish-bootstrap:
         description: Publish all tested 0.0.0-bootstrap images (main only)
         type: boolean
@@ -30,7 +34,11 @@ env:
 jobs:
   check:
     if: github.event_name != 'schedule'
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ${{ inputs.qualify-runner && fromJSON('["ubuntu-24.04", "ubuntu-24.04-arm"]') || fromJSON('["ubuntu-24.04"]') }}
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
     outputs:
@@ -54,7 +62,33 @@ jobs:
           go test ./shared/runtime
       - name: Select mode and dynamic matrix
         id: select
+        if: '!inputs.qualify-runner'
         run: python3 scripts/ci.py select
+      - name: Compare Docker runtime profiles
+        if: inputs.qualify-runner
+        run: python3 scripts/qualify-runner.py
+      - name: Qualify actual native Docker action
+        if: inputs.qualify-runner
+        id: native
+        continue-on-error: true
+        uses: ./tests/runner
+      - name: Record native action outcome
+        if: always() && inputs.qualify-runner
+        env:
+          OUTCOME: ${{ steps.native.outcome }}
+        run: |
+          mkdir -p .build/qualification
+          echo "$OUTCOME" > .build/qualification/native-outcome.txt
+      - name: Upload qualification evidence
+        if: always() && inputs.qualify-runner
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: qualification-${{ matrix.runner }}
+          path: |
+            .build/qualification/*.log
+            .build/qualification/*.json
+            .build/qualification/*.txt
+          include-hidden-files: true
 
   lint:
     needs: check
