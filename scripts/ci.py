@@ -158,6 +158,16 @@ def main():
     after = os.environ.get("GITHUB_SHA") or git("rev-parse", "HEAD")
     paths = args.paths
     full = pipeline_mode == "prepare"
+    plan_path = ROOT / '.build/publication/release-plan.json'
+    if pipeline_mode == 'prepare' and plan_path.exists():
+        plan = json.loads(plan_path.read_text())
+        if plan['base'] != after:
+            raise ValueError('release plan does not match checkout')
+        if not plan['changed']:
+            full, paths = False, []
+        elif plan['previous']:
+            full = False
+            paths = changed_paths(plan['previous'], after)
     if pipeline_mode == "development" and not paths:
         payload = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text()) if os.environ.get("GITHUB_EVENT_PATH") else {}
         before = payload.get("before", "")

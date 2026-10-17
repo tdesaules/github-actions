@@ -46,6 +46,8 @@ jobs:
       matrix: ${{ steps.select.outputs.matrix }}
       has-work: ${{ steps.select.outputs.has-work }}
       version: ${{ steps.select.outputs.version }}
+      release-version: ${{ steps.plan.outputs.release-version }}
+      release-changed: ${{ steps.plan.outputs.release-changed }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -60,6 +62,17 @@ jobs:
           docker run --rm -v "$PWD:/src:ro" -w /src
           docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d
           go test ./shared/runtime
+      - name: Plan semantic release
+        id: plan
+        if: github.event_name == 'workflow_dispatch' && !inputs.qualify-runner && !inputs.publish-bootstrap
+        run: python3 scripts/release.py plan
+      - name: Retain release plan
+        if: steps.plan.outputs.release-changed == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-plan
+          path: .build/publication/release-plan.json
+          include-hidden-files: true
       - name: Select mode and dynamic matrix
         id: select
         if: '!inputs.qualify-runner'
@@ -114,6 +127,8 @@ jobs:
           for file in oci/*/Containerfile; do
             docker run --rm -i docker.io/hadolint/hadolint:v2.14.0@sha256:27086352fd5e1907ea2b934eb1023f217c5ae087992eb59fde121dce9c9ff21e < "$file"
           done
+      - name: Validate TOML configuration
+        run: python3 -c 'import tomllib; tomllib.load(open("cliff.toml", "rb"))'
 
   build:
     needs: [check, lint]
@@ -277,11 +292,11 @@ jobs:
     if: >-
       always() && !cancelled() && needs.check.result == 'success' &&
       needs.lint.result == 'success' &&
-      ((needs.check.outputs.mode == 'prepare' && needs.build.result == 'success' && inputs.publish-bootstrap) ||
+      ((needs.check.outputs.mode == 'prepare' && (needs.build.result == 'success' || needs.check.outputs.has-work == 'false') && (inputs.publish-bootstrap || needs.check.outputs.release-changed == 'true')) ||
        needs.check.outputs.mode == 'release')
     runs-on: ubuntu-24.04
     permissions:
-      contents: read
+      contents: write
       packages: write
       id-token: write
     concurrency:
@@ -295,11 +310,37 @@ jobs:
       - name: Reject premature release tags
         if: needs.check.outputs.mode == 'release'
         run: python3 scripts/verify-release.py
+      - name: Publish verified GitHub Release
+        if: needs.check.outputs.mode == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release already exists: $RELEASE_TAG"
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --title "$RELEASE_TAG" --notes-file CHANGELOG.md
+          fi
+      - name: Create release App token
+        id: app
+        if: needs.check.outputs.mode == 'prepare' && !inputs.publish-bootstrap
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
       - name: Download tested matrix artifacts
         if: needs.check.outputs.mode == 'prepare'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: oci-*
+          path: .build/publication
+      - name: Download release plan
+        if: needs.check.outputs.mode == 'prepare' && !inputs.publish-bootstrap
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: release-plan
           path: .build/publication
       - name: Publish bootstrap, verify and prepare digest patch
         if: needs.check.outputs.mode == 'prepare'
@@ -308,10 +349,20 @@ jobs:
           GHCR_USERNAME: ${{ github.actor }}
           OWNER: ${{ github.repository_owner }}
           SIGN: ${{ inputs.sign }}
+          RELEASE_VERSION: ${{ inputs.publish-bootstrap && '0.0.0-bootstrap' || needs.check.outputs.release-version }}
         run: |
           args=()
-          if [ "$SIGN" = true ]; then args+=(--sign); fi
-          python3 scripts/publish.py .build/publication --owner "${OWNER,,}" "${args[@]}"
+          if [ "$SIGN" = true ] || [ "$RELEASE_VERSION" != 0.0.0-bootstrap ]; then args+=(--sign); fi
+          python3 scripts/publish.py .build/publication --owner "${OWNER,,}" --version "$RELEASE_VERSION" "${args[@]}"
+      - name: Commit pins and atomically push release tag
+        if: needs.check.outputs.mode == 'prepare' && !inputs.publish-bootstrap
+        env:
+          RELEASE_APP_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0=http.https://github.com/.extraheader
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$RELEASE_APP_TOKEN" | base64 -w0)"
+          python3 scripts/release.py finish
       - name: Retain publication journal and digest patch
         if: always() && needs.check.outputs.mode == 'prepare'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -321,7 +372,9 @@ jobs:
             .build/publication/publication.json
             .build/publication/action-digests.patch
             .build/publication/signatures/*.json
+            .build/publication/release-plan.json
           if-no-files-found: warn
+          include-hidden-files: true
 
   maintenance:
     if: github.event_name == 'schedule'

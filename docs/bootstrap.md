@@ -19,11 +19,14 @@ multiarchitecture si une seule architecture a été exécutée.
 ## Workflow
 
 - Push de branche : contrôles, lint du socle et sélection des builds/tests.
-- `workflow_dispatch` sur `main` : qualification complète des deux architectures.
+- `workflow_dispatch` sur `main` : préparation SemVer avec git-cliff ; première
+  release complète, puis sélection depuis le tag stable précédent et réutilisation
+  des digests inchangés. Sans changement publiable, aucune release n'est créée.
 - Option `publish-bootstrap` : publication après succès de tous les tests et scans.
 - Option `sign` (active par défaut) : signature keyless puis vérification exacte
   de l'identité et de l'émetteur, pour les deux manifestes et l'index.
-- Tag SemVer : validation des références déjà épinglées et de leurs signatures.
+- Tag SemVer : validation des références déjà épinglées et de leurs signatures,
+  puis création idempotente de la GitHub Release.
 - Schedule : rescans avec une base Grype actualisée ; pas de build ni publication.
 
 La publication recharge les archives déjà testées, vérifie leur checksum,
@@ -33,7 +36,10 @@ image n'est reconstruite pendant cette étape.
 Un artefact `action-digests.patch` est produit seulement après publication
 complète. L'appliquer depuis la racine avec `git apply`, examiner puis committer
 les références. Les actions restent non publiables tant que ce patch n'a pas été
-appliqué. Le workflow ne pousse pas de commit/tag à ce stade.
+appliqué. En mode bootstrap, le workflow ne pousse pas de commit/tag.
+En mode release SemVer, il applique le patch après publication et vérification,
+génère le changelog, puis pousse atomiquement le commit et le tag via une App.
+Ce chemin est implémenté ; sa qualification GitHub reste à terminer.
 
 ## Accès externes
 
@@ -49,11 +55,13 @@ appliqué. Le workflow ne pousse pas de commit/tag à ce stade.
 - Les actions keyless utilisent explicitement `ACTIONS_ID_TOKEN_REQUEST_URL` et
   `ACTIONS_ID_TOKEN_REQUEST_TOKEN`, avec audience `sigstore`. La publication les
   transmet au conteneur et échoue s'ils sont absents.
-- Une GitHub App n'est **pas encore nécessaire pour le bootstrap**, qui ne pousse
-  pas de tag. Elle sera nécessaire pour la préparation automatique des releases
-  ultérieures : permission Contents écriture, installation limitée à ce dépôt.
+- Une GitHub App n'est **pas nécessaire pour le bootstrap**, qui ne pousse
+  pas de tag. Pour les releases SemVer, configurer la variable `RELEASE_APP_ID`
+  et le secret `RELEASE_APP_PRIVATE_KEY`, avec Contents écriture et une
+  installation limitée à ce dépôt. Le token App permet au push du tag de
+  déclencher sa validation, contrairement à un push avec `GITHUB_TOKEN`.
 
-Aucun secret App fictif n'est déclaré. En local, la publication exige
+Ces identifiants App ne sont pas encore configurés dans ce dépôt. En local, la publication exige
 `GHCR_TOKEN`, `GHCR_USERNAME`, les artefacts validés des deux architectures et :
 
 ```bash

@@ -8,7 +8,7 @@ from pathlib import Path
 import re
 import subprocess
 
-from ci import ROOT, IMAGE, aggregate, discover
+from ci import ROOT, IMAGE, SEMVER, aggregate, discover
 from images import ENGINE, container, local_ref, load_archive, mount, run
 
 
@@ -27,17 +27,32 @@ def main():
     args = parser.parse_args()
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", args.owner):
         raise ValueError("owner must be lowercase GitHub owner")
-    if args.version != "0.0.0-bootstrap":
-        raise ValueError("this first-lot publisher only publishes 0.0.0-bootstrap; semantic release preparation is a subsequent milestone")
+    if not SEMVER.fullmatch(args.version) or '+' in args.version:
+        raise ValueError('version must be SemVer without v or registry-incompatible build metadata')
+    if args.version != '0.0.0-bootstrap' and not args.sign:
+        raise ValueError('catalogue releases require signatures')
     directory = args.directory.resolve()
     paths = sorted(directory.glob("**/metadata.json"))
     results = aggregate(paths)
+    revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    if any(r.get('revision') != revision for r in results):
+        raise ValueError('publication artifacts must come from this exact source revision')
+    if len({r['version'] for r in results}) > 1:
+        raise ValueError('publication artifacts mix candidate versions')
     _, owners = discover()
-    if {r["image"] for r in results} != set(owners):
+    changed = {r['image'] for r in results}
+    if args.version == '0.0.0-bootstrap' and changed != set(owners):
         raise ValueError("bootstrap publication requires all images on both architectures")
     locations = {(json.loads(p.read_text())["image"], json.loads(p.read_text())["arch"]): p.parent for p in paths}
     for image in ("skopeo", "buildah", "cosign"):
-        load_archive(locations[(image, "amd64")] / "image.oci.tar", local_ref(image, args.version))
+        if image in changed:
+            load_archive(locations[(image, "amd64")] / "image.oci.tar", local_ref(image, args.version))
+        else:
+            reference = IMAGE.search((ROOT / owners[image] / 'action.yml').read_text())[1]
+            if '@sha256:' not in reference:
+                raise ValueError(f'{image}: missing tested image or published immutable reference')
+            run(ENGINE, 'pull', reference)
+            run(ENGINE, 'tag', reference, local_ref(image, args.version))
     token = os.environ["GHCR_TOKEN"]
     username = os.environ["GHCR_USERNAME"]
     common = {"registry": "ghcr.io", "registry-username": username, "registry-password": token}
@@ -68,6 +83,22 @@ def main():
 
         state = {"version": args.version, "images": {}}
         for image in sorted(owners):
+            if image not in changed:
+                reference = IMAGE.search((ROOT / owners[image] / 'action.yml').read_text())[1]
+                if '@sha256:' not in reference:
+                    raise ValueError(f'{image}: unchanged image is not pinned')
+                index = raw('docker://'+reference)
+                if 'sha256:'+hashlib.sha256(index).hexdigest() != reference.split('@')[1]:
+                    raise ValueError('reused index digest mismatch')
+                children = {m['platform']['architecture']: m['digest'] for m in json.loads(index)['manifests']}
+                if set(children) != {'amd64', 'arm64'}:
+                    raise ValueError('reused image is missing an architecture')
+                identity = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/.github/workflows/main.yml@refs/heads/main"
+                for value in [reference, *[reference.split('@')[0]+'@'+d for d in children.values()]]:
+                    call('cosign', 'test-image-signature', {'image': value, 'identity': identity, 'issuer': 'https://token.actions.githubusercontent.com', 'output': f'signatures/{image}-{value.split(":")[-1]}.json'})
+                state['images'][image] = {'reference': reference, 'platforms': children, 'signed': True, 'reused': True}
+                (directory / 'publication.json').write_text(json.dumps(state, indent=2)+'\n')
+                continue
             repository = f"ghcr.io/{args.owner}/github-actions/{image}"
             archives = []
             child_digests = {}
