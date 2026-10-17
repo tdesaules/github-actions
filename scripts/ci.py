@@ -181,6 +181,9 @@ def main():
         if not full:
             paths = changed_paths(before, after)
     matrix = select(paths, full) if pipeline_mode in ("development", "prepare") else {"include": []}
+    if pipeline_mode == 'prepare' and os.environ.get('ARTIFACT_RUN_ID'):
+        # The workflow validates the source run before selecting this empty matrix.
+        matrix = {'include': []}
     emit("mode", pipeline_mode)
     emit("matrix", matrix)
     emit("has-work", str(bool(matrix["include"])).lower())

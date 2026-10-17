@@ -18,6 +18,10 @@ on:
         description: Sign published bootstrap images using GitHub OIDC
         type: boolean
         default: true
+      artifact-run-id:
+        description: Reuse tested archives from a successful run at this exact main commit
+        type: string
+        default: ''
   schedule:
     - cron: '23 5 * * 1'
 
@@ -41,6 +45,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
+      actions: read
     outputs:
       mode: ${{ steps.select.outputs.mode }}
       matrix: ${{ steps.select.outputs.matrix }}
@@ -48,6 +53,7 @@ jobs:
       version: ${{ steps.select.outputs.version }}
       release-version: ${{ steps.plan.outputs.release-version }}
       release-changed: ${{ steps.plan.outputs.release-changed }}
+      artifact-pattern: ${{ steps.resume.outputs.artifact-pattern }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -73,9 +79,18 @@ jobs:
           name: release-plan
           path: .build/publication/release-plan.json
           include-hidden-files: true
+      - name: Validate publication artifact source
+        id: resume
+        if: github.event_name == 'workflow_dispatch' && inputs.artifact-run-id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_RUN_ID: ${{ inputs.artifact-run-id }}
+        run: python3 scripts/resume.py
       - name: Select mode and dynamic matrix
         id: select
         if: '!inputs.qualify-runner'
+        env:
+          ARTIFACT_RUN_ID: ${{ inputs.artifact-run-id }}
         run: python3 scripts/ci.py select
       - name: Compare Docker runtime profiles
         if: inputs.qualify-runner
@@ -336,6 +351,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+      actions: read
       packages: write
       id-token: write
     concurrency:
@@ -373,8 +389,10 @@ jobs:
         if: needs.check.outputs.mode == 'prepare'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: oci-*
+          pattern: ${{ needs.check.outputs.artifact-pattern || format('oci-*-{0}-*', github.run_id) }}
           path: .build/publication
+          run-id: ${{ inputs.artifact-run-id || github.run_id }}
+          github-token: ${{ github.token }}
       - name: Download release plan
         if: needs.check.outputs.mode == 'prepare' && !inputs.publish-bootstrap
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
