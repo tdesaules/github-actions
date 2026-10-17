@@ -1,0 +1,5 @@
+timeout = 30
+max_retries = 2
+max_concurrency = 4
+include_mail = false
+exclude = ['^https?://(localhost|127\.0\.0\.1|[^/]*\.example|example\.(com|org|invalid))([/:]|$)']

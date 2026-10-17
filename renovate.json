@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "docker:pinDigests", "helpers:pinGitHubActionDigests"],
+  "dependencyDashboard": true,
+  "automerge": false,
+  "enabledManagers": ["dockerfile", "github-actions", "gomod", "custom.regex"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^oci/.*Containerfile$/", "/^shared/runtime/compile-tool\\.sh$/"],
+      "matchStrings": ["(?<depName>(?:github\\.com|golang\\.org|google\\.golang\\.org|go\\.podman\\.io|go\\.opentelemetry\\.io)/[a-zA-Z0-9_./-]+)@(?<currentValue>v[0-9][a-zA-Z0-9.+-]*)"],
+      "datasourceTemplate": "go"
+    }
+  ]
+}

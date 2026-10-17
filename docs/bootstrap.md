@@ -86,3 +86,20 @@ Les signatures peuvent être retentées pour les mêmes digests. Le patch n'est
 généré qu'à la fin ; une action versionnée ne doit jamais référencer une image
 absente. La reprise après expiration des artefacts requiert leur sauvegarde
 externe, pas une reconstruction silencieuse.
+
+L'entrée manuelle `artifact-run-id` permet de publier les archives d'un run
+réussi du même workflow, sur `main` et au **même commit**. Cette vérification
+précède le téléchargement ; la matrice de construction est alors vide. Le
+publisher vérifie à nouveau le commit, la version candidate, les checksums et
+les deux architectures. Des artefacts absents ou ambigus font échouer la
+publication. Pour reprendre un échec du job de publication, relancer les jobs
+échoués conserve également les archives déjà testées.
+
+## Maintenance
+
+Le job planifié réactualise la base Grype, rescane les deux architectures des
+images épinglées et vérifie les liens de documentation avec Lychee conteneurisé.
+Les politiques de revue de dépendances restent identiques à celles des builds.
+`renovate.json` configure les mises à jour des bases, actions et dépendances Go ;
+l'installation/activation de l'application Renovate sur le dépôt reste une
+configuration externe. L'automerge est désactivé.
