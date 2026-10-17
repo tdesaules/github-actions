@@ -39,6 +39,42 @@ def main():
         results.append({'profile': name, 'flags': flags, 'exit': code, 'build_and_export': passed})
         print(name, 'PASS' if passed else f'FAIL ({code})', flush=True)
     (out / 'profiles.json').write_text(json.dumps(results, indent=2)+'\n')
+    # Qualify the actual scratch builder, not just the upstream distribution.
+    import images
+    flags = PROFILES['seccomp-apparmor']
+    original_run = images.run
+
+    def qualified_run(*args, **kwargs):
+        args = list(args)
+        if args[:2] == ['docker', 'run'] and any(
+            str(arg) == images.BOOTSTRAP or str(arg).startswith('localhost/github-actions/buildah:')
+            for arg in args
+        ):
+            args[2:2] = flags
+        return original_run(*args, **kwargs)
+
+    images.run = qualified_run
+    images.build('buildah', '0.0.0-qualification')
+    images.smoke('buildah', '0.0.0-qualification')
+    inputs = {'context': '.build/qualification', 'containerfile': '.build/qualification/Containerfile',
+              'image': 'localhost/proof', 'version': '0.0.0-qualification',
+              'platform': 'linux/'+images.architecture(), 'output': '.build/qualification/scratch-proof.tar'}
+    images.container(images.local_ref('buildah', '0.0.0-qualification'), 'build-image', root, inputs)
+    from oci_archive import inspect_archive
+    proof = inspect_archive(out / 'scratch-proof.tar')
+    if proof['arch'] != images.architecture():
+        raise ValueError('candidate produced the wrong architecture')
+    (out / 'Containerfile.fail').write_text('FROM docker.io/library/golang@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d\nRUN exit 42\n')
+    try:
+        images.container(images.local_ref('buildah', '0.0.0-qualification'), 'build-image', root,
+                         inputs | {'containerfile': '.build/qualification/Containerfile.fail', 'output': '.build/qualification/failed.tar'})
+    except subprocess.CalledProcessError as exc:
+        proof['negative_exit'] = exc.returncode
+    else:
+        raise AssertionError('failed RUN unexpectedly succeeded')
+    if (out / 'failed.tar').exists():
+        raise AssertionError('failed build exported an archive')
+    (out / 'scratch-result.json').write_text(json.dumps(proof, indent=2)+'\n')
 
 
 if __name__ == '__main__':
