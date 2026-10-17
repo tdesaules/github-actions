@@ -10,6 +10,10 @@ on:
         description: Rescan published images and check documentation links without building
         type: boolean
         default: false
+      retire-shared-images:
+        description: With maintenance on main, delete the five superseded shared GHCR packages after verifying replacements
+        type: boolean
+        default: false
       qualify-runner:
         description: Compare Docker profiles and native actions on both hosted architectures
         type: boolean
@@ -455,11 +459,12 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-      packages: read
+      packages: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Rescan pinned images with refreshed vulnerability database
         run: python3 scripts/maintenance.py
       - name: Check documentation HTTP links
@@ -468,6 +473,19 @@ jobs:
           docker run --rm -v "$PWD:/repo:ro" -w /repo
           docker.io/lycheeverse/lychee:0.24.2@sha256:e2d19e57cf6ab037026f20b8e449a1f30d9d7f81eef4194763aab2eab20bd28d
           --config lychee.toml README.md 'docs/**/*.md' 'oci/**/*.md'
+      - name: Verify replacements before retiring shared images
+        if: inputs.maintenance && inputs.retire-shared-images && github.ref == 'refs/heads/main'
+        run: python3 scripts/verify-release.py
+      - name: Delete superseded shared GHCR packages
+        if: inputs.maintenance && inputs.retire-shared-images && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          for image in buildah skopeo syft grype cosign; do
+            gh api --method DELETE "/users/$OWNER/packages/container/github-actions%2F$image"
+            echo "Deleted github-actions/$image" >> "$GITHUB_STEP_SUMMARY"
+          done
       - name: Upload maintenance reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
