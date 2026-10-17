@@ -1,12 +1,15 @@
 name: Merge OCI image index
-description: Publish an index for two tested archives whose exact children are already in the destination repository
+description: Assemble two tested OCI archives and publish the index and children by digest
 inputs:
   sources:
     description: JSON array of amd64 and arm64 OCI archive paths
     required: true
   destination:
-    description: Registry destination prefixed with docker://
+    description: docker://registry/repository without a tag or digest
     required: true
+  output:
+    description: Exact published index manifest JSON
+    default: image-index.json
   registry:
     description: Registry hostname
     default: ghcr.io
@@ -14,13 +17,18 @@ inputs:
     description: Registry username
   registry-password:
     description: Registry token
+outputs:
+  image:
+    description: Published digest-qualified image reference
+  digest:
+    description: SHA-256 of the exact index manifest
 runs:
-  using: composite
-  steps:
-    - id: builder
-      shell: bash
-      env:
-        BUILDER_IMAGE: docker://ghcr.io/tdesaules/github-actions/buildah@sha256:d62d7e41de4afd83b4d73fbe49dc60255caf7d0f2c5079e85e4e2da585bffdb7
-        BUILDER_OPERATION: merge-image-index
-        BUILDER_INPUTS: ${{ toJSON(inputs) }}
-      run: python3 "$GITHUB_ACTION_PATH/../../shared/run-builder.py"
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/oci-merge-image-index:unpublished
+  args:
+    - --sources=${{ inputs.sources }}
+    - --destination=${{ inputs.destination }}
+    - --output=${{ inputs.output }}
+    - --registry=${{ inputs.registry }}
+    - --registry-username=${{ inputs.registry-username }}
+    - --registry-password=${{ inputs.registry-password }}

@@ -20,5 +20,10 @@ outputs:
     description: Digest-qualified image reference
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/skopeo@sha256:287cddd46de87e6631bac08b4debfbb5dfd1ec0093c57704810472f14a6839b6
-  args: [get-image-digest]
+  image: docker://ghcr.io/tdesaules/github-actions/oci-get-image-digest:unpublished
+  args:
+    - --image=${{ inputs.image }}
+    - --expected-digest=${{ inputs.expected-digest }}
+    - --registry=${{ inputs.registry }}
+    - --registry-username=${{ inputs.registry-username }}
+    - --registry-password=${{ inputs.registry-password }}

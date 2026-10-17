@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 
-SPEC = importlib.util.spec_from_file_location('builder_launcher', Path(__file__).resolve().parents[2] / 'shared/run-builder.py')
+SPEC = importlib.util.spec_from_file_location('builder_launcher', Path(__file__).resolve().parents[2] / 'oci/build-image/run.py')
 launcher = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(launcher)
 
@@ -40,7 +40,8 @@ class BuilderLauncherTests(unittest.TestCase):
                 self.assertNotIn(inputs['registry-password'], args)
                 self.assertEqual(env['INPUT_REGISTRY-PASSWORD'], inputs['registry-password'])
                 self.assertEqual(env['INPUT_CONTEXT'], inputs['context'])
-                self.assertEqual(args[-1], 'build-image')
+                self.assertNotIn('build-image', args)
+                self.assertIn('--context=source with spaces', args)
 
     def test_other_tools_cannot_use_exception(self):
         with patch.dict(os.environ, {'BUILDER_OPERATION': 'new-sbom'}), patch.object(launcher.subprocess, 'run') as run:

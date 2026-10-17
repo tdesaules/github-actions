@@ -28,6 +28,8 @@ def discover(root=ROOT):
             raise ValueError(f"{path}: missing Docker image reference")
         reference = match[1]
         image = reference.rsplit("/", 1)[1].split(":")[0].split("@")[0]
+        if image != 'oci-'+path.parent.name:
+            raise ValueError(f'{path}: image must be owned by this action (oci-{path.parent.name})')
         directory = str(path.parent.relative_to(root))
         actions[directory] = image
         if (path.parent / "Containerfile").is_file():
@@ -48,16 +50,14 @@ def select(paths, full=False, root=ROOT):
     for path in paths:
         if path.startswith(".github/workflows/") or path == 'grype-review.json':
             selected_actions.update(actions)
-        if path == 'shared/run-builder.py':
-            selected_actions.update(a for a, tool in actions.items() if tool == 'buildah')
-        elif path.startswith(("shared/", "scripts/", "tasks/")) or path in ("go.mod", "go.sum", ".containerignore", ".dockerignore", "taskfile.yml"):
+        if path.startswith(("shared/", "scripts/", "tasks/")) or path in ("go.mod", "go.sum", ".containerignore", ".dockerignore", "taskfile.yml"):
             images.update(owners)
             selected_actions.update(actions)
         for directory, image in actions.items():
             if path.startswith(directory + "/"):
                 selected_actions.add(directory)
                 filename = path[len(directory) + 1:]
-                if filename == "Containerfile" or filename == ".containerignore" or filename.startswith(("src/", "dependencies.")):
+                if filename == "Containerfile" or filename == ".containerignore" or filename.endswith('.go') or filename.startswith(("src/", "dependencies.")):
                     images.add(image)
     for directory, image in actions.items():
         if image in images:

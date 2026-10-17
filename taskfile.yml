@@ -14,7 +14,7 @@ tasks:
     desc: Test orchestration and the static action entrypoint
     cmds:
       - python3 -m unittest discover -s tests/unit -v
-      - go test ./shared/runtime
+      - go test ./...
   initialize-bootstrap:
     desc: Build and smoke-test all images on the native architecture using nested Buildah
     cmds:

@@ -9,7 +9,7 @@ import re
 import subprocess
 
 from ci import ROOT, IMAGE, SEMVER, aggregate, discover
-from images import ENGINE, container, local_ref, load_archive, mount, run
+from images import ENGINE, container, local_ref, action_ref, load_archive, mount, run
 
 
 def check_existing(expected, actual, reference):
@@ -44,7 +44,7 @@ def main():
     if args.version == '0.0.0-bootstrap' and changed != set(owners):
         raise ValueError("bootstrap publication requires all images on both architectures")
     locations = {(json.loads(p.read_text())["image"], json.loads(p.read_text())["arch"]): p.parent for p in paths}
-    for image in ("skopeo", "buildah", "cosign"):
+    for image in ('oci-publish-image', 'oci-merge-image-index', 'oci-new-image-signature', 'oci-test-image-signature'):
         if image in changed:
             load_archive(locations[(image, "amd64")] / "image.oci.tar", local_ref(image, args.version))
         else:
@@ -57,11 +57,11 @@ def main():
     username = os.environ["GHCR_USERNAME"]
     common = {"registry": "ghcr.io", "registry-username": username, "registry-password": token}
 
-    def call(tool, operation, inputs):
+    def call(operation, inputs):
         extra = []
-        if tool == "cosign":
+        if operation == 'new-image-signature':
             extra = ["-e", "ACTIONS_ID_TOKEN_REQUEST_URL", "-e", "ACTIONS_ID_TOKEN_REQUEST_TOKEN"]
-        container(local_ref(tool, args.version), operation, directory, common | inputs, extra)
+        container(action_ref(operation, args.version), operation, directory, common | inputs, extra)
 
     # Use an isolated auth file. Its contents never appear in command logs or artifacts.
     import base64
@@ -72,7 +72,7 @@ def main():
         auth.chmod(0o600)
 
         def raw(reference, missing=False):
-            command = [ENGINE, "run", "--rm", "--entrypoint=/usr/bin/skopeo", "-v", mount(directory, "/github/workspace"), "-v", mount(auth, "/auth.json", True), "-e", "REGISTRY_AUTH_FILE=/auth.json", local_ref("skopeo", args.version), "inspect", "--raw", reference]
+            command = [ENGINE, "run", "--rm", "--entrypoint=/usr/bin/skopeo", "-v", mount(directory, "/github/workspace"), "-v", mount(auth, "/auth.json", True), "-e", "REGISTRY_AUTH_FILE=/auth.json", action_ref('publish-image', args.version), "inspect", "--raw", reference]
             result = subprocess.run(command, capture_output=True)
             if result.returncode:
                 text = result.stderr.decode()
@@ -95,7 +95,7 @@ def main():
                     raise ValueError('reused image is missing an architecture')
                 identity = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/.github/workflows/main.yml@refs/heads/main"
                 for value in [reference, *[reference.split('@')[0]+'@'+d for d in children.values()]]:
-                    call('cosign', 'test-image-signature', {'image': value, 'identity': identity, 'issuer': 'https://token.actions.githubusercontent.com', 'output': f'signatures/{image}-{value.split(":")[-1]}.json'})
+                    call('test-image-signature', {'image': value, 'identity': identity, 'issuer': 'https://token.actions.githubusercontent.com', 'output': f'signatures/{image}-{value.split(":")[-1]}.json'})
                 state['images'][image] = {'reference': reference, 'platforms': children, 'signed': True, 'reused': True}
                 (directory / 'publication.json').write_text(json.dumps(state, indent=2)+'\n')
                 continue
@@ -106,25 +106,22 @@ def main():
                 relative = str((locations[(image, arch)] / "image.oci.tar").relative_to(directory))
                 archives.append(relative)
                 expected = "sha256:"+hashlib.sha256(raw("oci-archive:/github/workspace/"+relative)).hexdigest()
-                target = f"{repository}:{args.version}-{arch}"
+                target = repository+'@'+expected
                 existing = raw("docker://"+target, missing=True)
                 actual = None if existing is None else "sha256:"+hashlib.sha256(existing).hexdigest()
                 if not check_existing(expected, actual, target):
-                    call("skopeo", "publish-image", {"source": "oci-archive:"+relative, "destination": "docker://"+target})
+                    call("publish-image", {"source": "oci-archive:"+relative, "destination": "docker://"+target})
                 published = "sha256:"+hashlib.sha256(raw("docker://"+target)).hexdigest()
                 if published != expected:
                     raise ValueError(f"published digest changed for {target}")
                 child_digests[arch] = published
-            target = f"{repository}:{args.version}"
-            existing = raw("docker://"+target, missing=True)
-            if existing is not None:
-                manifests = json.loads(existing).get("manifests", [])
-                existing_children = {m["platform"]["architecture"]: m["digest"] for m in manifests}
-                if existing_children != child_digests:
-                    raise ValueError(f"refusing to replace existing multiarchitecture tag {target}")
-            else:
-                call("buildah", "merge-image-index", {"sources": json.dumps(archives), "destination": "docker://"+target})
+            manifest_path = 'indexes/'+image+'.json'
+            call('merge-image-index', {'sources': json.dumps(archives), 'destination': 'docker://'+repository, 'output': manifest_path})
+            expected_index = (directory / manifest_path).read_bytes()
+            target = repository+'@sha256:'+hashlib.sha256(expected_index).hexdigest()
             index = raw("docker://"+target)
+            if index != expected_index:
+                raise ValueError('published index differs from the assembled manifest')
             children = {m["platform"]["architecture"]: m["digest"] for m in json.loads(index)["manifests"]}
             if children != child_digests:
                 raise ValueError(f"index does not contain the exact tested children: {target}")
@@ -133,8 +130,8 @@ def main():
                 identity = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/.github/workflows/main.yml@refs/heads/main"
                 for value in [*child_digests.values(), digest]:
                     reference = repository+"@"+value
-                    call("cosign", "new-image-signature", {"image": reference})
-                    call("cosign", "test-image-signature", {"image": reference, "identity": identity, "issuer": "https://token.actions.githubusercontent.com", "output": f"signatures/{image}-{value[7:]}.json"})
+                    call("new-image-signature", {"image": reference})
+                    call("test-image-signature", {"image": reference, "identity": identity, "issuer": "https://token.actions.githubusercontent.com", "output": f"signatures/{image}-{value[7:]}.json"})
             state["images"][image] = {"reference": repository+"@"+digest, "platforms": child_digests, "signed": args.sign}
             (directory / "publication.json").write_text(json.dumps(state, indent=2)+"\n")
         # Only after all images are published and verified, generate a reviewable patch.

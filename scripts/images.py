@@ -40,6 +40,10 @@ def local_ref(image, version):
     return f"localhost/github-actions/{image}:{version}"
 
 
+def action_ref(operation, version):
+    return local_ref('oci-'+operation, version)
+
+
 def load_archive(archive, reference):
     # OCI archives need not preserve a local tag. Address the loaded config ID.
     image_id = inspect_archive(archive)["image_id"]
@@ -67,7 +71,7 @@ def mount(path, target, readonly=False):
 
 def container(ref, operation, workspace, inputs=None, extra=None):
     cmd = [ENGINE, "run", "--rm", "-v", mount(workspace, "/github/workspace"), "-w", "/github/workspace"]
-    if operation in ('build-image', 'merge-image-index'):
+    if operation == 'build-image':
         cmd += builder_options()
     # Root in rootless Podman maps to the invoking host user. No privileged mode.
     env = os.environ.copy()
@@ -75,7 +79,7 @@ def container(ref, operation, workspace, inputs=None, extra=None):
         name = "INPUT_"+key.upper()
         env[name] = value
         cmd += ["-e", name]
-    cmd += list(extra or []) + [ref, operation]
+    cmd += list(extra or []) + [ref]
     return run(*cmd, env=env)
 
 
@@ -95,14 +99,14 @@ def build(image, version, direct=False):
     with tempfile.TemporaryDirectory(prefix="oci-bootstrap-") as tmp:
         workspace = Path(tmp)
         shutil.copytree(ROOT, workspace / "source", ignore=shutil.ignore_patterns(".git", ".build", ".candidate-actions", "__pycache__"))
-        if image == "buildah":
+        if image == "oci-build-image":
             command = [ENGINE, "run", "--rm", *builder_options(), "--user=0", "-v", mount(workspace, "/workspace"), "-w", "/workspace/source", "--entrypoint=/bin/sh", BOOTSTRAP,
-                       "-ec", 'buildah --storage-driver=vfs bud --isolation=chroot --network=host --format=oci --label "org.opencontainers.image.version=$3" --label "org.opencontainers.image.revision=$4" -f "$1" -t "$2" .; buildah --storage-driver=vfs push "$2" oci-archive:/workspace/image.oci.tar',
+                       "-ec", 'buildah --storage-driver=vfs bud --isolation=chroot --network=host --format=oci --label "org.opencontainers.image.revision=$4" -f "$1" -t "$2" .; buildah --storage-driver=vfs push "$2" oci-archive:/workspace/image.oci.tar',
                        "bootstrap", owners[image]+"/Containerfile", ref, version, revision]
             run(*command)
         else:
-            container(local_ref("buildah", version), "build-image", workspace,
-                      {"context": "source", "containerfile": "source/"+owners[image]+"/Containerfile", "image": "localhost/github-actions/"+image, "version": version, "platform": "linux/"+architecture(), "output": "image.oci.tar", "labels": json.dumps({"org.opencontainers.image.version": version, "org.opencontainers.image.revision": revision})}, extra=["--user=0"])
+            container(action_ref('build-image', version), "build-image", workspace,
+                      {"context": "source", "containerfile": "source/"+owners[image]+"/Containerfile", "image": "localhost/github-actions/"+image, "version": version, "platform": "linux/"+architecture(), "output": "image.oci.tar", "labels": json.dumps({"org.opencontainers.image.revision": revision})}, extra=["--user=0"])
         shutil.copy2(workspace / "image.oci.tar", out / "image.oci.tar")
     load_archive(out / "image.oci.tar", ref)
 
@@ -128,8 +132,9 @@ def candidates(image, version):
         text = (ROOT / directory / "action.yml").read_text()
         # Native Docker actions pull docker:// references even if already loaded.
         # A temporary Dockerfile uses the locally loaded candidate instead.
-        if tool == 'buildah':
+        if tool == 'oci-build-image':
             text = IMAGE.sub('        BUILDER_IMAGE: docker://'+local_ref(tool, version), text)
+            shutil.copy2(ROOT / directory / 'run.py', target / 'run.py')
         else:
             text = IMAGE.sub("  image: Dockerfile", text)
         (target / "action.yml").write_text(text)
@@ -158,7 +163,7 @@ def main():
     parser.add_argument("--direct", action="store_true", help="diagnostic engine build, not a nested Buildah qualification")
     args = parser.parse_args()
     _, owners = discover()
-    images = [args.image] if args.image != "all" else ["buildah"]+sorted(set(owners)-{"buildah"})
+    images = [args.image] if args.image != "all" else ["oci-build-image"]+sorted(set(owners)-{"oci-build-image"})
     if args.command == "new-candidate-actions":
         candidates(args.image, args.version)
         return

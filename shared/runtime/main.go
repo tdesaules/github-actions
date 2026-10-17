@@ -1,6 +1,6 @@
-// Package main implements the entrypoint of the OCI Docker actions.
+// Package runtimeaction implements shared machinery for specialized OCI actions.
 // No shell is required in the final images. Inputs are never evaluated as code.
-package main
+package runtimeaction
 
 import (
 	"crypto/sha256"
@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,10 +23,14 @@ import (
 	"time"
 )
 
-var tool = "unset" // Set at image build time.
+var tool = "unset" // Fixed by the action-specific executable.
+var arguments = map[string]string{}
 var digestPattern = regexp.MustCompile(`^sha256:[a-f0-9]{64}$`)
 
 func input(name, fallback string) string {
+	if value, present := arguments[name]; present {
+		return value
+	}
 	if value := os.Getenv("INPUT_" + strings.ToUpper(name)); value != "" {
 		return value
 	}
@@ -448,29 +453,41 @@ func merge() error {
 	if err := json.Unmarshal([]byte(input("sources", "[]")), &sources); err != nil || len(sources) != 2 {
 		return errors.New("sources must be a JSON array of two tested archive paths (amd64, arm64)")
 	}
-	name := "localhost/catalog-index:temporary"
-	if err := run("--storage-driver=vfs", "manifest", "create", name); err != nil {
-		return err
-	}
-	for _, path := range sources {
-		if err := run("--storage-driver=vfs", "manifest", "add", name, "oci-archive:"+path); err != nil {
-			return err
-		}
-	}
 	dest, err := required("destination")
 	if err != nil {
 		return err
 	}
-	if !strings.HasPrefix(dest, "docker://") {
-		return errors.New("index destination must start with docker://")
+	if !strings.HasPrefix(dest, "docker://") || strings.ContainsAny(dest[strings.LastIndex(dest, "/")+1:], ":@") {
+		return errors.New("index destination must be docker://registry/repository without a tag or digest")
 	}
-	// Children must already be published by publish-image with preserved digests.
-	// Copying them again lets Buildah recompress layers and change tested digests.
-	return run("--storage-driver=vfs", "manifest", "push", "--all=false", name, dest)
+	layout, err := os.MkdirTemp("", "oci-index-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(layout)
+	data, err := assembleIndex(sources, layout)
+	if err != nil {
+		return err
+	}
+	digest := fmt.Sprintf("sha256:%x", sha256.Sum256(data))
+	if err = run("copy", "--all", "--preserve-digests", "oci:"+layout+":index", dest+"@"+digest); err != nil {
+		return err
+	}
+	path, err := destination("output", "image-index.json")
+	if err != nil {
+		return err
+	}
+	if err = os.WriteFile(path, data, 0644); err != nil {
+		return err
+	}
+	if err = output("digest", digest); err != nil {
+		return err
+	}
+	return output("image", strings.TrimPrefix(dest, "docker://")+"@"+digest)
 }
 
 func execute(op string) error {
-	allowed := map[string]string{"build-image": "buildah", "merge-image-index": "buildah", "export-image": "skopeo", "import-image": "skopeo", "publish-image": "skopeo", "get-image-digest": "skopeo", "new-image-signature": "cosign", "test-image-signature": "cosign", "new-sbom": "syft", "test-vulnerabilities": "grype"}
+	allowed := map[string]string{"build-image": "buildah", "merge-image-index": "skopeo", "export-image": "skopeo", "import-image": "skopeo", "publish-image": "skopeo", "get-image-digest": "skopeo", "new-image-signature": "cosign", "test-image-signature": "cosign", "new-sbom": "syft", "test-vulnerabilities": "grype"}
 	if allowed[op] != tool {
 		return fmt.Errorf("operation %q is not supported by image %s", op, tool)
 	}
@@ -498,10 +515,35 @@ func execute(op string) error {
 	return errors.New("unknown operation")
 }
 
-func main() {
-	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "an operation is required")
-		os.Exit(2)
+func parseArguments(args, names []string) error {
+	flags := flag.NewFlagSet("action", flag.ContinueOnError)
+	values := map[string]*string{}
+	for _, name := range names {
+		values[name] = flags.String(name, "", "override INPUT_"+strings.ToUpper(name))
+	}
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return errors.New("unexpected positional arguments; this image implements one action")
+	}
+	arguments = map[string]string{}
+	flags.Visit(func(f *flag.Flag) { arguments[f.Name] = *values[f.Name] })
+	return nil
+}
+
+// Main is called by each action's own main.go; the operation cannot be overridden.
+func Main(operation, binary string, names []string) {
+	tool = binary
+	version := len(os.Args) == 2 && os.Args[1] == "--tool-version"
+	if !version {
+		if err := parseArguments(os.Args[1:], names); err != nil {
+			if errors.Is(err, flag.ErrHelp) {
+				return
+			}
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
 	}
 	// GitHub bind mounts are owned by the runner UID, not a fixed image UID.
 	// Start as container root and drop to that UID for non-builder actions.
@@ -527,14 +569,14 @@ func main() {
 		}
 	}
 	var err error
-	if os.Args[1] == "--tool-version" {
+	if version {
 		if tool == "buildah" || tool == "skopeo" {
 			err = run("--version")
 		} else {
 			err = run("version")
 		}
 	} else {
-		err = execute(os.Args[1])
+		err = execute(operation)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

@@ -12,5 +12,7 @@ outputs:
     description: Resulting destination transport reference
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/skopeo@sha256:287cddd46de87e6631bac08b4debfbb5dfd1ec0093c57704810472f14a6839b6
-  args: [import-image]
+  image: docker://ghcr.io/tdesaules/github-actions/oci-import-image:unpublished
+  args:
+    - --source=${{ inputs.source }}
+    - --destination=${{ inputs.destination }}

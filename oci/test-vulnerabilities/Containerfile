@@ -2,7 +2,8 @@ FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdab
 WORKDIR /src
 COPY go.mod ./
 COPY shared/runtime/ ./shared/runtime/
-RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w -X main.tool=grype' -o /entrypoint ./shared/runtime
+COPY oci/test-vulnerabilities/main.go ./oci/test-vulnerabilities/main.go
+RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /entrypoint ./oci/test-vulnerabilities
 
 FROM entrypoint AS upstream
 RUN sh shared/runtime/compile-tool.sh github.com/anchore/grype v0.120.1 h1:kaO5Vudd1jmjFNYJoOro7AIg10cjrKAy71ZaOFdX0js= grype golang.org/x/net@v0.60.0
@@ -19,4 +20,4 @@ ENV PATH=/usr/bin HOME=/tmp SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt GRY
 USER 0:0
 WORKDIR /github/workspace
 ENTRYPOINT ["/entrypoint"]
-LABEL org.opencontainers.image.title="Grype Docker action" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND Apache-2.0"
+LABEL org.opencontainers.image.title="oci-test-vulnerabilities" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND Apache-2.0"

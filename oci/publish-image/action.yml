@@ -19,5 +19,10 @@ outputs:
     description: Published transport reference
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/skopeo@sha256:287cddd46de87e6631bac08b4debfbb5dfd1ec0093c57704810472f14a6839b6
-  args: [publish-image]
+  image: docker://ghcr.io/tdesaules/github-actions/oci-publish-image:unpublished
+  args:
+    - --source=${{ inputs.source }}
+    - --destination=${{ inputs.destination }}
+    - --registry=${{ inputs.registry }}
+    - --registry-username=${{ inputs.registry-username }}
+    - --registry-password=${{ inputs.registry-password }}

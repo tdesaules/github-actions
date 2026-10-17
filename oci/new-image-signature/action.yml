@@ -24,5 +24,12 @@ outputs:
     description: Whether signing completed
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/cosign@sha256:d057ebc2ff1ede7a3d9c88ce3d16f722105270656f72c6aa5f006430defcfa15
-  args: [new-image-signature]
+  image: docker://ghcr.io/tdesaules/github-actions/oci-new-image-signature:unpublished
+  args:
+    - --image=${{ inputs.image }}
+    - --enabled=${{ inputs.enabled }}
+    - --key=${{ inputs.key }}
+    - --transparency-log=${{ inputs.transparency-log }}
+    - --registry=${{ inputs.registry }}
+    - --registry-username=${{ inputs.registry-username }}
+    - --registry-password=${{ inputs.registry-password }}

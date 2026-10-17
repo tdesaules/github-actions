@@ -9,9 +9,10 @@ import subprocess
 import tempfile
 import time
 import urllib.request
+import urllib.error
 import uuid
 
-from images import ENGINE, container, local_ref, mount, run
+from images import ENGINE, container, action_ref, mount, run
 from oci_archive import inspect_archive
 from testing import fixture_archive
 
@@ -47,30 +48,38 @@ def main():
                 fixture_archive(archive, arch)
                 expected[arch] = inspect_archive(archive)["digest"]
                 if not args.index_only:
-                    container(local_ref("skopeo", args.version), "publish-image", workspace, {"source": "oci-archive:"+archive.name, "destination": "docker://registry:5000/fixture:"+arch}, extra)
-                    container(local_ref("skopeo", args.version), "get-image-digest", workspace, {"image": "registry:5000/fixture:"+arch, "expected-digest": expected[arch]}, extra)
+                    container(action_ref('publish-image', args.version), "publish-image", workspace, {"source": "oci-archive:"+archive.name, "destination": "docker://registry:5000/fixture@"+expected[arch]}, extra)
+                    container(action_ref('get-image-digest', args.version), "get-image-digest", workspace, {"image": "registry:5000/fixture@"+expected[arch], "expected-digest": expected[arch]}, extra)
                 else:
                     # The index contract requires its exact children to be published first.
                     run(ENGINE, 'run', '--rm', '--network', name, '-v', mount(workspace, '/github/workspace'),
                         '-e', 'SSL_CERT_FILE=/github/workspace/cert.pem', '--entrypoint=/usr/bin/skopeo',
                         'quay.io/skopeo/stable:v1.22.3@sha256:7e735527d9d64c7456fc82d7f954c380b4a5dd1a8173115ce2ed7b3442ef36e0',
                         'copy', '--preserve-digests', 'oci-archive:/github/workspace/'+archive.name,
-                        'docker://registry:5000/fixture:'+arch)
-            container(local_ref("buildah", args.version), "merge-image-index", workspace, {"sources": '["amd64.tar","arm64.tar"]', "destination": "docker://registry:5000/fixture:multi"}, extra)
-            request = urllib.request.Request(f"https://localhost:{port}/v2/fixture/manifests/multi", headers={"Accept": "application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json"})
+                        'docker://registry:5000/fixture@'+expected[arch])
+            container(action_ref('merge-image-index', args.version), "merge-image-index", workspace, {"sources": '["amd64.tar","arm64.tar"]', "destination": "docker://registry:5000/fixture"}, extra)
+            index_digest = 'sha256:'+hashlib.sha256((workspace/'image-index.json').read_bytes()).hexdigest()
+            request = urllib.request.Request(f"https://localhost:{port}/v2/fixture/manifests/{index_digest}", headers={"Accept": "application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json"})
             with urllib.request.urlopen(request, context=context) as response:
                 index = json.load(response)
             actual = {m["platform"]["architecture"]: m["digest"] for m in index["manifests"]}
             if actual != expected:
                 raise AssertionError(f"index changed child digests: {actual} != {expected}")
+            try:
+                with urllib.request.urlopen(f'https://localhost:{port}/v2/fixture/tags/list', context=context) as response:
+                    if json.load(response).get('tags'):
+                        raise AssertionError('digest-only publication unexpectedly created tags')
+            except urllib.error.HTTPError as error:
+                if error.code != 404 or not any(e['code'] == 'NAME_UNKNOWN' for e in json.load(error)['errors']):
+                    raise
             if args.index_only:
                 print('TLS index publication with unchanged two-platform fixture digests: PASS')
                 return
-            run(ENGINE, "run", "--rm", "--entrypoint=/usr/bin/cosign", "-v", mount(workspace, "/github/workspace"), "-e", "COSIGN_PASSWORD=", local_ref("cosign", args.version), "generate-key-pair", "--output-key-prefix", "/github/workspace/cosign")
+            run(ENGINE, "run", "--rm", "--entrypoint=/usr/bin/cosign", "-v", mount(workspace, "/github/workspace"), "-e", "COSIGN_PASSWORD=", action_ref('new-image-signature', args.version), "generate-key-pair", "--output-key-prefix", "/github/workspace/cosign")
             reference = "registry:5000/fixture@"+expected["amd64"]
             key_extra = extra + ["-e", "COSIGN_PASSWORD="]
-            container(local_ref("cosign", args.version), "new-image-signature", workspace, {"image": reference, "key": "cosign.key", "transparency-log": "false"}, key_extra)
-            container(local_ref("cosign", args.version), "test-image-signature", workspace, {"image": reference, "key": "cosign.pub", "transparency-log": "false", "output": "signature.json"}, key_extra)
+            container(action_ref('new-image-signature', args.version), "new-image-signature", workspace, {"image": reference, "key": "cosign.key", "transparency-log": "false"}, key_extra)
+            container(action_ref('test-image-signature', args.version), "test-image-signature", workspace, {"image": reference, "key": "cosign.pub", "transparency-log": "false", "output": "signature.json"}, key_extra)
             if not json.loads((workspace / "signature.json").read_text()):
                 raise AssertionError("empty signature verification report")
             print("TLS publication, remote digest, two-platform fixture index and real key-based signature/verification: PASS (not GitHub OIDC or ARM64 executable builds)")

@@ -1,14 +1,14 @@
 # merge-image-index
 
-Action composite lançant l'image Buildah avec le profil Docker qualifié.
+Action Docker native utilisant son image spécialisée `oci-merge-image-index`.
 [Interface complète](action.yml).
 
 `sources` est un tableau JSON de deux chemins d'archives testées, AMD64 et ARM64.
-`destination` est une référence `docker://`. L'action crée et publie un index
-avec `buildah manifest`, sans reconstruire ses images. Publier préalablement les
-deux archives dans le même dépôt avec `publish-image`. Seul l'index est poussé :
-recopier les enfants via Buildah risquerait de recompresser leurs couches et de
-modifier leurs digests. Le registre doit déjà contenir les manifestes référencés.
+`destination` est `docker://registre/dépôt`, sans tag ni digest. L'exécutable Go
+assemble un index déterministe puis Skopeo publie les enfants et l'index avec
+`--all --preserve-digests`, directement par digest, sans reconstruction ni tag.
+Les sorties `image` et `digest` identifient l'index publié ; `output` conserve
+son manifeste JSON exact (par défaut `image-index.json`).
 
 L'orchestrateur de publication exige les deux résultats matriciels et vérifie
 que les manifestes de l'index publié correspondent aux digests des archives.

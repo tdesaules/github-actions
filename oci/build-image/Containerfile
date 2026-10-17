@@ -2,7 +2,8 @@ FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdab
 WORKDIR /src
 COPY go.mod ./
 COPY shared/runtime/ ./shared/runtime/
-RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w -X main.tool=buildah' -o /entrypoint ./shared/runtime
+COPY oci/build-image/main.go ./oci/build-image/main.go
+RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /entrypoint ./oci/build-image
 
 FROM entrypoint AS tool
 # Build-only C toolchain for the namespace constructor, statically linked with musl.
@@ -27,4 +28,4 @@ ENV PATH=/usr/bin SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt HOME=/tmp BUI
 USER 0:0
 WORKDIR /github/workspace
 ENTRYPOINT ["/entrypoint"]
-LABEL org.opencontainers.image.title="Buildah Docker action" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND Apache-2.0"
+LABEL org.opencontainers.image.title="oci-build-image" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND Apache-2.0"

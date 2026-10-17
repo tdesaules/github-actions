@@ -9,7 +9,9 @@ import subprocess
 import tarfile
 import tempfile
 
-from images import ROOT, architecture, container, local_ref, smoke
+from images import ROOT, ENGINE, architecture, container, local_ref, smoke, mount, run
+from ci import discover
+from reports import SYFT
 
 
 def fixture_archive(path, arch="amd64"):
@@ -54,6 +56,7 @@ def prepare(workspace):
     (directory / "hello.txt").write_text("hello\n")
     (directory / "Containerfile").write_text('FROM scratch\nCOPY hello.txt /hello.txt\n')
     fixture_archive(workspace / "fixture.oci.tar")
+    fixture_archive(workspace / 'arm64.oci.tar', 'arm64')
 
 
 def negative(ref, operation, workspace, inputs, extra=None):
@@ -71,16 +74,17 @@ def test(image, version):
         workspace = Path(tmp)
         prepare(workspace)
         before = (workspace / "fixture with spaces" / "hello.txt").read_bytes()
-        if image == "buildah":
+        if image == "oci-build-image":
             container(ref, "build-image", workspace, {"context": "fixture with spaces", "containerfile": "fixture with spaces/Containerfile", "image": "localhost/test", "version": "0.0.0-bootstrap", "platform": "linux/"+architecture(), "output": "result with spaces.oci.tar"}, extra=["--user=0"])
             assert tarfile.is_tarfile(workspace / "result with spaces.oci.tar")
             negative(ref, "build-image", workspace, {"image": "test", "version": "1.0.0", "platform": "invalid"})
-        elif image == "skopeo":
+        elif image == "oci-import-image":
             container(ref, "import-image", workspace, {"source": "oci-archive:fixture.oci.tar", "destination": "oci:layout with spaces:fixture"})
-            container(ref, "export-image", workspace, {"source": "oci:layout with spaces:fixture", "destination": "oci-archive:result with spaces.oci.tar:fixture"})
-            assert tarfile.is_tarfile(workspace / "result with spaces.oci.tar")
             negative(ref, "import-image", workspace, {"source": "oci-archive:missing.tar", "destination": "oci:invalid"})
-        elif image == "syft":
+        elif image == 'oci-export-image':
+            container(ref, 'export-image', workspace, {'source': 'oci-archive:fixture.oci.tar', 'destination': 'oci-archive:result with spaces.oci.tar:fixture'})
+            assert tarfile.is_tarfile(workspace / 'result with spaces.oci.tar')
+        elif image == "oci-new-sbom":
             container(ref, "new-sbom", workspace, {"source": "dir:fixture with spaces", "output": "reports with spaces/sbom.json"},
                       extra=['--read-only', '--tmpfs', '/tmp:rw,mode=1777'])
             assert json.loads((workspace / "reports with spaces/sbom.json").read_text())["spdxVersion"].startswith("SPDX-")
@@ -92,9 +96,10 @@ def test(image, version):
                 assert not (workspace / 'unwritable.json').exists()
             finally:
                 workspace.chmod(0o700)
-        elif image == "grype":
+        elif image == "oci-test-vulnerabilities":
             # An actual database download and scan, not a mocked successful report.
-            container(local_ref("syft", version), "new-sbom", workspace, {"source": "oci-archive:fixture.oci.tar", "output": "sbom.json"})
+            run(ENGINE, 'run', '--rm', '-v', mount(workspace, '/fixtures'), SYFT,
+                'scan', 'oci-archive:/fixtures/fixture.oci.tar', '-o', 'spdx-json=/fixtures/sbom.json')
             container(ref, "test-vulnerabilities", workspace, {"sbom": "sbom.json", "output": "reports with spaces/grype.json"})
             assert "matches" in json.loads((workspace / "reports with spaces/grype.json").read_text())
             workspace.chmod(0o1777)
@@ -102,10 +107,17 @@ def test(image, version):
                       {'sbom': 'sbom.json', 'output': 'nonroot-grype.json'}, extra=['--user=65532:65532'])
             assert 'matches' in json.loads((workspace / 'nonroot-grype.json').read_text())
             negative(ref, "test-vulnerabilities", workspace, {"sbom": "missing.json", "fail-on": "invalid"})
-        elif image == "cosign":
+        elif image == "oci-new-image-signature":
             container(ref, "new-image-signature", workspace, {"enabled": "false"})
             negative(ref, "new-image-signature", workspace, {"image": "example:latest"})
+        elif image == 'oci-test-image-signature':
             negative(ref, "test-image-signature", workspace, {"image": "example@sha256:"+"0"*64})
+        elif image == 'oci-merge-image-index':
+            negative(ref, 'merge-image-index', workspace, {'sources': '[]'})
+        elif image == 'oci-publish-image':
+            negative(ref, 'publish-image', workspace, {'source': 'docker://example:latest', 'destination': 'docker://example:latest'})
+        elif image == 'oci-get-image-digest':
+            negative(ref, 'get-image-digest', workspace, {})
         assert (workspace / "fixture with spaces" / "hello.txt").read_bytes() == before
 
 
@@ -118,7 +130,7 @@ def main():
     if args.prepare:
         prepare(args.prepare)
         return
-    for image in ([args.image] if args.image != "all" else ["buildah", "skopeo", "syft", "grype", "cosign"]):
+    for image in ([args.image] if args.image != "all" else sorted(discover()[1])):
         test(image, args.version)
 
 

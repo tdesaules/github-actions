@@ -28,5 +28,14 @@ outputs:
     description: Verification report path
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/cosign@sha256:d057ebc2ff1ede7a3d9c88ce3d16f722105270656f72c6aa5f006430defcfa15
-  args: [test-image-signature]
+  image: docker://ghcr.io/tdesaules/github-actions/oci-test-image-signature:unpublished
+  args:
+    - --image=${{ inputs.image }}
+    - --identity=${{ inputs.identity }}
+    - --issuer=${{ inputs.issuer }}
+    - --key=${{ inputs.key }}
+    - --transparency-log=${{ inputs.transparency-log }}
+    - --output=${{ inputs.output }}
+    - --registry=${{ inputs.registry }}
+    - --registry-username=${{ inputs.registry-username }}
+    - --registry-password=${{ inputs.registry-password }}

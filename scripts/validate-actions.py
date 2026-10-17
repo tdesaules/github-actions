@@ -32,7 +32,7 @@ def validate(path):
     if unknown:
         raise ValueError(f"{path}: unknown metadata fields {unknown}")
     runs = data["runs"]
-    builder = path.parent.name in ('build-image', 'merge-image-index')
+    builder = path.parent.name == 'build-image'
     if builder:
         if runs.get('using') != 'composite' or len(runs.get('steps', [])) != 1:
             raise ValueError(f'{path}: Buildah requires the qualified launcher')
@@ -41,8 +41,11 @@ def validate(path):
             raise ValueError(f'{path}: invalid builder image or operation')
     elif runs.get("using") != "docker" or not runs.get("image", "").startswith("docker://"):
         raise ValueError(f"{path}: must be a native prebuilt Docker action")
-    if not builder and runs.get("args") != [path.parent.name]:
-        raise ValueError(f"{path}: entrypoint operation must match action directory")
+    if not builder and runs.get('args') != ['--'+name+'=${{ inputs.'+name+' }}' for name in data.get('inputs', {})]:
+        raise ValueError(f'{path}: each input must be forwarded as an explicit named argument')
+    for filename in ('Containerfile', 'main.go'):
+        if not (path.parent / filename).is_file():
+            raise ValueError(f'{path}: action must own {filename}')
     for field in ("inputs", "outputs"):
         for name, spec in data.get(field, {}).items():
             if not re.fullmatch(r"[a-z][a-z0-9-]*", name):

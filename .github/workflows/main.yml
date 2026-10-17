@@ -15,7 +15,7 @@ on:
         type: boolean
         default: false
       publish-bootstrap:
-        description: Publish all tested 0.0.0-bootstrap images (main only)
+        description: Publish all tested action images by digest (main only)
         type: boolean
         default: false
       sign:
@@ -71,7 +71,7 @@ jobs:
         run: >-
           docker run --rm -v "$PWD:/src:ro" -w /src
           docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d
-          go test ./shared/runtime
+          go test ./...
       - name: Plan semantic release
         id: plan
         if: github.event_name == 'workflow_dispatch' && !inputs.qualify-runner && !inputs.publish-bootstrap
@@ -171,9 +171,9 @@ jobs:
           persist-credentials: false
       - name: Bootstrap containerized Buildah
         if: matrix.rebuild
-        run: python3 scripts/images.py build-image --image buildah --version "$VERSION"
+        run: python3 scripts/images.py build-image --image oci-build-image --version "$VERSION"
       - name: Build selected image with candidate Buildah
-        if: matrix.rebuild && matrix.image != 'buildah'
+        if: matrix.rebuild && matrix.image != 'oci-build-image'
         run: python3 scripts/images.py build-image --image "$IMAGE" --version "$VERSION"
       - name: Load pinned image for action-only changes
         if: '!matrix.rebuild'
@@ -196,13 +196,13 @@ jobs:
           python3 scripts/images.py new-candidate-actions --image "$IMAGE" --version "$VERSION"
           python3 scripts/testing.py --prepare "$PWD/.build/fixtures"
       - name: Test qualified Buildah container
-        if: matrix.image == 'buildah'
-        run: python3 scripts/testing.py --image buildah --version "$VERSION"
+        if: matrix.image == 'oci-build-image'
+        run: python3 scripts/testing.py --image oci-build-image --version "$VERSION"
       - name: Test read-only SBOM runtime and permission failures
-        if: matrix.image == 'syft'
-        run: python3 scripts/testing.py --image syft --version "$VERSION"
+        if: matrix.image == 'oci-new-sbom'
+        run: python3 scripts/testing.py --image oci-new-sbom --version "$VERSION"
       - name: Test public Buildah launcher
-        if: matrix.image == 'buildah'
+        if: matrix.image == 'oci-build-image'
         uses: ./.candidate-actions/build-image
         with:
           context: .build/fixtures/fixture with spaces
@@ -212,10 +212,10 @@ jobs:
           platform: linux/${{ matrix.arch }}
           output: .build/fixtures/public.oci.tar
       - name: Test index publication in an isolated TLS registry
-        if: matrix.image == 'buildah'
+        if: matrix.image == 'oci-merge-image-index'
         run: python3 scripts/test-registry.py --index-only --version "$VERSION"
       - name: Test public index input validation
-        if: matrix.image == 'buildah'
+        if: matrix.image == 'oci-merge-image-index'
         id: invalid-index
         continue-on-error: true
         uses: ./.candidate-actions/merge-image-index
@@ -223,28 +223,38 @@ jobs:
           sources: '[]'
           destination: docker://invalid.example/fixture:0.0.0-bootstrap
       - name: Test native import action
-        if: matrix.image == 'skopeo'
+        if: matrix.image == 'oci-import-image'
         uses: ./.candidate-actions/import-image
         with:
           source: oci-archive:.build/fixtures/fixture.oci.tar
           destination: oci:.build/fixtures/layout with spaces:fixture
       - name: Prepare native publication registry
-        if: matrix.image == 'skopeo' || matrix.image == 'cosign'
+        if: contains(fromJSON('["oci-publish-image","oci-merge-image-index","oci-new-image-signature","oci-test-image-signature"]'), matrix.image)
         id: registry
         run: |
           args=()
-          if [ "$IMAGE" = cosign ]; then args+=(--signer-version "$VERSION"); fi
+          if [ "$IMAGE" = oci-new-image-signature ]; then args+=(--signer-version "$VERSION"); fi
+          if [ "$IMAGE" = oci-test-image-signature ]; then args+=(--verifier-version "$VERSION"); fi
           python3 scripts/native-registry.py "${args[@]}"
       - name: Test native publication to TLS registry
-        if: matrix.image == 'skopeo'
+        if: matrix.image == 'oci-publish-image'
         uses: ./.candidate-actions/publish-image
         env:
           SSL_CERT_FILE: /github/workspace/.build/fixtures/registry-cert.pem
         with:
           source: oci-archive:.build/fixtures/fixture.oci.tar
           destination: ${{ steps.registry.outputs.destination }}
+      - name: Test native digest-only index publication
+        if: matrix.image == 'oci-merge-image-index'
+        uses: ./.candidate-actions/merge-image-index
+        env:
+          SSL_CERT_FILE: /github/workspace/.build/fixtures/registry-cert.pem
+        with:
+          sources: '[".build/fixtures/fixture.oci.tar", ".build/fixtures/arm64.oci.tar"]'
+          destination: ${{ steps.registry.outputs.repository }}
+          output: .build/fixtures/native-index.json
       - name: Test native signing with ephemeral key
-        if: matrix.image == 'cosign'
+        if: matrix.image == 'oci-new-image-signature'
         uses: ./.candidate-actions/new-image-signature
         env:
           SSL_CERT_FILE: /github/workspace/.build/fixtures/registry-cert.pem
@@ -254,7 +264,7 @@ jobs:
           key: .build/fixtures/cosign.key
           transparency-log: 'false'
       - name: Test native signature verification with ephemeral key
-        if: matrix.image == 'cosign'
+        if: matrix.image == 'oci-test-image-signature'
         uses: ./.candidate-actions/test-image-signature
         env:
           SSL_CERT_FILE: /github/workspace/.build/fixtures/registry-cert.pem
@@ -264,19 +274,19 @@ jobs:
           transparency-log: 'false'
           output: .build/fixtures/verified-signature.json
       - name: Test native export action
-        if: matrix.image == 'skopeo'
+        if: matrix.image == 'oci-export-image'
         uses: ./.candidate-actions/export-image
         with:
-          source: oci:.build/fixtures/layout with spaces:fixture
+          source: oci-archive:.build/fixtures/fixture.oci.tar
           destination: oci-archive:.build/fixtures/export with spaces.tar:fixture
       - name: Test native digest action
-        if: matrix.image == 'skopeo'
+        if: matrix.image == 'oci-get-image-digest'
         uses: ./.candidate-actions/get-image-digest
         with:
           image: quay.io/buildah/stable@sha256:07e637ad7a1df37f44afea8287935b350224ac193d63e5cc96debb50a366853c
           expected-digest: sha256:07e637ad7a1df37f44afea8287935b350224ac193d63e5cc96debb50a366853c
       - name: Test native publication rejects untested registry sources
-        if: matrix.image == 'skopeo'
+        if: matrix.image == 'oci-publish-image'
         id: invalid-publish
         continue-on-error: true
         uses: ./.candidate-actions/publish-image
@@ -284,31 +294,31 @@ jobs:
           source: docker://invalid.example/source:latest
           destination: docker://invalid.example/destination:latest
       - name: Test native SBOM action
-        if: matrix.image == 'syft'
+        if: matrix.image == 'oci-new-sbom'
         uses: ./.candidate-actions/new-sbom
         with:
           source: dir:.build/fixtures/fixture with spaces
           output: .build/fixtures/reports with spaces/sbom.json
       - name: Prepare scanner fixture with pinned upstream Syft
-        if: matrix.image == 'grype'
+        if: matrix.image == 'oci-test-vulnerabilities'
         run: >-
           docker run --rm --user=0 -v "$PWD/.build/fixtures:/fixtures"
           docker.io/anchore/syft:v1.54.1@sha256:3eb5379ba7b409c3f4069b686110527af0c47df993fa5c10d13e7cf34f49b1aa
           scan oci-archive:/fixtures/fixture.oci.tar -o spdx-json=/fixtures/sbom.json
       - name: Test native vulnerability action
-        if: matrix.image == 'grype'
+        if: matrix.image == 'oci-test-vulnerabilities'
         uses: ./.candidate-actions/test-vulnerabilities
         with:
           sbom: .build/fixtures/sbom.json
           output: .build/fixtures/reports with spaces/grype.json
       - name: Test native signing disabled path
-        if: matrix.image == 'cosign'
+        if: matrix.image == 'oci-new-image-signature'
         uses: ./.candidate-actions/new-image-signature
         with:
           image: example.invalid/image@sha256:0000000000000000000000000000000000000000000000000000000000000000
           enabled: 'false'
       - name: Test native signature verification rejects mutable tags
-        if: matrix.image == 'cosign'
+        if: matrix.image == 'oci-test-image-signature'
         id: invalid-signature
         continue-on-error: true
         uses: ./.candidate-actions/test-image-signature
@@ -321,9 +331,9 @@ jobs:
           SIGNATURE: ${{ steps.invalid-signature.outcome }}
         run: |
           case "$IMAGE" in
-            buildah) test "$INDEX" = failure ;;
-            skopeo) test "$PUBLISH" = failure ;;
-            cosign) test "$SIGNATURE" = failure ;;
+            oci-merge-image-index) test "$INDEX" = failure ;;
+            oci-publish-image) test "$PUBLISH" = failure ;;
+            oci-test-image-signature) test "$SIGNATURE" = failure ;;
           esac
       - name: Generate SBOM and scan exact candidate archive
         if: matrix.rebuild
@@ -342,7 +352,7 @@ jobs:
           if-no-files-found: error
           include-hidden-files: true
       - name: Remove test registry
-        if: always() && (matrix.image == 'skopeo' || matrix.image == 'cosign')
+        if: always() && contains(fromJSON('["oci-publish-image","oci-merge-image-index","oci-new-image-signature","oci-test-image-signature"]'), matrix.image)
         run: docker rm -f action-test-registry || true
 
   release:
@@ -435,6 +445,7 @@ jobs:
             .build/publication/publication.json
             .build/publication/action-digests.patch
             .build/publication/signatures/*.json
+            .build/publication/indexes/*.json
             .build/publication/release-plan.json
           if-no-files-found: warn
           include-hidden-files: true

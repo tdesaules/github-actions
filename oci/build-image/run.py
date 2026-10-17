@@ -9,7 +9,7 @@ import sys
 
 def main():
     operation = os.environ['BUILDER_OPERATION']
-    if operation not in ('build-image', 'merge-image-index'):
+    if operation != 'build-image':
         raise ValueError('unsupported builder operation')
     reference = os.environ['BUILDER_IMAGE'].removeprefix('docker://')
     workspace = Path(os.environ['GITHUB_WORKSPACE']).resolve()
@@ -23,7 +23,9 @@ def main():
         variable = 'INPUT_'+name.upper()
         env[variable] = str(value)
         command += ['-e', variable]
-    command += [reference, operation]
+    command += [reference]
+    for name, value in json.loads(os.environ['BUILDER_INPUTS']).items():
+        command += ['--'+name+'='+str(value)]
     # Do not print input values: registry passwords and build secrets may be present.
     sys.exit(subprocess.run(command, env=env).returncode)
 

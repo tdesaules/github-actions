@@ -45,7 +45,7 @@ class SelectionTests(unittest.TestCase):
 
     def test_shared_change_selects_both_architectures(self):
         jobs = ci.select(["shared/runtime/main.go"])["include"]
-        self.assertEqual(len(jobs), 10)
+        self.assertEqual(len(jobs), 20)
         self.assertTrue(all(j["rebuild"] for j in jobs))
         self.assertEqual({j["arch"] for j in jobs}, {"amd64", "arm64"})
 
@@ -59,10 +59,15 @@ class SelectionTests(unittest.TestCase):
 
     def test_rename_selects_both_sides(self):
         jobs = ci.select(["oci/new-sbom/Containerfile", "oci/publish-image/Containerfile"])["include"]
-        self.assertEqual({j["image"] for j in jobs}, {"syft", "skopeo"})
+        self.assertEqual({j["image"] for j in jobs}, {"oci-new-sbom", "oci-publish-image"})
 
     def test_first_release_full_selection(self):
-        self.assertEqual(len(ci.select([], full=True)["include"]), 10)
+        self.assertEqual(len(ci.select([], full=True)["include"]), 20)
+
+    def test_action_main_rebuilds_only_its_image(self):
+        jobs = ci.select(['oci/export-image/main.go'])['include']
+        self.assertEqual({j['image'] for j in jobs}, {'oci-export-image'})
+        self.assertTrue(all(j['rebuild'] for j in jobs))
 
 
 class ModesTests(unittest.TestCase):
