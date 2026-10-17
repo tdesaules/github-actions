@@ -1,0 +1,21 @@
+FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS entrypoint
+WORKDIR /src
+COPY go.mod ./
+COPY shared/runtime/ ./shared/runtime/
+RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w -X main.tool=buildah' -o /entrypoint ./shared/runtime
+
+FROM quay.io/buildah/stable:v1.43.4@sha256:07e637ad7a1df37f44afea8287935b350224ac193d63e5cc96debb50a366853c AS runtime
+COPY shared/runtime/collect-runtime.sh /collect-runtime.sh
+RUN sh /collect-runtime.sh buildah
+
+FROM scratch AS final
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=runtime /runtime/ /
+COPY --from=entrypoint /entrypoint /entrypoint
+ENV PATH=/usr/bin SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt HOME=/tmp BUILDAH_ISOLATION=chroot STORAGE_DRIVER=vfs
+# Root inside the container is required for chroot; the outer engine may be rootless.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="Buildah Docker action" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND Apache-2.0"

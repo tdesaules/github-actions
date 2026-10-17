@@ -1,0 +1,19 @@
+name: New SBOM
+description: Generate a Syft SBOM from an OCI archive, layout, registry image or rootfs
+inputs:
+  source:
+    description: 'Explicit oci-archive:, oci-dir:, registry: or dir: source'
+    required: true
+  format:
+    description: spdx-json or cyclonedx-json
+    default: spdx-json
+  output:
+    description: SBOM output path
+    default: sbom.spdx.json
+outputs:
+  sbom:
+    description: Generated SBOM path
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/syft:0.0.0-bootstrap
+  args: [new-sbom]

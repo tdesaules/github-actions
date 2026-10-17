@@ -1,0 +1,301 @@
+name: OCI Docker actions
+
+on:
+  push:
+    branches: ['**']
+    tags: ['*']
+  workflow_dispatch:
+    inputs:
+      publish-bootstrap:
+        description: Publish all tested 0.0.0-bootstrap images (main only)
+        type: boolean
+        default: false
+      sign:
+        description: Sign published bootstrap images using GitHub OIDC
+        type: boolean
+        default: true
+  schedule:
+    - cron: '23 5 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oci-${{ github.event_name == 'workflow_dispatch' && 'publication' || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  CONTAINER_ENGINE: docker
+
+jobs:
+  check:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      mode: ${{ steps.select.outputs.mode }}
+      matrix: ${{ steps.select.outputs.matrix }}
+      has-work: ${{ steps.select.outputs.has-work }}
+      version: ${{ steps.select.outputs.version }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate Docker action and image relationships
+        run: python3 scripts/ci.py validate
+      - name: Test selection, versions and aggregation
+        run: python3 -m unittest discover -s tests/unit -v
+      - name: Test action entrypoints
+        run: >-
+          docker run --rm -v "$PWD:/src:ro" -w /src
+          docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d
+          go test ./shared/runtime
+      - name: Select mode and dynamic matrix
+        id: select
+        run: python3 scripts/ci.py select
+
+  lint:
+    needs: check
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Validate workflow
+        run: >-
+          docker run --rm -v "$PWD:/repo:ro" -w /repo
+          docker.io/rhysd/actionlint:1.7.7@sha256:887a259a5a534f3c4f36cb02dca341673c6089431057242cdc931e9f133147e9
+          -shellcheck= -pyflakes= .github/workflows/main.yml
+      - name: Validate Docker action metadata
+        run: >-
+          docker run --rm -v "$PWD:/repo:ro" -w /repo
+          docker.io/library/python:3.14.0-alpine3.22@sha256:8373231e1e906ddfb457748bfc032c4c06ada8c759b7b62d9c73ec2a3c56e710
+          sh -ec 'pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: --no-deps PyYAML==6.0.3; python scripts/validate-actions.py'
+      - name: Validate Containerfiles
+        run: |
+          for file in oci/*/Containerfile; do
+            docker run --rm -i docker.io/hadolint/hadolint:v2.14.0@sha256:27086352fd5e1907ea2b934eb1023f217c5ae087992eb59fde121dce9c9ff21e < "$file"
+          done
+
+  build:
+    needs: [check, lint]
+    if: >-
+      always() && !cancelled() && needs.check.result == 'success' &&
+      needs.lint.result == 'success' && needs.check.outputs.has-work == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.check.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: read
+    env:
+      IMAGE: ${{ matrix.image }}
+      VERSION: ${{ needs.check.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Bootstrap containerized Buildah
+        if: matrix.rebuild
+        run: python3 scripts/images.py build-image --image buildah --version "$VERSION"
+      - name: Build selected image with candidate Buildah
+        if: matrix.rebuild && matrix.image != 'buildah'
+        run: python3 scripts/images.py build-image --image "$IMAGE" --version "$VERSION"
+      - name: Load pinned image for action-only changes
+        if: '!matrix.rebuild'
+        env:
+          DIRECTORY: ${{ matrix.directory }}
+        run: |
+          python3 - <<'PY'
+          import os, re, subprocess
+          from pathlib import Path
+          text = Path(os.environ['DIRECTORY'], 'action.yml').read_text()
+          reference = re.search(r'^  image: docker://(\S+)$', text, re.M)[1]
+          if '@sha256:' not in reference:
+              raise SystemExit('Action-only test requires published digests. Run bootstrap first.')
+          subprocess.run(['docker', 'pull', reference], check=True)
+          subprocess.run(['docker', 'tag', reference, 'localhost/github-actions/'+os.environ['IMAGE']+':'+os.environ['VERSION']], check=True)
+          PY
+      - name: Smoke-test image and prepare native Docker action fixtures
+        run: |
+          python3 scripts/images.py test-image --image "$IMAGE" --version "$VERSION"
+          python3 scripts/images.py new-candidate-actions --image "$IMAGE" --version "$VERSION"
+          python3 scripts/testing.py --prepare "$PWD/.build/fixtures"
+      - name: Test native build action
+        if: matrix.image == 'buildah'
+        uses: ./.candidate-actions/build-image
+        with:
+          context: .build/fixtures/fixture with spaces
+          containerfile: .build/fixtures/fixture with spaces/Containerfile
+          image: localhost/fixture
+          version: 0.0.0-bootstrap
+          platform: linux/${{ matrix.arch }}
+          output: .build/fixtures/result with spaces.oci.tar
+      - name: Test native index input validation
+        if: matrix.image == 'buildah'
+        id: invalid-index
+        continue-on-error: true
+        uses: ./.candidate-actions/merge-image-index
+        with:
+          sources: '[]'
+          destination: docker://invalid.example/fixture:0.0.0-bootstrap
+      - name: Test native import action
+        if: matrix.image == 'skopeo'
+        uses: ./.candidate-actions/import-image
+        with:
+          source: oci-archive:.build/fixtures/fixture.oci.tar
+          destination: oci:.build/fixtures/layout with spaces:fixture
+      - name: Test native export action
+        if: matrix.image == 'skopeo'
+        uses: ./.candidate-actions/export-image
+        with:
+          source: oci:.build/fixtures/layout with spaces:fixture
+          destination: oci-archive:.build/fixtures/export with spaces.tar:fixture
+      - name: Test native digest action
+        if: matrix.image == 'skopeo'
+        uses: ./.candidate-actions/get-image-digest
+        with:
+          image: quay.io/buildah/stable@sha256:07e637ad7a1df37f44afea8287935b350224ac193d63e5cc96debb50a366853c
+          expected-digest: sha256:07e637ad7a1df37f44afea8287935b350224ac193d63e5cc96debb50a366853c
+      - name: Test native publication rejects untested registry sources
+        if: matrix.image == 'skopeo'
+        id: invalid-publish
+        continue-on-error: true
+        uses: ./.candidate-actions/publish-image
+        with:
+          source: docker://invalid.example/source:latest
+          destination: docker://invalid.example/destination:latest
+      - name: Test native SBOM action
+        if: matrix.image == 'syft'
+        uses: ./.candidate-actions/new-sbom
+        with:
+          source: dir:.build/fixtures/fixture with spaces
+          output: .build/fixtures/reports with spaces/sbom.json
+      - name: Prepare scanner fixture with pinned upstream Syft
+        if: matrix.image == 'grype'
+        run: >-
+          docker run --rm --user=0 -v "$PWD/.build/fixtures:/fixtures"
+          docker.io/anchore/syft:v1.54.1@sha256:3eb5379ba7b409c3f4069b686110527af0c47df993fa5c10d13e7cf34f49b1aa
+          scan oci-archive:/fixtures/fixture.oci.tar -o spdx-json=/fixtures/sbom.json
+      - name: Test native vulnerability action
+        if: matrix.image == 'grype'
+        uses: ./.candidate-actions/test-vulnerabilities
+        with:
+          sbom: .build/fixtures/sbom.json
+          output: .build/fixtures/reports with spaces/grype.json
+      - name: Test native signing disabled path
+        if: matrix.image == 'cosign'
+        uses: ./.candidate-actions/new-image-signature
+        with:
+          image: example.invalid/image@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          enabled: 'false'
+      - name: Test native signature verification rejects mutable tags
+        if: matrix.image == 'cosign'
+        id: invalid-signature
+        continue-on-error: true
+        uses: ./.candidate-actions/test-image-signature
+        with:
+          image: example.invalid/image:latest
+      - name: Assert expected negative outcomes
+        env:
+          INDEX: ${{ steps.invalid-index.outcome }}
+          PUBLISH: ${{ steps.invalid-publish.outcome }}
+          SIGNATURE: ${{ steps.invalid-signature.outcome }}
+        run: |
+          case "$IMAGE" in
+            buildah) test "$INDEX" = failure ;;
+            skopeo) test "$PUBLISH" = failure ;;
+            cosign) test "$SIGNATURE" = failure ;;
+          esac
+      - name: Generate SBOM and scan exact candidate archive
+        if: matrix.rebuild
+        run: python3 scripts/reports.py "$IMAGE"
+      - name: Record successful matrix result
+        if: matrix.rebuild
+        run: python3 scripts/images.py new-metadata --image "$IMAGE" --version "$VERSION"
+      - name: Upload archive and reports including failure diagnostics
+        if: always() && matrix.rebuild
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: oci-${{ matrix.image }}-${{ matrix.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .build/${{ matrix.image }}/${{ matrix.arch }}/image.oci.tar
+            .build/${{ matrix.image }}/${{ matrix.arch }}/*.json
+          if-no-files-found: error
+
+  release:
+    needs: [check, lint, build]
+    if: >-
+      always() && !cancelled() && needs.check.result == 'success' &&
+      needs.lint.result == 'success' &&
+      ((needs.check.outputs.mode == 'prepare' && needs.build.result == 'success' && inputs.publish-bootstrap) ||
+       needs.check.outputs.mode == 'release')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    concurrency:
+      group: oci-publication
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Reject premature release tags
+        if: needs.check.outputs.mode == 'release'
+        run: python3 scripts/verify-release.py
+      - name: Download tested matrix artifacts
+        if: needs.check.outputs.mode == 'prepare'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: oci-*
+          path: .build/publication
+      - name: Publish bootstrap, verify and prepare digest patch
+        if: needs.check.outputs.mode == 'prepare'
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          GHCR_USERNAME: ${{ github.actor }}
+          OWNER: ${{ github.repository_owner }}
+          SIGN: ${{ inputs.sign }}
+        run: |
+          args=()
+          if [ "$SIGN" = true ]; then args+=(--sign); fi
+          python3 scripts/publish.py .build/publication --owner "${OWNER,,}" "${args[@]}"
+      - name: Retain publication journal and digest patch
+        if: always() && needs.check.outputs.mode == 'prepare'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: bootstrap-publication-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .build/publication/publication.json
+            .build/publication/action-digests.patch
+            .build/publication/signatures/*.json
+          if-no-files-found: warn
+
+  maintenance:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Rescan pinned images with refreshed vulnerability database
+        run: python3 scripts/maintenance.py
+      - name: Upload maintenance reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: maintenance-${{ github.run_id }}
+          path: .build/maintenance
+          if-no-files-found: warn

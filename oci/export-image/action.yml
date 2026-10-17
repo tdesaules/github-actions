@@ -1,0 +1,16 @@
+name: Export OCI image
+description: Copy an OCI layout or registry image into an OCI archive without changing digests
+inputs:
+  source:
+    description: 'Explicit oci:, oci-archive: or docker:// source'
+    required: true
+  destination:
+    description: 'Explicit oci-archive: destination'
+    required: true
+outputs:
+  destination:
+    description: Resulting destination transport reference
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/skopeo:0.0.0-bootstrap
+  args: [export-image]

@@ -1,0 +1,21 @@
+FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS entrypoint
+WORKDIR /src
+COPY go.mod ./
+COPY shared/runtime/ ./shared/runtime/
+RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w -X main.tool=syft' -o /entrypoint ./shared/runtime
+
+FROM docker.io/anchore/syft:v1.54.1@sha256:3eb5379ba7b409c3f4069b686110527af0c47df993fa5c10d13e7cf34f49b1aa AS upstream
+
+FROM scratch AS final
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=upstream /syft /usr/bin/syft
+COPY --from=entrypoint /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=entrypoint --chmod=1777 /tmp /tmp
+COPY --from=entrypoint /entrypoint /entrypoint
+ENV PATH=/usr/bin HOME=/tmp SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt SYFT_CHECK_FOR_APP_UPDATE=false
+# Entrypoint adopts the runner UID for writable bind mounts.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="Syft Docker action" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND Apache-2.0"

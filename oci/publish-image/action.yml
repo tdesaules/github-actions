@@ -1,0 +1,23 @@
+name: Publish OCI image
+description: Publish a previously tested archive or layout preserving its digests
+inputs:
+  source:
+    description: 'Explicit oci-archive: or oci: source'
+    required: true
+  destination:
+    description: Registry destination prefixed with docker://
+    required: true
+  registry:
+    description: Registry hostname for authentication
+    default: ghcr.io
+  registry-username:
+    description: Registry username
+  registry-password:
+    description: Registry token (use a secret)
+outputs:
+  destination:
+    description: Published transport reference
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/skopeo:0.0.0-bootstrap
+  args: [publish-image]

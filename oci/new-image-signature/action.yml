@@ -1,0 +1,28 @@
+name: New OCI image signature
+description: Sign an immutable image reference using Cosign and GitHub OIDC or an explicit key
+inputs:
+  image:
+    description: Image reference qualified by sha256 digest
+    required: true
+  enabled:
+    description: Set false where signing is not authorized
+    default: 'true'
+  key:
+    description: Optional signing key path; absent means GitHub OIDC
+  transparency-log:
+    description: Require Sigstore transparency log; false requires an explicit key for private registries
+    default: 'true'
+  registry:
+    description: Registry hostname
+    default: ghcr.io
+  registry-username:
+    description: Registry username
+  registry-password:
+    description: Registry token
+outputs:
+  signed:
+    description: Whether signing completed
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/cosign:0.0.0-bootstrap
+  args: [new-image-signature]

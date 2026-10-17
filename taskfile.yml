@@ -1,0 +1,54 @@
+version: '3'
+
+vars:
+  IMAGE: '{{default "all" .IMAGE}}'
+  VERSION: '{{default "0.0.0-bootstrap" .VERSION}}'
+
+tasks:
+  test-repository:
+    desc: Validate action/image relationships and run unit tests
+    cmds:
+      - python3 scripts/ci.py validate
+      - task: test-unit
+  test-unit:
+    desc: Test orchestration and the static action entrypoint
+    cmds:
+      - python3 -m unittest discover -s tests/unit -v
+      - go test ./shared/runtime
+  initialize-bootstrap:
+    desc: Build and smoke-test all images on the native architecture using nested Buildah
+    cmds:
+      - python3 scripts/images.py initialize-bootstrap --version '{{.VERSION}}'
+  build-image:
+    cmds:
+      - python3 scripts/images.py build-image --image '{{.IMAGE}}' --version '{{.VERSION}}'
+  test-image:
+    cmds:
+      - python3 scripts/images.py test-image --image '{{.IMAGE}}' --version '{{.VERSION}}'
+  new-candidate-actions:
+    cmds:
+      - python3 scripts/images.py new-candidate-actions --image '{{.IMAGE}}' --version '{{.VERSION}}'
+  test-integration:
+    desc: Exercise real containers locally; native action tests run in main.yml
+    cmds:
+      - python3 scripts/testing.py --version '{{.VERSION}}'
+  test-regression:
+    cmds:
+      - python3 -m unittest discover -s tests/unit -p 'test_*.py' -v
+  test-registry:
+    desc: Test publication and index integrity against an isolated local TLS registry
+    cmds:
+      - python3 scripts/test-registry.py
+  test-action-metadata:
+    desc: Parse and validate native Docker metadata in an ephemeral validator container
+    cmds:
+      - >-
+        {{default "podman" .CONTAINER_ENGINE}} run --rm -v "$PWD:/repo:ro" -w /repo
+        docker.io/library/python:3.14.0-alpine3.22@sha256:8373231e1e906ddfb457748bfc032c4c06ada8c759b7b62d9c73ec2a3c56e710
+        sh -ec 'pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: --no-deps PyYAML==6.0.3; python scripts/validate-actions.py'
+  publish-bootstrap:
+    desc: Publish aggregated tested AMD64/ARM64 artifacts (GHCR_TOKEN and GHCR_USERNAME required)
+    requires:
+      vars: [OWNER, ARTIFACTS]
+    cmds:
+      - python3 scripts/publish.py '{{.ARTIFACTS}}' --owner '{{.OWNER}}'

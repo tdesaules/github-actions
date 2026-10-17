@@ -1,0 +1,32 @@
+name: Test OCI image signature
+description: Verify an immutable image signature with exact identity and issuer constraints
+inputs:
+  image:
+    description: Image reference qualified by sha256 digest
+    required: true
+  identity:
+    description: Exact expected keyless certificate identity
+  issuer:
+    description: Expected OIDC issuer
+  key:
+    description: Optional public key path for key-based verification
+  transparency-log:
+    description: Require transparency-log verification; false requires an explicit public key
+    default: 'true'
+  output:
+    description: Verification report path
+    default: cosign.json
+  registry:
+    description: Registry hostname
+    default: ghcr.io
+  registry-username:
+    description: Registry username
+  registry-password:
+    description: Registry token
+outputs:
+  report:
+    description: Verification report path
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/cosign:0.0.0-bootstrap
+  args: [test-image-signature]

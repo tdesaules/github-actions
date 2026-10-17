@@ -1,0 +1,22 @@
+name: Test vulnerabilities
+description: Scan an existing SBOM with Grype and retain a machine-readable report
+inputs:
+  sbom:
+    description: Existing SBOM path
+    required: true
+  fail-on:
+    description: negligible, low, medium, high or critical
+    default: high
+  update-database:
+    description: Update the database before scanning; false requires a valid cached database
+    default: 'true'
+  output:
+    description: JSON report path
+    default: grype.json
+outputs:
+  report:
+    description: Report path, including on threshold failure
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/grype:0.0.0-bootstrap
+  args: [test-vulnerabilities]

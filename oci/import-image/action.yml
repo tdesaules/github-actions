@@ -1,0 +1,16 @@
+name: Import OCI image
+description: Import an OCI archive into an OCI layout without a host engine socket
+inputs:
+  source:
+    description: 'Explicit oci-archive: source'
+    required: true
+  destination:
+    description: 'Explicit oci: layout destination'
+    required: true
+outputs:
+  destination:
+    description: Resulting destination transport reference
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/skopeo:0.0.0-bootstrap
+  args: [import-image]

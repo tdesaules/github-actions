@@ -1,0 +1,20 @@
+name: Merge OCI image index
+description: Assemble and publish an index from two tested architecture archives
+inputs:
+  sources:
+    description: JSON array of amd64 and arm64 OCI archive paths
+    required: true
+  destination:
+    description: Registry destination prefixed with docker://
+    required: true
+  registry:
+    description: Registry hostname
+    default: ghcr.io
+  registry-username:
+    description: Registry username
+  registry-password:
+    description: Registry token
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/buildah:0.0.0-bootstrap
+  args: [merge-image-index]

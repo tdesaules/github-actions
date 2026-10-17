@@ -1,0 +1,21 @@
+FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS entrypoint
+WORKDIR /src
+COPY go.mod ./
+COPY shared/runtime/ ./shared/runtime/
+RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w -X main.tool=skopeo' -o /entrypoint ./shared/runtime
+
+FROM quay.io/skopeo/stable:v1.22.3@sha256:7e735527d9d64c7456fc82d7f954c380b4a5dd1a8173115ce2ed7b3442ef36e0 AS runtime
+COPY shared/runtime/collect-runtime.sh /collect-runtime.sh
+RUN sh /collect-runtime.sh skopeo
+
+FROM scratch AS final
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=runtime /runtime/ /
+COPY --from=entrypoint /entrypoint /entrypoint
+ENV PATH=/usr/bin SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt HOME=/tmp
+# OCI archive extraction preserves ownership and requires container root.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="Skopeo Docker action" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND Apache-2.0"

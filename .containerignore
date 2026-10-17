@@ -1,0 +1,6 @@
+.git
+.build
+.candidate-actions
+**/__pycache__
+docs
+tests

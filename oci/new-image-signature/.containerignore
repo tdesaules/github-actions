@@ -1,0 +1,4 @@
+.git
+.build
+.candidate-actions
+**/__pycache__

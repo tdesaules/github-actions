@@ -1,0 +1,41 @@
+name: Build OCI image
+description: Build with containerized Buildah and export an OCI archive
+inputs:
+  context:
+    description: Build context relative to the workspace
+    default: .
+  containerfile:
+    description: Containerfile path
+    default: Containerfile
+  image:
+    description: Image name without a tag
+    required: true
+  version:
+    description: Integration image version without a v prefix
+    required: true
+  platform:
+    description: linux/amd64 or linux/arm64 (requires a matching runner)
+    required: true
+  target:
+    description: Optional build stage
+  labels:
+    description: JSON object of OCI labels
+    default: '{}'
+  build-args:
+    description: JSON object of non-secret build arguments
+    default: '{}'
+  secrets:
+    description: JSON array of id=NAME,src=PATH secret specifications
+    default: '[]'
+  output:
+    description: Output archive path in the workspace
+    default: image.oci.tar
+outputs:
+  archive:
+    description: Absolute archive path inside the workspace mount
+  archive-sha256:
+    description: SHA-256 of the archive file, not the image manifest
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/buildah:0.0.0-bootstrap
+  args: [build-image]

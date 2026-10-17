@@ -1,0 +1,21 @@
+FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS entrypoint
+WORKDIR /src
+COPY go.mod ./
+COPY shared/runtime/ ./shared/runtime/
+RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w -X main.tool=cosign' -o /entrypoint ./shared/runtime
+
+FROM ghcr.io/sigstore/cosign/cosign:v3.1.3@sha256:9e5c2f2edc34351160407ca3416c61855bdf9403c3c5936e0f0be7fc261611b8 AS upstream
+
+FROM scratch AS final
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=upstream /ko-app/cosign /usr/bin/cosign
+COPY --from=entrypoint /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=entrypoint --chmod=1777 /tmp /tmp
+COPY --from=entrypoint /entrypoint /entrypoint
+ENV PATH=/usr/bin HOME=/tmp SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+# Entrypoint adopts the runner UID for writable bind mounts.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="Cosign Docker action" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND Apache-2.0"

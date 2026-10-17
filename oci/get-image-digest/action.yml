@@ -1,0 +1,24 @@
+name: Get OCI image digest
+description: Read the raw manifest or multiarchitecture index digest from a registry
+inputs:
+  image:
+    description: Registry image reference
+    required: true
+  expected-digest:
+    description: Optional expected sha256 digest
+  registry:
+    description: Registry hostname
+    default: ghcr.io
+  registry-username:
+    description: Registry username
+  registry-password:
+    description: Registry token
+outputs:
+  digest:
+    description: Raw manifest or index digest
+  reference:
+    description: Digest-qualified image reference
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/skopeo:0.0.0-bootstrap
+  args: [get-image-digest]
