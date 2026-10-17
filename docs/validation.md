@@ -1,5 +1,16 @@
 # Validation effectuée localement
 
+## Complément : chemin Buildah validé sur GitHub
+
+Les campagnes `39030091316` et `39030331639` ont qualifié les runners hébergés
+AMD64 et ARM64. Notre image Buildah scratch fonctionne pour la construction et
+l'export OCI avec `--security-opt=seccomp=unconfined` et
+`--security-opt=apparmor=unconfined`, sans `--privileged` ni capability ajoutée.
+Un build négatif propage le code `42`. L'action native standard échoue toujours.
+Voir le [comparatif et la décision recommandée](hosted-runner-qualification.md).
+Les limites de la première qualification et les résultats locaux ci-dessous
+sont conservés comme historique ; aucune publication n'a été effectuée.
+
 ## Première qualification GitHub
 
 Le commit `3209df8` a été poussé sur `main` et exécuté dans le
