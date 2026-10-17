@@ -2,6 +2,17 @@
 
 ## Itération en cours
 
+Le [run 39033229840](https://github.com/tdesaules/github-actions/actions/runs/39033229840)
+du commit `5cb81d5` est **réussi** : `check`, `lint` et les dix variantes des
+cinq images sur AMD64/ARM64 passent. Cela comprend les scans au seuil `high`,
+le lanceur public Buildah, les actions natives, la publication TLS, les index
+sans modification des digests et les signatures par clé éphémère. Les tests
+Syft couvrent aussi la racine en lecture seule et les erreurs de permissions.
+La tentative de bootstrap `39034584808` a échoué avant le démarrage des étapes
+de publication : les groupes de concurrence du workflow et du job étaient
+identiques. Ils sont désormais distincts. Une nouvelle qualification complète
+est nécessaire au commit corrigé avant publication.
+
 Le run `39030971131` confirme que les tests Buildah passent sur les deux
 architectures ; ses jobs Buildah échouent ensuite au scan. La reconstruction
 locale des cinq outils avec Go 1.27.2 et les dépendances corrigées passe le
