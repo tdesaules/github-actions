@@ -1,9 +1,17 @@
 # Action-composed orchestration
 
-The orchestration migration is in progress. The current `main` workflow still
-uses Python orchestration and direct container invocations; the new planner is
-not yet its authoritative selector. New action references marked `:unpublished`
-are candidates, not usable published releases.
+The orchestration migration is in progress. The `lint` job now assembles the
+execution planner and source-check composite with `uses`, without host commands.
+The other jobs still use Python orchestration and direct container invocations;
+the new planner is not yet their authoritative selector.
+
+All container action references, including the lint prerequisites, are pinned
+to the digests published by run `39144169525` and recorded in tag `0.3.0`.
+Hosted qualification run `39138914416` succeeded for all 48 native variants,
+including the corrected Markdown and Renovate images. Markdown includes only the
+markdownlint library dependency
+closure; Renovate uses a source-verified depth guard for the unpatched upstream
+braces advisory.
 
 ## Implemented building blocks
 
@@ -15,7 +23,8 @@ are candidates, not usable published releases.
   reference for an immutable registry digest. It does not load images itself.
 - `workflow/import-candidate-image`: transfers the archive with Skopeo into the
   isolated `candidate-registry` workflow service, preserving its digest. This
-  provides a socket-free path for native tests; hosted qualification is pending.
+  provides a socket-free path for native tests; its transfer operation passed on
+  both hosted architectures in run `39138914416`.
 - `workflow/new-test-fixtures`: produces deterministic OCI archives and positive
   and negative source fixtures.
 - `workflow/new-image-metadata`: checks archive digests, layer checksums, platform
@@ -25,7 +34,7 @@ are candidates, not usable published releases.
   check selection. This repository-internal composite requires this catalogue
   checked out at the workspace root because its `uses` paths are local.
 - `check/test-markdown` and `check/test-links`: explicit literal file lists,
-  markdownlint-cli2 and Lychee, respectively.
+  markdownlint and Lychee, respectively.
 - `check/test-action-metadata`: validates native action ownership, input
   forwarding and the action-only composition contract.
 - `maintenance/update-dependencies`: explicit-repository Renovate execution in a
@@ -47,7 +56,7 @@ changes select their dependent documents. Empty image matrices remain valid.
 ## Remaining integration
 
 Artifact aggregation, release planning/finalization and registry signature
-fixtures still need reusable interfaces. The workflow must
+fixtures still need reusable interfaces. The other workflow jobs must
 then consume the planner and composites, and qualification must demonstrate
 selective hosted execution and unchanged digest reuse. Local tests do not
 establish those hosted properties.

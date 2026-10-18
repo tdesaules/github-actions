@@ -134,24 +134,19 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          fetch-depth: 0
           persist-credentials: false
-      - name: Validate workflow
-        run: >-
-          docker run --rm -v "$PWD:/repo:ro" -w /repo
-          docker.io/rhysd/actionlint:1.7.7@sha256:887a259a5a534f3c4f36cb02dca341673c6089431057242cdc931e9f133147e9
-          -shellcheck= -pyflakes= .github/workflows/main.yml
-      - name: Validate Docker action metadata
-        run: >-
-          docker run --rm -v "$PWD:/repo:ro" -w /repo
-          docker.io/library/python:3.14.0-alpine3.22@sha256:8373231e1e906ddfb457748bfc032c4c06ada8c759b7b62d9c73ec2a3c56e710
-          sh -ec 'pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: --no-deps PyYAML==6.0.3; python scripts/validate-actions.py'
-      - name: Validate Containerfiles
-        run: |
-          for file in oci/*/Containerfile check/*/Containerfile workflow/*/Containerfile maintenance/*/Containerfile; do
-            docker run --rm -i docker.io/hadolint/hadolint:v2.14.0@sha256:27086352fd5e1907ea2b934eb1023f217c5ae087992eb59fde121dce9c9ff21e < "$file"
-          done
-      - name: Validate TOML configuration
-        run: python3 -c 'import pathlib,tomllib; [tomllib.loads(p.read_text()) for p in pathlib.Path(".").glob("*.toml")]'
+      - name: Select affected source checks
+        id: sources
+        uses: ./workflow/get-execution-plan
+        with:
+          before: ${{ github.event.before }}
+          after: ${{ github.sha }}
+          full: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}
+      - name: Test affected source files
+        uses: ./workflow/test-source-files
+        with:
+          checks: ${{ steps.sources.outputs.checks }}
 
   build:
     needs: [check, lint]
