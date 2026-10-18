@@ -26,6 +26,10 @@ def fixture_archive(path, arch="amd64"):
 
     layer_data = io.BytesIO()
     with tarfile.open(fileobj=layer_data, mode="w") as tar:
+        temporary = tarfile.TarInfo('tmp')
+        temporary.type = tarfile.DIRTYPE
+        temporary.mode = 0o1777
+        tar.addfile(temporary)
         info = tarfile.TarInfo("hello.txt")
         data = b"hello\n"
         info.size = len(data)

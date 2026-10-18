@@ -1,0 +1,19 @@
+name: New candidate action
+description: Prepare an action to use a candidate image without changing its source metadata
+inputs:
+  directory:
+    description: Source action directory
+    required: true
+  image:
+    description: Immutable registry digest or already loaded localhost candidate tag
+    required: true
+  destination:
+    description: Separate destination directory for the generated action
+    required: true
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-candidate-action:unpublished
+  args:
+    - --directory=${{ inputs.directory }}
+    - --image=${{ inputs.image }}
+    - --destination=${{ inputs.destination }}

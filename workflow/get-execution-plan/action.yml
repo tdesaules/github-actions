@@ -1,0 +1,32 @@
+name: Get execution plan
+description: Discover action dependencies and select checks, tests and images from Git changes
+inputs:
+  before:
+    description: Base Git commit; defaults to the push event before SHA or merge-base with main
+  after:
+    description: Target Git commit; defaults to GITHUB_SHA or HEAD
+  full:
+    description: Select every component and source file
+    default: 'false'
+outputs:
+  plan:
+    description: Complete execution plan as JSON
+  matrix:
+    description: Native image qualification matrix as JSON
+  checks:
+    description: Check names mapped to affected existing files as JSON
+  actions:
+    description: Affected native and composite action directories as JSON
+  has-work:
+    description: Whether the image qualification matrix is nonempty
+  go-packages:
+    description: Go packages with modified source or tests as JSON
+  orchestration-tests:
+    description: Whether orchestration regression tests are required
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-execution-plan:unpublished
+  args:
+    - --before=${{ inputs.before }}
+    - --after=${{ inputs.after }}
+    - --full=${{ inputs.full }}

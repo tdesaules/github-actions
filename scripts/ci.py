@@ -22,7 +22,9 @@ def git(*args):
 def discover(root=ROOT):
     actions = {}
     owners = {}
-    for path in sorted([*root.glob("oci/*/action.yml"), *root.glob("check/*/action.yml")]):
+    for path in sorted([*root.glob("oci/*/action.yml"), *root.glob("check/*/action.yml"), *root.glob("workflow/*/action.yml"), *root.glob("maintenance/*/action.yml")]):
+        if path.parent.parent.name == 'workflow' and not (path.parent / 'Containerfile').exists():
+            continue
         match = IMAGE.search(path.read_text())
         if not match:
             raise ValueError(f"{path}: missing Docker image reference")

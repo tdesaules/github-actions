@@ -1,0 +1,50 @@
+name: Test source files
+description: Run the repository check catalogue against an execution plan from this checkout
+inputs:
+  checks:
+    description: JSON object mapping check names to literal file arrays
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Test action metadata
+      if: toJSON(fromJSON(inputs.checks).action-metadata) != 'null' && toJSON(fromJSON(inputs.checks).action-metadata) != '[]'
+      uses: ./check/test-action-metadata
+      with:
+        files: ${{ toJSON(fromJSON(inputs.checks).action-metadata) }}
+    - name: Test workflows
+      if: toJSON(fromJSON(inputs.checks).github-workflow) != 'null' && toJSON(fromJSON(inputs.checks).github-workflow) != '[]'
+      uses: ./check/test-github-workflow
+      with:
+        files: ${{ toJSON(fromJSON(inputs.checks).github-workflow) }}
+    - name: Test Containerfiles
+      if: toJSON(fromJSON(inputs.checks).containerfile) != 'null' && toJSON(fromJSON(inputs.checks).containerfile) != '[]'
+      uses: ./check/test-containerfile
+      with:
+        files: ${{ toJSON(fromJSON(inputs.checks).containerfile) }}
+    - name: Test shell files
+      if: toJSON(fromJSON(inputs.checks).shell) != 'null' && toJSON(fromJSON(inputs.checks).shell) != '[]'
+      uses: ./check/test-shell
+      with:
+        files: ${{ toJSON(fromJSON(inputs.checks).shell) }}
+    - name: Test YAML
+      if: toJSON(fromJSON(inputs.checks).yaml) != 'null' && toJSON(fromJSON(inputs.checks).yaml) != '[]'
+      uses: ./check/test-yaml
+      with:
+        files: ${{ toJSON(fromJSON(inputs.checks).yaml) }}
+    - name: Test TOML
+      if: toJSON(fromJSON(inputs.checks).toml) != 'null' && toJSON(fromJSON(inputs.checks).toml) != '[]'
+      uses: ./check/test-toml
+      with:
+        files: ${{ toJSON(fromJSON(inputs.checks).toml) }}
+    - name: Test Markdown
+      if: toJSON(fromJSON(inputs.checks).markdown) != 'null' && toJSON(fromJSON(inputs.checks).markdown) != '[]'
+      uses: ./check/test-markdown
+      with:
+        files: ${{ toJSON(fromJSON(inputs.checks).markdown) }}
+    - name: Test links
+      if: toJSON(fromJSON(inputs.checks).links) != 'null' && toJSON(fromJSON(inputs.checks).links) != '[]'
+      uses: ./check/test-links
+      with:
+        files: ${{ toJSON(fromJSON(inputs.checks).links) }}
+        config: lychee.toml

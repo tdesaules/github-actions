@@ -1,0 +1,31 @@
+name: New image metadata
+description: Record checksums and platform evidence for an archive after its tests and scans succeed
+inputs:
+  archive:
+    description: Exact tested OCI archive path
+    required: true
+  image:
+    description: Component image name
+    required: true
+  architecture:
+    description: Native amd64 or arm64 platform
+    required: true
+  revision:
+    description: Full tested Git commit SHA
+    required: true
+  version:
+    description: Candidate version identifier
+    required: true
+  output:
+    description: Metadata JSON output path
+    required: true
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-image-metadata:unpublished
+  args:
+    - --archive=${{ inputs.archive }}
+    - --image=${{ inputs.image }}
+    - --architecture=${{ inputs.architecture }}
+    - --revision=${{ inputs.revision }}
+    - --version=${{ inputs.version }}
+    - --output=${{ inputs.output }}

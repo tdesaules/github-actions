@@ -1,0 +1,11 @@
+name: New test fixtures
+description: Generate deterministic OCI archives and valid and invalid source fixtures for action qualification
+inputs:
+  directory:
+    description: Destination directory for generated fixtures
+    required: true
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-test-fixtures:unpublished
+  args:
+    - --directory=${{ inputs.directory }}
