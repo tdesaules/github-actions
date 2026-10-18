@@ -147,7 +147,7 @@ jobs:
           sh -ec 'pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: --no-deps PyYAML==6.0.3; python scripts/validate-actions.py'
       - name: Validate Containerfiles
         run: |
-          for file in oci/*/Containerfile check/*/Containerfile; do
+          for file in oci/*/Containerfile check/*/Containerfile workflow/*/Containerfile maintenance/*/Containerfile; do
             docker run --rm -i docker.io/hadolint/hadolint:v2.14.0@sha256:27086352fd5e1907ea2b934eb1023f217c5ae087992eb59fde121dce9c9ff21e < "$file"
           done
       - name: Validate TOML configuration
@@ -205,6 +205,35 @@ jobs:
       - name: Test check image with read-only sources and negative fixtures
         if: startsWith(matrix.image, 'check-')
         run: python3 scripts/test-checks.py --image "$IMAGE" --version "$VERSION"
+      - name: Test native execution planner on an empty Git diff
+        if: matrix.image == 'workflow-get-execution-plan'
+        id: planner-fixture
+        uses: ./.candidate-actions/get-execution-plan
+        with:
+          before: ${{ github.sha }}
+          after: ${{ github.sha }}
+      - name: Test native candidate preparation
+        if: matrix.image == 'workflow-new-candidate-action'
+        uses: ./.candidate-actions/new-candidate-action
+        with:
+          directory: workflow/new-candidate-action
+          image: localhost/github-actions/${{ matrix.image }}:${{ env.VERSION }}
+          destination: .build/fixtures/generated-candidate
+      - name: Test native fixture generation
+        if: matrix.image == 'workflow-new-test-fixtures'
+        uses: ./.candidate-actions/new-test-fixtures
+        with:
+          directory: .build/fixtures/generated
+      - name: Test native metadata generation
+        if: matrix.image == 'workflow-new-image-metadata'
+        uses: ./.candidate-actions/new-image-metadata
+        with:
+          archive: .build/fixtures/fixture.oci.tar
+          image: fixture
+          architecture: amd64
+          revision: ${{ github.sha }}
+          version: ${{ env.VERSION }}
+          output: .build/fixtures/tested-metadata.json
       - name: Test native workflow check
         if: matrix.image == 'check-test-github-workflow'
         uses: ./.candidate-actions/test-github-workflow
@@ -230,6 +259,33 @@ jobs:
         uses: ./.candidate-actions/test-toml
         with:
           files: '[".build/check-fixtures/check-test-toml/valid config.toml"]'
+      - name: Test native action metadata check
+        if: matrix.image == 'check-test-action-metadata'
+        uses: ./.candidate-actions/test-action-metadata
+        with:
+          files: '[".build/check-fixtures/check-test-action-metadata/valid action.yml"]'
+      - name: Test native Markdown check
+        if: matrix.image == 'check-test-markdown'
+        uses: ./.candidate-actions/test-markdown
+        with:
+          files: '[".build/check-fixtures/check-test-markdown/valid document.md"]'
+      - name: Test native link check
+        if: matrix.image == 'check-test-links'
+        uses: ./.candidate-actions/test-links
+        with:
+          files: '[".build/check-fixtures/check-test-links/valid links.md"]'
+      - name: Test Renovate runtime
+        if: matrix.image == 'maintenance-update-dependencies'
+        run: docker run --rm --entrypoint=/usr/local/renovate/node "localhost/github-actions/$IMAGE:$VERSION" /usr/local/renovate/dist/renovate.js --help
+      - name: Test native Renovate input validation
+        if: matrix.image == 'maintenance-update-dependencies'
+        id: invalid-renovate
+        continue-on-error: true
+        uses: ./.candidate-actions/update-dependencies
+        with:
+          repository: invalid
+          dry-run: 'true'
+          token: unused-fixture-token
       - name: Test read-only SBOM runtime and permission failures
         if: matrix.image == 'oci-new-sbom'
         run: python3 scripts/testing.py --image oci-new-sbom --version "$VERSION"
@@ -361,11 +417,13 @@ jobs:
           INDEX: ${{ steps.invalid-index.outcome }}
           PUBLISH: ${{ steps.invalid-publish.outcome }}
           SIGNATURE: ${{ steps.invalid-signature.outcome }}
+          RENOVATE: ${{ steps.invalid-renovate.outcome }}
         run: |
           case "$IMAGE" in
             oci-merge-image-index) test "$INDEX" = failure ;;
             oci-publish-image) test "$PUBLISH" = failure ;;
             oci-test-image-signature) test "$SIGNATURE" = failure ;;
+            maintenance-update-dependencies) test "$RENOVATE" = failure ;;
           esac
       - name: Generate SBOM and scan exact candidate archive
         if: matrix.rebuild
