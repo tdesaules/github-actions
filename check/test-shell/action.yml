@@ -1,0 +1,16 @@
+name: Test shell
+description: Check shell scripts with ShellCheck, including extensionless files with a shell shebang
+inputs:
+  files:
+    description: Nonempty JSON array of shell script paths, without glob expansion
+    required: true
+outputs:
+  checked:
+    description: Number of checked files
+  passed:
+    description: Whether every selected file passed
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-shell:unpublished
+  args:
+    - --files=${{ inputs.files }}

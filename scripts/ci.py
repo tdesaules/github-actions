@@ -22,14 +22,15 @@ def git(*args):
 def discover(root=ROOT):
     actions = {}
     owners = {}
-    for path in sorted(root.glob("oci/*/action.yml")):
+    for path in sorted([*root.glob("oci/*/action.yml"), *root.glob("check/*/action.yml")]):
         match = IMAGE.search(path.read_text())
         if not match:
             raise ValueError(f"{path}: missing Docker image reference")
         reference = match[1]
         image = reference.rsplit("/", 1)[1].split(":")[0].split("@")[0]
-        if image != 'oci-'+path.parent.name:
-            raise ValueError(f'{path}: image must be owned by this action (oci-{path.parent.name})')
+        expected = path.parent.parent.name+'-'+path.parent.name
+        if image != expected:
+            raise ValueError(f'{path}: image must be owned by this action ({expected})')
         directory = str(path.parent.relative_to(root))
         actions[directory] = image
         if (path.parent / "Containerfile").is_file():

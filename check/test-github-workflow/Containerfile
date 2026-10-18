@@ -1,0 +1,20 @@
+FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/check/ ./shared/check/
+COPY check/test-github-workflow/main.go ./check/test-github-workflow/main.go
+RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /entrypoint ./check/test-github-workflow
+COPY shared/runtime/compile-tool.sh /compile-tool.sh
+RUN sh /compile-tool.sh github.com/rhysd/actionlint v1.7.7 h1:0KgkoNTrYY7vmOCs9BW2AHxLvvpoY9nEUzgBHiPUr0k= actionlint
+
+FROM scratch AS final
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=build /entrypoint /entrypoint
+COPY --from=build /tool /usr/bin/actionlint
+COPY --from=build /runtime/ /
+# Entrypoint adopts the runner-owned GITHUB_OUTPUT UID before checking files.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="check-test-github-workflow" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND MIT"

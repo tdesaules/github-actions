@@ -1,0 +1,16 @@
+name: Test TOML
+description: Validate TOML syntax and duplicate keys without modifying source files
+inputs:
+  files:
+    description: Nonempty JSON array of TOML file paths, without glob expansion
+    required: true
+outputs:
+  checked:
+    description: Number of checked files
+  passed:
+    description: Whether every selected file passed
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-toml:unpublished
+  args:
+    - --files=${{ inputs.files }}

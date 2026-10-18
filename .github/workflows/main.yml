@@ -147,7 +147,7 @@ jobs:
           sh -ec 'pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: --no-deps PyYAML==6.0.3; python scripts/validate-actions.py'
       - name: Validate Containerfiles
         run: |
-          for file in oci/*/Containerfile; do
+          for file in oci/*/Containerfile check/*/Containerfile; do
             docker run --rm -i docker.io/hadolint/hadolint:v2.14.0@sha256:27086352fd5e1907ea2b934eb1023f217c5ae087992eb59fde121dce9c9ff21e < "$file"
           done
       - name: Validate TOML configuration
@@ -202,6 +202,34 @@ jobs:
       - name: Test qualified Buildah container
         if: matrix.image == 'oci-build-image'
         run: python3 scripts/testing.py --image oci-build-image --version "$VERSION"
+      - name: Test check image with read-only sources and negative fixtures
+        if: startsWith(matrix.image, 'check-')
+        run: python3 scripts/test-checks.py --image "$IMAGE" --version "$VERSION"
+      - name: Test native workflow check
+        if: matrix.image == 'check-test-github-workflow'
+        uses: ./.candidate-actions/test-github-workflow
+        with:
+          files: '[".build/check-fixtures/check-test-github-workflow/workflow valid.yml"]'
+      - name: Test native Containerfile check
+        if: matrix.image == 'check-test-containerfile'
+        uses: ./.candidate-actions/test-containerfile
+        with:
+          files: '[".build/check-fixtures/check-test-containerfile/Containerfile valid"]'
+      - name: Test native shell check
+        if: matrix.image == 'check-test-shell'
+        uses: ./.candidate-actions/test-shell
+        with:
+          files: '[".build/check-fixtures/check-test-shell/script without extension"]'
+      - name: Test native YAML check
+        if: matrix.image == 'check-test-yaml'
+        uses: ./.candidate-actions/test-yaml
+        with:
+          files: '[".build/check-fixtures/check-test-yaml/valid stream.yaml"]'
+      - name: Test native TOML check
+        if: matrix.image == 'check-test-toml'
+        uses: ./.candidate-actions/test-toml
+        with:
+          files: '[".build/check-fixtures/check-test-toml/valid config.toml"]'
       - name: Test read-only SBOM runtime and permission failures
         if: matrix.image == 'oci-new-sbom'
         run: python3 scripts/testing.py --image oci-new-sbom --version "$VERSION"
@@ -472,7 +500,7 @@ jobs:
         run: >-
           docker run --rm -v "$PWD:/repo:ro" -w /repo
           docker.io/lycheeverse/lychee:0.24.2@sha256:e2d19e57cf6ab037026f20b8e449a1f30d9d7f81eef4194763aab2eab20bd28d
-          --config lychee.toml README.md 'docs/**/*.md' 'oci/**/*.md'
+          --config lychee.toml README.md 'docs/**/*.md' 'oci/**/*.md' 'check/**/*.md'
       - name: Verify replacements before retiring shared images
         if: inputs.maintenance && inputs.retire-shared-images && github.ref == 'refs/heads/main'
         run: python3 scripts/verify-release.py

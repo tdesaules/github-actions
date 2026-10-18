@@ -1,0 +1,16 @@
+name: Test YAML
+description: Validate YAML syntax and duplicate mapping keys, including multi-document streams, without modifying files
+inputs:
+  files:
+    description: Nonempty JSON array of YAML file paths, without glob expansion
+    required: true
+outputs:
+  checked:
+    description: Number of checked files
+  passed:
+    description: Whether every selected file passed
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-yaml:unpublished
+  args:
+    - --files=${{ inputs.files }}

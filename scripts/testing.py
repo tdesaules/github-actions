@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import tarfile
 import tempfile
+import sys
 
 from images import ROOT, ENGINE, architecture, container, local_ref, smoke, mount, run
 from ci import discover
@@ -69,6 +70,9 @@ def negative(ref, operation, workspace, inputs, extra=None):
 
 def test(image, version):
     smoke(image, version)
+    if image.startswith('check-'):
+        run(sys.executable, ROOT/'scripts/test-checks.py', '--image', image, '--version', version)
+        return
     ref = local_ref(image, version)
     with tempfile.TemporaryDirectory(prefix="oci-action-tests-") as tmp:
         workspace = Path(tmp)

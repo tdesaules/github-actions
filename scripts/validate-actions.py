@@ -61,7 +61,7 @@ def validate(path):
 
 
 if __name__ == "__main__":
-    paths = sorted(Path("oci").glob("*/action.yml"))
+    paths = sorted([*Path('oci').glob('*/action.yml'), *Path('check').glob('*/action.yml')])
     for path in paths:
         validate(path)
     print(f"Validated {len(paths)} action metadata files (native tools and qualified Buildah launchers)")

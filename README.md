@@ -110,11 +110,15 @@ Buildah utilise Python 3 fourni par les runners Ubuntu GitHub.
 
 ## Suite du catalogue
 
+Le premier [lot `check`](docs/checks.md) ajoute cinq images spécialisées :
+workflows GitHub, Containerfiles, Shell, YAML et TOML. Leur qualification est
+en cours ; la release `0.1.0` couvre uniquement les actions OCI.
+
 Le workflow intègre git-cliff, la préparation SemVer, le push atomique commit/tag
 via GitHub App, la validation des signatures et la création des GitHub Releases.
 La GitHub App est configurée et la release stable `0.1.0` a été publiée par ce
 parcours. La maintenance inclut les rescans Grype et Lychee.
 La configuration Renovate est fournie ; son application doit être activée.
 
-Les futurs contrôles `check`, absents de ce lot OCI, auront chacun leur commande
-et leur image. Les configurations TOML de la racine sont contrôlées par le lint.
+Chaque contrôle `check` possède son exécutable et son image. Les configurations
+TOML de la racine sont également contrôlées par le lint du dépôt.
