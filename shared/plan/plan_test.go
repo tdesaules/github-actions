@@ -162,3 +162,15 @@ func TestDeletedCheckConfigurationSelectsDependentDocuments(t *testing.T) {
 		t.Fatal(result)
 	}
 }
+
+func TestRunnerFixtureIsNotACatalogueAction(t *testing.T) {
+	root := fixture(t)
+	write(t, root, "tests/runner/action.yml", "runs:\n  using: docker\n  image: Dockerfile\n")
+	result, err := Select(root, []string{"tests/runner/action.yml"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Checks["action-metadata"]) != 0 || len(result.Checks["yaml"]) != 1 || !result.OrchestrationTests {
+		t.Fatal(result)
+	}
+}

@@ -202,7 +202,13 @@ func classify(root, path string) []string {
 		}
 	}
 	if name == "action.yml" {
-		kinds = append(kinds, "action-metadata")
+		parts := strings.Split(path, "/")
+		if len(parts) == 3 {
+			switch parts[0] {
+			case "oci", "check", "workflow", "maintenance":
+				kinds = append(kinds, "action-metadata")
+			}
+		}
 	}
 	return kinds
 }
