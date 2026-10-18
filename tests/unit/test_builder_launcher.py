@@ -1,50 +1,46 @@
-import importlib.util
+"""Exercise the actual composite's narrow Docker launcher with a fake engine."""
 import json
 import os
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
+import textwrap
 import unittest
-from unittest.mock import patch
-
-
-SPEC = importlib.util.spec_from_file_location('builder_launcher', Path(__file__).resolve().parents[2] / 'oci/build-image/run.py')
-launcher = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(launcher)
 
 
 class BuilderLauncherTests(unittest.TestCase):
-    def test_spaces_secrets_output_and_failure_are_preserved(self):
-        with tempfile.TemporaryDirectory(prefix='builder spaces ') as directory:
-            output = Path(directory) / 'step output'
-            output.touch()
-            inputs = {'context': 'source with spaces', 'registry-password': 'secret $value;'}
-            environment = {
-                'BUILDER_OPERATION': 'build-image',
-                'BUILDER_IMAGE': 'docker://example.invalid/buildah@sha256:'+'a'*64,
-                'BUILDER_INPUTS': json.dumps(inputs),
-                'GITHUB_WORKSPACE': directory,
-                'GITHUB_OUTPUT': str(output),
+    def test_literal_arguments_scoped_flags_and_exit_status(self):
+        metadata = Path(__file__).resolve().parents[2] / 'oci/build-image/action.yml'
+        script = textwrap.dedent(metadata.read_text().split('      run: |\n', 1)[1])
+        with tempfile.TemporaryDirectory(prefix='builder launcher ') as temporary:
+            root = Path(temporary)
+            engine = root/'docker'
+            engine.write_text('#!'+sys.executable+'\nimport json,os,sys\n'
+                              'open(os.environ["CAPTURE"],"w").write(json.dumps(sys.argv[1:]))\n'
+                              'sys.exit(int(os.environ["ENGINE_EXIT"]))\n')
+            engine.chmod(0o755)
+            variables = {
+                'PATH': str(root)+os.pathsep+os.environ['PATH'],
+                'CAPTURE': str(root/'arguments.json'), 'ENGINE_EXIT': '23',
+                'GITHUB_WORKSPACE': str(root/'workspace with spaces'),
+                'GITHUB_OUTPUT': str(root/'output with spaces'),
+                'BUILDER_IMAGE': 'docker://example.invalid/builder@sha256:'+'a'*64,
+                'INPUT_CONTEXT': 'source with spaces', 'INPUT_CONTAINERFILE': 'Containerfile',
+                'INPUT_IMAGE': 'example.invalid/test', 'INPUT_VERSION': '1.0.0',
+                'INPUT_PLATFORM': 'linux/amd64', 'INPUT_TARGET': '',
+                'INPUT_LABELS': '{}', 'INPUT_BUILD_ARGS': '{"value":"$(touch injected)"}',
+                'INPUT_SECRETS': '["id=secret,src=private file"]', 'INPUT_OUTPUT': 'image archive.tar',
             }
-            with patch.dict(os.environ, environment), patch.object(launcher.subprocess, 'run') as run:
-                run.return_value.returncode = 42
-                with self.assertRaises(SystemExit) as error:
-                    launcher.main()
-                self.assertEqual(error.exception.code, 42)
-                args = run.call_args.args[0]
-                env = run.call_args.kwargs['env']
-                self.assertIn(f'{Path(directory).resolve()}:/github/workspace', args)
-                self.assertIn(f'{output.resolve()}:/github/output', args)
-                self.assertIn('--security-opt=seccomp=unconfined', args)
-                self.assertIn('--security-opt=apparmor=unconfined', args)
-                self.assertNotIn('--privileged', args)
-                self.assertNotIn(inputs['registry-password'], args)
-                self.assertEqual(env['INPUT_REGISTRY-PASSWORD'], inputs['registry-password'])
-                self.assertEqual(env['INPUT_CONTEXT'], inputs['context'])
-                self.assertNotIn('build-image', args)
-                self.assertIn('--context=source with spaces', args)
-
-    def test_other_tools_cannot_use_exception(self):
-        with patch.dict(os.environ, {'BUILDER_OPERATION': 'new-sbom'}), patch.object(launcher.subprocess, 'run') as run:
-            with self.assertRaises(ValueError):
-                launcher.main()
-            run.assert_not_called()
+            result = subprocess.run(['bash','-e','-u','-o','pipefail','-c',script], env=os.environ|variables, cwd=root)
+            self.assertEqual(result.returncode,23)
+            args = json.loads((root/'arguments.json').read_text())
+            self.assertIn('--context=source with spaces',args)
+            self.assertIn('--build-args={"value":"$(touch injected)"}',args)
+            self.assertFalse((root/'injected').exists())
+            self.assertIn('--security-opt=seccomp=unconfined',args)
+            self.assertIn('--security-opt=apparmor=unconfined',args)
+            self.assertNotIn('--privileged',args)
+            self.assertNotIn('build-image',args)
+            self.assertNotIn('/var/run/docker.sock', ' '.join(args))
+            self.assertIn(str(root/'output with spaces')+':/github/output',args)

@@ -33,17 +33,27 @@ def validate(path):
         raise ValueError(f"{path}: unknown metadata fields {unknown}")
     runs = data["runs"]
     builder = path.parent.name == 'build-image'
+    composite = runs.get('using') == 'composite' and not builder
     if builder:
         if runs.get('using') != 'composite' or len(runs.get('steps', [])) != 1:
             raise ValueError(f'{path}: Buildah requires the qualified launcher')
         env = runs['steps'][0]['env']
-        if env['BUILDER_OPERATION'] != path.parent.name or not env['BUILDER_IMAGE'].startswith('docker://'):
+        if not env['BUILDER_IMAGE'].startswith('docker://'):
             raise ValueError(f'{path}: invalid builder image or operation')
+    elif composite:
+        if not runs.get('steps'):
+            raise ValueError(f'{path}: composite must assemble operations')
+        for step in runs['steps']:
+            if 'run' in step or not isinstance(step.get('uses'), str):
+                raise ValueError(f'{path}: orchestration composites must use actions')
+            if step['uses'].startswith('./') and not (Path(step['uses']) / 'action.yml').is_file():
+                raise ValueError(f'{path}: missing local action {step["uses"]}')
     elif runs.get("using") != "docker" or not runs.get("image", "").startswith("docker://"):
         raise ValueError(f"{path}: must be a native prebuilt Docker action")
-    if not builder and runs.get('args') != ['--'+name+'=${{ inputs.'+name+' }}' for name in data.get('inputs', {})]:
+    environment_inputs = set(runs.get('env', {}).values())
+    if not builder and not composite and runs.get('args') != ['--'+name+'=${{ inputs.'+name+' }}' for name in data.get('inputs', {}) if '${{ inputs.'+name+' }}' not in environment_inputs]:
         raise ValueError(f'{path}: each input must be forwarded as an explicit named argument')
-    for filename in ('Containerfile', 'main.go'):
+    for filename in (() if composite else ('Containerfile', 'main.go')):
         if not (path.parent / filename).is_file():
             raise ValueError(f'{path}: action must own {filename}')
     for field in ("inputs", "outputs"):
@@ -61,7 +71,7 @@ def validate(path):
 
 
 if __name__ == "__main__":
-    paths = sorted([*Path('oci').glob('*/action.yml'), *Path('check').glob('*/action.yml')])
+    paths = sorted([*Path('oci').glob('*/action.yml'), *Path('check').glob('*/action.yml'), *Path('workflow').glob('*/action.yml'), *Path('maintenance').glob('*/action.yml')])
     for path in paths:
         validate(path)
     print(f"Validated {len(paths)} action metadata files (native tools and qualified Buildah launchers)")

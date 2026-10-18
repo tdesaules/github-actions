@@ -134,7 +134,6 @@ def candidates(image, version):
         # A temporary Dockerfile uses the locally loaded candidate instead.
         if tool == 'oci-build-image':
             text = IMAGE.sub('        BUILDER_IMAGE: docker://'+local_ref(tool, version), text)
-            shutil.copy2(ROOT / directory / 'run.py', target / 'run.py')
         else:
             text = IMAGE.sub("  image: Dockerfile", text)
         (target / "action.yml").write_text(text)

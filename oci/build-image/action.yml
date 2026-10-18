@@ -44,6 +44,25 @@ runs:
       shell: bash
       env:
         BUILDER_IMAGE: docker://ghcr.io/tdesaules/github-actions/oci-build-image@sha256:d6282044f39c83453a53a87a229d28741e2ee0f3b6419e475d3fe5986bf82ecd
-        BUILDER_OPERATION: build-image
-        BUILDER_INPUTS: ${{ toJSON(inputs) }}
-      run: python3 "$GITHUB_ACTION_PATH/run.py"
+        INPUT_CONTEXT: ${{ inputs.context }}
+        INPUT_CONTAINERFILE: ${{ inputs.containerfile }}
+        INPUT_IMAGE: ${{ inputs.image }}
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_PLATFORM: ${{ inputs.platform }}
+        INPUT_TARGET: ${{ inputs.target }}
+        INPUT_LABELS: ${{ inputs.labels }}
+        INPUT_BUILD_ARGS: ${{ inputs.build-args }}
+        INPUT_SECRETS: ${{ inputs.secrets }}
+        INPUT_OUTPUT: ${{ inputs.output }}
+      run: |
+        exec docker run --rm \
+          --security-opt=seccomp=unconfined --security-opt=apparmor=unconfined \
+          -v "$GITHUB_WORKSPACE:/github/workspace" \
+          -v "$GITHUB_OUTPUT:/github/output" \
+          -w /github/workspace -e GITHUB_OUTPUT=/github/output \
+          "${BUILDER_IMAGE#docker://}" \
+          "--context=$INPUT_CONTEXT" "--containerfile=$INPUT_CONTAINERFILE" \
+          "--image=$INPUT_IMAGE" "--version=$INPUT_VERSION" \
+          "--platform=$INPUT_PLATFORM" "--target=$INPUT_TARGET" \
+          "--labels=$INPUT_LABELS" "--build-args=$INPUT_BUILD_ARGS" \
+          "--secrets=$INPUT_SECRETS" "--output=$INPUT_OUTPUT"
