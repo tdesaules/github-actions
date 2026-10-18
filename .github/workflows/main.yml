@@ -62,6 +62,20 @@ jobs:
       release-version: ${{ steps.plan.outputs.release-version }}
       release-changed: ${{ steps.plan.outputs.release-changed }}
       artifact-pattern: ${{ steps.resume.outputs.artifact-pattern }}
+      actionlint-files: ${{ steps.select.outputs.actionlint-files }}
+      hadolint-files: ${{ steps.select.outputs.hadolint-files }}
+      shellcheck-files: ${{ steps.select.outputs.shellcheck-files }}
+      yaml-files: ${{ steps.select.outputs.yaml-files }}
+      toml-files: ${{ steps.select.outputs.toml-files }}
+      markdownlint-files: ${{ steps.select.outputs.markdownlint-files }}
+      lychee-files: ${{ steps.select.outputs.lychee-files }}
+      actionlint-changed: ${{ steps.select.outputs.actionlint-changed }}
+      hadolint-changed: ${{ steps.select.outputs.hadolint-changed }}
+      shellcheck-changed: ${{ steps.select.outputs.shellcheck-changed }}
+      yaml-changed: ${{ steps.select.outputs.yaml-changed }}
+      toml-changed: ${{ steps.select.outputs.toml-changed }}
+      markdownlint-changed: ${{ steps.select.outputs.markdownlint-changed }}
+      lychee-changed: ${{ steps.select.outputs.lychee-changed }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -75,7 +89,7 @@ jobs:
         run: >-
           docker run --rm -v "$PWD:/src:ro" -w /src
           docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d
-          sh -ec 'apk add --no-cache git=2.54.0-r0; go test ./...'
+          go test ./...
       - name: Plan semantic release
         id: plan
         if: github.event_name == 'workflow_dispatch' && !inputs.qualify-runner && !inputs.publish-bootstrap
@@ -100,6 +114,11 @@ jobs:
         env:
           ARTIFACT_RUN_ID: ${{ inputs.artifact-run-id }}
         run: python3 scripts/ci.py select
+      - name: Validate action metadata
+        if: steps.select.outputs.action-metadata-changed == 'true'
+        uses: ./check/test-action-metadata
+        with:
+          files: ${{ steps.select.outputs.action-metadata-files }}
       - name: Compare Docker runtime profiles
         if: inputs.qualify-runner
         run: python3 scripts/qualify-runner.py
@@ -134,19 +153,43 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          fetch-depth: 0
           persist-credentials: false
-      - name: Select affected source checks
-        id: sources
-        uses: ./workflow/get-execution-plan
+      - name: Actionlint
+        if: ${{ !cancelled() && needs.check.outputs.actionlint-changed == 'true' }}
+        uses: ./lint/actionlint
         with:
-          before: ${{ github.event.before }}
-          after: ${{ github.sha }}
-          full: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}
-      - name: Test affected source files
-        uses: ./workflow/test-source-files
+          files: ${{ needs.check.outputs.actionlint-files }}
+      - name: Hadolint
+        if: ${{ !cancelled() && needs.check.outputs.hadolint-changed == 'true' }}
+        uses: ./lint/hadolint
         with:
-          checks: ${{ steps.sources.outputs.checks }}
+          files: ${{ needs.check.outputs.hadolint-files }}
+      - name: ShellCheck
+        if: ${{ !cancelled() && needs.check.outputs.shellcheck-changed == 'true' }}
+        uses: ./lint/shellcheck
+        with:
+          files: ${{ needs.check.outputs.shellcheck-files }}
+      - name: YAML
+        if: ${{ !cancelled() && needs.check.outputs.yaml-changed == 'true' }}
+        uses: ./lint/yaml
+        with:
+          files: ${{ needs.check.outputs.yaml-files }}
+      - name: TOML
+        if: ${{ !cancelled() && needs.check.outputs.toml-changed == 'true' }}
+        uses: ./lint/toml
+        with:
+          files: ${{ needs.check.outputs.toml-files }}
+      - name: Markdownlint
+        if: ${{ !cancelled() && needs.check.outputs.markdownlint-changed == 'true' }}
+        uses: ./lint/markdownlint
+        with:
+          files: ${{ needs.check.outputs.markdownlint-files }}
+      - name: Lychee
+        if: ${{ !cancelled() && needs.check.outputs.lychee-changed == 'true' }}
+        uses: ./lint/lychee
+        with:
+          files: ${{ needs.check.outputs.lychee-files }}
+          config: lychee.toml
 
   build:
     needs: [check, lint]
@@ -205,13 +248,6 @@ jobs:
       - name: Test check image with read-only sources and negative fixtures
         if: startsWith(matrix.image, 'check-')
         run: python3 scripts/test-checks.py --image "$IMAGE" --version "$VERSION"
-      - name: Test native execution planner on an empty Git diff
-        if: matrix.image == 'workflow-get-execution-plan'
-        id: planner-fixture
-        uses: ./.candidate-actions/get-execution-plan
-        with:
-          before: ${{ github.sha }}
-          after: ${{ github.sha }}
       - name: Test native candidate preparation
         if: matrix.image == 'workflow-new-candidate-action'
         uses: ./.candidate-actions/new-candidate-action
@@ -243,27 +279,27 @@ jobs:
           output: .build/fixtures/tested-metadata.json
       - name: Test native workflow check
         if: matrix.image == 'check-test-github-workflow'
-        uses: ./.candidate-actions/test-github-workflow
+        uses: ./.candidate-actions/actionlint
         with:
           files: '[".build/check-fixtures/check-test-github-workflow/workflow valid.yml"]'
       - name: Test native Containerfile check
         if: matrix.image == 'check-test-containerfile'
-        uses: ./.candidate-actions/test-containerfile
+        uses: ./.candidate-actions/hadolint
         with:
           files: '[".build/check-fixtures/check-test-containerfile/Containerfile valid"]'
       - name: Test native shell check
         if: matrix.image == 'check-test-shell'
-        uses: ./.candidate-actions/test-shell
+        uses: ./.candidate-actions/shellcheck
         with:
           files: '[".build/check-fixtures/check-test-shell/script without extension"]'
       - name: Test native YAML check
         if: matrix.image == 'check-test-yaml'
-        uses: ./.candidate-actions/test-yaml
+        uses: ./.candidate-actions/yaml
         with:
           files: '[".build/check-fixtures/check-test-yaml/valid stream.yaml"]'
       - name: Test native TOML check
         if: matrix.image == 'check-test-toml'
-        uses: ./.candidate-actions/test-toml
+        uses: ./.candidate-actions/toml
         with:
           files: '[".build/check-fixtures/check-test-toml/valid config.toml"]'
       - name: Test native action metadata check
@@ -273,12 +309,12 @@ jobs:
           files: '[".build/check-fixtures/check-test-action-metadata/valid action.yml"]'
       - name: Test native Markdown check
         if: matrix.image == 'check-test-markdown'
-        uses: ./.candidate-actions/test-markdown
+        uses: ./.candidate-actions/markdownlint
         with:
           files: '[".build/check-fixtures/check-test-markdown/valid document.md"]'
       - name: Test native link check
         if: matrix.image == 'check-test-links'
-        uses: ./.candidate-actions/test-links
+        uses: ./.candidate-actions/lychee
         with:
           files: '[".build/check-fixtures/check-test-links/valid links.md"]'
       - name: Test Renovate runtime
@@ -565,7 +601,7 @@ jobs:
         run: >-
           docker run --rm -v "$PWD:/repo:ro" -w /repo
           docker.io/lycheeverse/lychee:0.24.2@sha256:e2d19e57cf6ab037026f20b8e449a1f30d9d7f81eef4194763aab2eab20bd28d
-          --config lychee.toml README.md 'docs/**/*.md' 'oci/**/*.md' 'check/**/*.md'
+          --config lychee.toml README.md 'docs/**/*.md' 'oci/**/*.md' 'check/**/*.md' 'lint/**/*.md' 'workflow/**/*.md' 'maintenance/**/*.md'
       - name: Verify replacements before retiring shared images
         if: inputs.maintenance && inputs.retire-shared-images && github.ref == 'refs/heads/main'
         run: python3 scripts/verify-release.py

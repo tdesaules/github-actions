@@ -22,7 +22,7 @@ def git(*args):
 def discover(root=ROOT):
     actions = {}
     owners = {}
-    for path in sorted([*root.glob("oci/*/action.yml"), *root.glob("check/*/action.yml"), *root.glob("workflow/*/action.yml"), *root.glob("maintenance/*/action.yml")]):
+    for path in sorted([*root.glob("oci/*/action.yml"), *root.glob("check/*/action.yml"), *root.glob("lint/*/action.yml"), *root.glob("workflow/*/action.yml"), *root.glob("maintenance/*/action.yml")]):
         if path.parent.parent.name == 'workflow' and not (path.parent / 'Containerfile').exists():
             continue
         match = IMAGE.search(path.read_text())
@@ -31,7 +31,8 @@ def discover(root=ROOT):
         reference = match[1]
         image = reference.rsplit("/", 1)[1].split(":")[0].split("@")[0]
         expected = path.parent.parent.name+'-'+path.parent.name
-        if image != expected:
+        # Linter moves preserve their existing independently published image IDs.
+        if path.parent.parent.name != 'lint' and image != expected:
             raise ValueError(f'{path}: image must be owned by this action ({expected})')
         directory = str(path.parent.relative_to(root))
         actions[directory] = image
@@ -51,6 +52,8 @@ def select(paths, full=False, root=ROOT):
         images.update(owners)
         selected_actions.update(actions)
     for path in paths:
+        if Path(path).suffix.lower() in ('.md', '.markdown'):
+            continue
         if path.startswith(".github/workflows/") or path == 'grype-review.json':
             selected_actions.update(actions)
         if path.startswith(("shared/", "scripts/", "tasks/")) or path in ("go.mod", "go.sum", ".containerignore", ".dockerignore", "taskfile.yml"):
@@ -99,6 +102,45 @@ def mode(event, ref):
             raise ValueError(f"tag is not SemVer without v: {tag}")
         return "release"
     return "development"
+
+
+def lint_files(paths, tracked, full=False, root=ROOT):
+    """Classify the Git diff for explicit workflow conditions, without a work graph."""
+    changed = set(paths)
+    files = {name: [] for name in ('actionlint', 'hadolint', 'shellcheck',
+                                 'yaml', 'toml', 'markdownlint', 'lychee', 'action-metadata')}
+    config = {
+        'markdownlint': {'.markdownlint.json'}, 'lychee': {'lychee.toml'},
+        'hadolint': {'.hadolint.yaml', '.hadolint.yml'}, 'shellcheck': {'.shellcheckrc'},
+    }
+    for path in sorted(set(tracked)):
+        source = root / path
+        if not source.is_file():
+            continue
+        kinds = []
+        suffix = source.suffix.lower()
+        if suffix in ('.yml', '.yaml'):
+            kinds.append('yaml')
+            if path.startswith('.github/workflows/'):
+                kinds.append('actionlint')
+        if source.name in ('Containerfile', 'Dockerfile') or source.name.startswith(('Containerfile.', 'Dockerfile.')):
+            kinds.append('hadolint')
+        if suffix == '.toml':
+            kinds.append('toml')
+        if suffix in ('.md', '.markdown'):
+            kinds.extend(('markdownlint', 'lychee'))
+        if suffix in ('.sh', '.bash', '.ksh'):
+            kinds.append('shellcheck')
+        elif not suffix or suffix == '.script':
+            with source.open('rb') as stream:
+                if re.match(rb'^#!.*\b(sh|bash|dash|ksh)\b', stream.readline(200)):
+                    kinds.append('shellcheck')
+        if source.name == 'action.yml' and len(Path(path).parts) == 3 and Path(path).parts[0] in ('oci', 'check', 'lint', 'workflow', 'maintenance'):
+            kinds.append('action-metadata')
+        for kind in kinds:
+            if full or path in changed or changed & config.get(kind, set()):
+                files[kind].append(path)
+    return files
 
 
 def aggregate(paths):
@@ -189,6 +231,11 @@ def main():
     if pipeline_mode == 'prepare' and os.environ.get('ARTIFACT_RUN_ID'):
         # The workflow validates the source run before selecting this empty matrix.
         matrix = {'include': []}
+    tracked = subprocess.check_output(['git', 'ls-files', '-z'], cwd=ROOT).decode().split('\0')
+    for name, files in lint_files(paths, [p for p in tracked if p],
+                                 full=full or pipeline_mode in ('prepare', 'release')).items():
+        emit(name + '-files', files)
+        emit(name + '-changed', str(bool(files)).lower())
     emit("mode", pipeline_mode)
     emit("matrix", matrix)
     emit("has-work", str(bool(matrix["include"])).lower())

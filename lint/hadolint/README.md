@@ -4,7 +4,7 @@ Action Docker native avec son exécutable Go et Hadolint 2.14.0 dans une image
 `scratch` spécialisée. [Interface](action.yml).
 
 ```yaml
-- uses: tdesaules/github-actions/check/test-containerfile@main
+- uses: tdesaules/github-actions/lint/hadolint@main
   with:
     files: '["Containerfile", "build tools/Containerfile"]'
 ```

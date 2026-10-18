@@ -2,17 +2,19 @@ FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdab
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY shared/check/ ./shared/check/
-COPY check/test-toml/main.go ./check/test-toml/main.go
-RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./check/test-toml
+COPY lint/hadolint/main.go ./lint/hadolint/main.go
+RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /entrypoint ./lint/hadolint
 RUN mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
 
+FROM docker.io/hadolint/hadolint:v2.14.0@sha256:27086352fd5e1907ea2b934eb1023f217c5ae087992eb59fde121dce9c9ff21e AS tool
 FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=build /entrypoint /entrypoint
+COPY --from=tool /bin/hadolint /bin/hadolint
 COPY --from=build /runtime/ /
 # Entrypoint adopts the runner-owned GITHUB_OUTPUT UID before checking files.
 # hadolint ignore=DL3002
 USER 0:0
 WORKDIR /github/workspace
 ENTRYPOINT ["/entrypoint"]
-LABEL org.opencontainers.image.title="check-test-toml" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND MIT"
+LABEL org.opencontainers.image.title="check-test-containerfile" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

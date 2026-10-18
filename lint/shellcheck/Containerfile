@@ -2,17 +2,19 @@ FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdab
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY shared/check/ ./shared/check/
-COPY check/test-yaml/main.go ./check/test-yaml/main.go
-RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./check/test-yaml
+COPY lint/shellcheck/main.go ./lint/shellcheck/main.go
+RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /entrypoint ./lint/shellcheck
 RUN mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
 
+FROM docker.io/koalaman/shellcheck:v0.11.0@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d AS tool
 FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=build /entrypoint /entrypoint
+COPY --from=tool /bin/shellcheck /bin/shellcheck
 COPY --from=build /runtime/ /
 # Entrypoint adopts the runner-owned GITHUB_OUTPUT UID before checking files.
 # hadolint ignore=DL3002
 USER 0:0
 WORKDIR /github/workspace
 ENTRYPOINT ["/entrypoint"]
-LABEL org.opencontainers.image.title="check-test-yaml" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND MIT AND Apache-2.0"
+LABEL org.opencontainers.image.title="check-test-shell" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

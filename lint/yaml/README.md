@@ -4,7 +4,7 @@ Action Docker native avec son validateur Go spécialisé, utilisant
 `go.yaml.in/yaml/v3` 3.0.5. [Interface](action.yml).
 
 ```yaml
-- uses: tdesaules/github-actions/check/test-yaml@main
+- uses: tdesaules/github-actions/lint/yaml@main
   with:
     files: '["taskfile.yml", "configuration with spaces.yaml"]'
 ```

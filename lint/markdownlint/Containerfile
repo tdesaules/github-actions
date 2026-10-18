@@ -2,21 +2,21 @@ FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdab
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY shared/check/ ./shared/check/
-COPY check/test-markdown/main.go ./check/test-markdown/main.go
-RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./check/test-markdown
+COPY lint/markdownlint/main.go ./lint/markdownlint/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./lint/markdownlint
 
 FROM docker.io/davidanson/markdownlint-cli2:v0.23.3@sha256:d5f3f3f04b2e285dcbcdcd13b4454d119e273e3c393a9dabd163dba4abad526d AS tool
 # Runtime assembly needs to create /runtime in this intermediate stage.
 # hadolint ignore=DL3002
 USER 0:0
 COPY shared/collect-binaries.sh /collect-binaries.sh
-COPY check/test-markdown/collect-modules.mjs /collect-modules.mjs
+COPY lint/markdownlint/collect-modules.mjs /collect-modules.mjs
 RUN sh /collect-binaries.sh /usr/local/bin/node && node /collect-modules.mjs
 
 FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=tool /runtime/ /
-COPY check/test-markdown/check.mjs /opt/markdown/check.mjs
+COPY lint/markdownlint/check.mjs /opt/markdown/check.mjs
 COPY --from=build /entrypoint /entrypoint
 ENV PATH=/usr/local/bin HOME=/tmp SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 # Entrypoint adopts the runner UID for output files.

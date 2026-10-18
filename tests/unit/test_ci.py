@@ -41,7 +41,7 @@ class SelectionTests(unittest.TestCase):
                 self.assertEqual(set(ci.changed_paths(before, after)), {"old name", "new name", "deleted"})
 
     def test_documentation_only_has_empty_matrix(self):
-        self.assertEqual(ci.select(["README.md", "docs/bootstrap.md"]), {"include": []})
+        self.assertEqual(ci.select(["README.md", "docs/bootstrap.md", "lint/actionlint/README.md"]), {"include": []})
 
     def test_shared_change_selects_both_architectures(self):
         jobs = ci.select(["shared/runtime/main.go"])["include"]
@@ -82,15 +82,49 @@ class SelectionTests(unittest.TestCase):
         self.assertTrue(all(j['rebuild'] for j in jobs))
 
     def test_action_javascript_adapter_rebuilds_only_its_image(self):
-        jobs = ci.select(['check/test-markdown/check.mjs'])['include']
+        jobs = ci.select(['lint/markdownlint/check.mjs'])['include']
         self.assertEqual({j['image'] for j in jobs}, {'check-test-markdown'})
         self.assertTrue(all(j['rebuild'] for j in jobs))
 
     def test_check_is_an_independent_image(self):
-        jobs = ci.select(['check/test-yaml/main.go'])['include']
+        jobs = ci.select(['lint/yaml/main.go'])['include']
         self.assertEqual({j['image'] for j in jobs}, {'check-test-yaml'})
         self.assertEqual({j['arch'] for j in jobs}, {'amd64', 'arm64'})
         self.assertTrue(all(j['rebuild'] for j in jobs))
+
+
+class LintDiffTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.tracked = ['docs/new name.md', 'README.md', 'lint/hadolint/Containerfile',
+                        '.github/workflows/main.yml', 'scripts/no-extension', 'config.toml']
+        for path in self.tracked:
+            target = self.root / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text('#!/bin/sh\nexit 0\n' if path == 'scripts/no-extension' else 'fixture\n')
+
+    def select(self, paths, full=False):
+        return ci.lint_files(paths, self.tracked, full, self.root)
+
+    def test_document_rename_ignores_deleted_path(self):
+        result = self.select(['docs/old name.md', 'docs/new name.md'])
+        self.assertEqual({k: v for k, v in result.items() if v},
+                         {'markdownlint': ['docs/new name.md'], 'lychee': ['docs/new name.md']})
+
+    def test_containerfile_and_workflow_have_explicit_checks(self):
+        result = self.select(['lint/hadolint/Containerfile', '.github/workflows/main.yml'])
+        self.assertEqual({k for k, v in result.items() if v}, {'hadolint', 'yaml', 'actionlint'})
+
+    def test_config_change_including_deletion_checks_all_documents(self):
+        result = self.select(['lychee.toml'])
+        self.assertEqual(result['lychee'], ['README.md', 'docs/new name.md'])
+        self.assertFalse(result['markdownlint'])
+
+    def test_empty_and_full_diff(self):
+        self.assertTrue(all(not v for v in self.select([]).values()))
+        self.assertEqual(self.select([], full=True)['shellcheck'], ['scripts/no-extension'])
 
 
 class ModesTests(unittest.TestCase):

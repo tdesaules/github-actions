@@ -2,8 +2,8 @@ FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdab
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY shared/check/ ./shared/check/
-COPY check/test-github-workflow/main.go ./check/test-github-workflow/main.go
-RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /entrypoint ./check/test-github-workflow
+COPY lint/actionlint/main.go ./lint/actionlint/main.go
+RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /entrypoint ./lint/actionlint
 COPY shared/runtime/compile-tool.sh /compile-tool.sh
 RUN sh /compile-tool.sh github.com/rhysd/actionlint v1.7.7 h1:0KgkoNTrYY7vmOCs9BW2AHxLvvpoY9nEUzgBHiPUr0k= actionlint
 

@@ -26,7 +26,7 @@ def prepare(directory):
         'invalid document.md': '#Bad heading\n',
         'valid links.md': '# Links\n\n[Local file](valid%20config.toml)\n',
         'invalid links.md': '# Links\n\n[Missing file](missing-file.toml)\n',
-        'valid action.yml': 'name: Fixture\ndescription: Compose a fixture\nruns:\n  using: composite\n  steps:\n    - uses: ./check/test-yaml\n',
+        'valid action.yml': 'name: Fixture\ndescription: Compose a fixture\nruns:\n  using: composite\n  steps:\n    - uses: ./lint/yaml\n',
         'invalid action.yml': 'name: Fixture\ndescription: Invalid host orchestration\nruns:\n  using: composite\n  steps:\n    - run: python3 script.py\n',
     }
     for name, content in fixtures.items():

@@ -4,7 +4,7 @@ Action Docker native avec son validateur Go spécialisé, utilisant
 `github.com/pelletier/go-toml/v2` 2.4.3. [Interface](action.yml).
 
 ```yaml
-- uses: tdesaules/github-actions/check/test-toml@main
+- uses: tdesaules/github-actions/lint/toml@main
   with:
     files: '["cliff.toml", "lychee.toml"]'
 ```

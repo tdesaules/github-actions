@@ -4,7 +4,7 @@ Action Docker native avec son exécutable Go et ShellCheck 0.11.0 dans une image
 `scratch` spécialisée. [Interface](action.yml).
 
 ```yaml
-- uses: tdesaules/github-actions/check/test-shell@main
+- uses: tdesaules/github-actions/lint/shellcheck@main
   with:
     files: '["scripts/build", "scripts/setup.script", "scripts/test.sh"]'
 ```

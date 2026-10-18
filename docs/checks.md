@@ -1,17 +1,20 @@
-# Premier lot check
+# Linters et contrôles du catalogue
 
-Le lot retenu comprend cinq actions indépendantes :
+Les linters sont des actions indépendantes sous `lint/` :
 
 | Action | Contrôle |
 |---|---|
-| `check/test-github-workflow` | actionlint, sans ShellCheck/Pyflakes embarqués |
-| `check/test-containerfile` | Hadolint |
-| `check/test-shell` | ShellCheck, fichiers avec ou sans extension |
-| `check/test-yaml` | Syntaxe, clés dupliquées, flux multi-documents |
-| `check/test-toml` | Syntaxe et clés dupliquées |
+| `lint/actionlint` | actionlint, sans ShellCheck/Pyflakes embarqués |
+| `lint/hadolint` | Hadolint |
+| `lint/shellcheck` | ShellCheck, fichiers avec ou sans extension |
+| `lint/yaml` | Syntaxe, clés dupliquées, flux multi-documents |
+| `lint/toml` | Syntaxe et clés dupliquées |
+| `lint/markdownlint` | Markdownlint, chemins explicites |
+| `lint/lychee` | Vérification des liens |
 
 Chaque action possède son Containerfile, son exécutable Go fixe et son image
-`check-<action>`. Les sources et le rootfs peuvent être en lecture seule.
+OCI associée. Les références publiées `check-*` sont conservées par digest lors
+du déplacement sous `lint/`. Les sources et le rootfs peuvent être en lecture seule.
 L'exécutable adopte l'UID du fichier `GITHUB_OUTPUT` pour les outputs GitHub ;
 l'exécution locale non-root est couverte par les tests. Les arguments explicites
 `--files=…` prennent priorité sur `INPUT_FILES`. Les chemins sont transmis comme
@@ -24,8 +27,12 @@ de préparer la liste échouent immédiatement. Le JSON de stdout peut être con
 par les appels CLI ; les actions GitHub exposent les compteurs `checked` et `passed`.
 
 La découverte, les matrices natives, les scans `high`, la publication par digest,
-les signatures et la maintenance sont communs aux familles `oci` et `check`.
+les signatures et la maintenance sont communs aux familles `oci`, `lint` et `check`.
 Il n'existe pas de manifeste central du catalogue.
+
+Chaque linter apparaît directement dans `.github/workflows/main.yml`, avec une
+condition `if` basée sur les fichiers modifiés entre les commits. La validation
+du catalogue reste dans `check/test-action-metadata`, appelée par le job `check`.
 
 ## État
 

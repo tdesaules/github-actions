@@ -5,7 +5,7 @@ Go et actionlint 1.7.7 reconstruits avec le compilateur Go épinglé.
 [Interface](action.yml).
 
 ```yaml
-- uses: tdesaules/github-actions/check/test-github-workflow@main
+- uses: tdesaules/github-actions/lint/actionlint@main
   with:
     files: '[".github/workflows/main.yml"]'
 ```
