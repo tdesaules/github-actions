@@ -11,7 +11,11 @@ are candidates, not usable published releases.
   dependencies from Containerfile COPY/ADD instructions; emits native AMD64 and
   ARM64 matrices with separate test selection and rebuild flags.
 - `workflow/new-candidate-action`: writes temporary metadata and a Dockerfile
-  referencing an already loaded local image. It does not load images itself.
+  referencing an already loaded local image, or a direct native Docker action
+  reference for an immutable registry digest. It does not load images itself.
+- `workflow/import-candidate-image`: transfers the archive with Skopeo into the
+  isolated `candidate-registry` workflow service, preserving its digest. This
+  provides a socket-free path for native tests; hosted qualification is pending.
 - `workflow/new-test-fixtures`: produces deterministic OCI archives and positive
   and negative source fixtures.
 - `workflow/new-image-metadata`: checks archive digests, layer checksums, platform
@@ -42,8 +46,8 @@ changes select their dependent documents. Empty image matrices remain valid.
 
 ## Remaining integration
 
-Artifact aggregation, release planning/finalization, registry fixtures and the
-host image-loading boundary still need reusable interfaces. The workflow must
+Artifact aggregation, release planning/finalization and registry signature
+fixtures still need reusable interfaces. The workflow must
 then consume the planner and composites, and qualification must demonstrate
 selective hosted execution and unchanged digest reuse. Local tests do not
 establish those hosted properties.

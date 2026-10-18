@@ -1,0 +1,24 @@
+name: Import candidate image
+description: Transfer an OCI archive by digest into the isolated candidate-registry service for native Docker action tests
+inputs:
+  archive:
+    description: Candidate OCI archive path
+    required: true
+  repository:
+    description: Simple repository name in the temporary candidate registry
+    required: true
+  host-port:
+    description: Port exposing candidate-registry to the host runner
+    default: '5000'
+outputs:
+  image:
+    description: Host-loopback image reference pinned to the archive manifest digest
+  digest:
+    description: Candidate manifest digest preserved by the transfer
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-import-candidate-image:unpublished
+  args:
+    - --archive=${{ inputs.archive }}
+    - --repository=${{ inputs.repository }}
+    - --host-port=${{ inputs.host-port }}

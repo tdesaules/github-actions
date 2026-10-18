@@ -163,6 +163,11 @@ jobs:
       max-parallel: 4
       matrix: ${{ fromJSON(needs.check.outputs.matrix) }}
     runs-on: ${{ matrix.runner }}
+    services:
+      candidate-registry:
+        image: ${{ matrix.image == 'workflow-import-candidate-image' && 'docker.io/library/registry:3.0.0@sha256:6c5666b861f3505b116bb9aa9b25175e71210414bd010d92035ff64018f9457e' || '' }}
+        ports:
+          - 5000/tcp
     permissions:
       contents: read
       packages: read
@@ -224,6 +229,13 @@ jobs:
         uses: ./.candidate-actions/new-test-fixtures
         with:
           directory: .build/fixtures/generated
+      - name: Test native candidate registry transfer
+        if: matrix.image == 'workflow-import-candidate-image'
+        uses: ./.candidate-actions/import-candidate-image
+        with:
+          archive: .build/fixtures/fixture.oci.tar
+          repository: fixture
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Test native metadata generation
         if: matrix.image == 'workflow-new-image-metadata'
         uses: ./.candidate-actions/new-image-metadata
