@@ -81,7 +81,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: tdesaules/github-actions/oci/build-image@c254b423947352a98a8bdf67e35c7d8fd6595477
+      - uses: tdesaules/github-actions/oci/build-image@0.1.0
         with:
           context: .
           containerfile: Containerfile
@@ -112,8 +112,8 @@ Buildah utilise Python 3 fourni par les runners Ubuntu GitHub.
 
 Le workflow intègre git-cliff, la préparation SemVer, le push atomique commit/tag
 via GitHub App, la validation des signatures et la création des GitHub Releases.
-Le push automatique nécessite encore la configuration de l'App ; le bootstrap
-est publié avec `GITHUB_TOKEN`. La maintenance inclut les rescans Grype et Lychee.
+La GitHub App est configurée et la release stable `0.1.0` a été publiée par ce
+parcours. La maintenance inclut les rescans Grype et Lychee.
 La configuration Renovate est fournie ; son application doit être activée.
 
 Les futurs contrôles `check`, absents de ce lot OCI, auront chacun leur commande

@@ -1,5 +1,12 @@
 # Validation du catalogue
 
+## Première release stable
+
+La release [0.1.0](https://github.com/tdesaules/github-actions/releases/tag/0.1.0)
+est publiée. La préparation `39112315688`, la validation du tag `39115053239`
+et les tests de consommation sur main `39115053058` ont réussi. Le push atomique
+du commit et du tag via GitHub App est ainsi qualifié sur son parcours normal.
+
 ## Images spécialisées
 
 La qualification réussie des dix images spécialisées est suivie dans

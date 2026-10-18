@@ -31,7 +31,7 @@ avec une clé éphémère sur le registre TLS local. Ce dernier test utilise une
 configuration sans journal public, permise uniquement avec une clé explicite.
 Les tests unitaires OIDC vérifient aussi l'audience Sigstore et le bearer de
 requête avec un serveur HTTPS de test. Le workflow de publication exécute le
-parcours keyless réel, qui reste à qualifier avec les autorisations du dépôt.
+parcours keyless réel, qualifié lors du bootstrap et de la release stable `0.1.0`.
 
 ## Base Grype
 

@@ -40,7 +40,10 @@ les références. Les actions restent non publiables tant que ce patch n'a pas �
 appliqué. En mode bootstrap, le workflow ne pousse pas de commit/tag.
 En mode release SemVer, il applique le patch après publication et vérification,
 génère le changelog, puis pousse atomiquement le commit et le tag via une App.
-Ce chemin est implémenté ; sa qualification GitHub reste à terminer.
+Ce chemin a publié la release stable `0.1.0` via la GitHub App :
+[préparation 39112315688](https://github.com/tdesaules/github-actions/actions/runs/39112315688)
+et [validation du tag 39115053239](https://github.com/tdesaules/github-actions/actions/runs/39115053239).
+Les campagnes de reprise et de concurrence sont qualifiées séparément.
 
 ## Accès externes
 
@@ -62,7 +65,7 @@ Ce chemin est implémenté ; sa qualification GitHub reste à terminer.
   installation limitée à ce dépôt. Le token App permet au push du tag de
   déclencher sa validation, contrairement à un push avec `GITHUB_TOKEN`.
 
-Ces identifiants App ne sont pas encore configurés dans ce dépôt. En local, la publication exige
+Ces identifiants App sont configurés dans ce dépôt. En local, la publication exige
 `GHCR_TOKEN`, `GHCR_USERNAME`, les artefacts validés des deux architectures et :
 
 ```bash
