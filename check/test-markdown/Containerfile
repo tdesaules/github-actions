@@ -10,12 +10,13 @@ FROM docker.io/davidanson/markdownlint-cli2:v0.23.3@sha256:d5f3f3f04b2e285dcbcdc
 # hadolint ignore=DL3002
 USER 0:0
 COPY shared/collect-binaries.sh /collect-binaries.sh
-RUN sh /collect-binaries.sh /usr/local/bin/node
+COPY check/test-markdown/collect-modules.mjs /collect-modules.mjs
+RUN sh /collect-binaries.sh /usr/local/bin/node && node /collect-modules.mjs
 
 FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=tool /runtime/ /
-COPY --from=tool /usr/local/lib/node_modules/markdownlint-cli2/ /usr/local/lib/node_modules/markdownlint-cli2/
+COPY check/test-markdown/check.mjs /opt/markdown/check.mjs
 COPY --from=build /entrypoint /entrypoint
 ENV PATH=/usr/local/bin HOME=/tmp SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 # Entrypoint adopts the runner UID for output files.

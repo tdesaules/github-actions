@@ -60,6 +60,9 @@ def main():
         print(result.stdout, result.stderr)
         if (result.returncode == 0) != success:
             raise AssertionError(f'{args.image}: unexpected status for {names}: {result.returncode}')
+        if args.image == 'check-test-markdown' and names == [invalid]:
+            if 'MD018' not in result.stdout or 'ERR_MODULE_NOT_FOUND' in result.stdout:
+                raise AssertionError('Markdown failure must contain the lint diagnostic, not a runtime failure')
     # Neither the image's own rootfs nor source permissions may hide read failures.
     unreadable = directory / valid
     unreadable.chmod(0)

@@ -81,6 +81,11 @@ class SelectionTests(unittest.TestCase):
         self.assertEqual({j['image'] for j in jobs}, {'oci-export-image'})
         self.assertTrue(all(j['rebuild'] for j in jobs))
 
+    def test_action_javascript_adapter_rebuilds_only_its_image(self):
+        jobs = ci.select(['check/test-markdown/check.mjs'])['include']
+        self.assertEqual({j['image'] for j in jobs}, {'check-test-markdown'})
+        self.assertTrue(all(j['rebuild'] for j in jobs))
+
     def test_check_is_an_independent_image(self):
         jobs = ci.select(['check/test-yaml/main.go'])['include']
         self.assertEqual({j['image'] for j in jobs}, {'check-test-yaml'})

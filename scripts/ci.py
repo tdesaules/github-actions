@@ -60,7 +60,7 @@ def select(paths, full=False, root=ROOT):
             if path.startswith(directory + "/"):
                 selected_actions.add(directory)
                 filename = path[len(directory) + 1:]
-                if filename == "Containerfile" or filename == ".containerignore" or filename.endswith('.go') or filename.startswith(("src/", "dependencies.")):
+                if filename == "Containerfile" or filename == ".containerignore" or filename.endswith(('.go', '.mjs', '.cjs')) or filename.startswith(("src/", "dependencies.")):
                     images.add(image)
     for directory, image in actions.items():
         if image in images:

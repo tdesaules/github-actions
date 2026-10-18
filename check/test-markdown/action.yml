@@ -1,5 +1,5 @@
 name: Test Markdown
-description: Lint explicitly selected Markdown files with markdownlint-cli2
+description: Lint explicitly selected Markdown files with markdownlint without glob expansion
 inputs:
   files:
     description: Nonempty JSON array of literal Markdown paths, without glob expansion
