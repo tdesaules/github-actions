@@ -75,7 +75,7 @@ jobs:
         run: >-
           docker run --rm -v "$PWD:/src:ro" -w /src
           docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d
-          go test ./...
+          sh -ec 'apk add --no-cache git=2.54.0-r0; go test ./...'
       - name: Plan semantic release
         id: plan
         if: github.event_name == 'workflow_dispatch' && !inputs.qualify-runner && !inputs.publish-bootstrap
