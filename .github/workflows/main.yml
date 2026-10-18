@@ -1,4 +1,4 @@
-name: OCI Docker actions
+name: main
 
 on:
   push:
