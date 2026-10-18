@@ -51,14 +51,32 @@ def main():
                     container(action_ref('publish-image', args.version), "publish-image", workspace, {"source": "oci-archive:"+archive.name, "destination": "docker://registry:5000/fixture@"+expected[arch]}, extra)
                     container(action_ref('get-image-digest', args.version), "get-image-digest", workspace, {"image": "registry:5000/fixture@"+expected[arch], "expected-digest": expected[arch]}, extra)
                 else:
-                    # The index contract requires its exact children to be published first.
+                    # Model an interrupted publication with children already present.
                     run(ENGINE, 'run', '--rm', '--network', name, '-v', mount(workspace, '/github/workspace'),
                         '-e', 'SSL_CERT_FILE=/github/workspace/cert.pem', '--entrypoint=/usr/bin/skopeo',
                         'quay.io/skopeo/stable:v1.22.3@sha256:7e735527d9d64c7456fc82d7f954c380b4a5dd1a8173115ce2ed7b3442ef36e0',
                         'copy', '--preserve-digests', 'oci-archive:/github/workspace/'+archive.name,
                         'docker://registry:5000/fixture@'+expected[arch])
-            container(action_ref('merge-image-index', args.version), "merge-image-index", workspace, {"sources": '["amd64.tar","arm64.tar"]', "destination": "docker://registry:5000/fixture"}, extra)
+            inputs = {"sources": '["amd64.tar","arm64.tar"]', "destination": "docker://registry:5000/fixture"}
+            checksums = {arch: hashlib.sha256((workspace/(arch+'.tar')).read_bytes()).hexdigest() for arch in expected}
+            # Fail after child publication by removing trust in the isolated registry.
+            try:
+                container(action_ref('merge-image-index', args.version), 'merge-image-index', workspace,
+                          inputs, ['--network', name, '-e', 'SSL_CERT_FILE=/missing-ca.pem'])
+            except subprocess.CalledProcessError:
+                pass
+            else:
+                raise AssertionError('publication unexpectedly accepted an untrusted registry')
+            if (workspace/'image-index.json').exists():
+                raise AssertionError('failed publication emitted a success manifest')
+            container(action_ref('merge-image-index', args.version), "merge-image-index", workspace, inputs, extra)
             index_digest = 'sha256:'+hashlib.sha256((workspace/'image-index.json').read_bytes()).hexdigest()
+            # Retry again after success: both the manifest and tested archives must stay exact.
+            container(action_ref('merge-image-index', args.version), 'merge-image-index', workspace, inputs, extra)
+            if 'sha256:'+hashlib.sha256((workspace/'image-index.json').read_bytes()).hexdigest() != index_digest:
+                raise AssertionError('successful retry changed index digest')
+            if checksums != {arch: hashlib.sha256((workspace/(arch+'.tar')).read_bytes()).hexdigest() for arch in expected}:
+                raise AssertionError('resume changed tested archives')
             request = urllib.request.Request(f"https://localhost:{port}/v2/fixture/manifests/{index_digest}", headers={"Accept": "application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json"})
             with urllib.request.urlopen(request, context=context) as response:
                 index = json.load(response)
