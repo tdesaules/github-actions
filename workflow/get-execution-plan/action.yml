@@ -25,7 +25,7 @@ outputs:
     description: Whether orchestration regression tests are required
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-execution-plan:unpublished
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-execution-plan@sha256:7f3967eb97c78ef54b91590dc1698b0498060981fd568d81208a0b2b57547cf2
   args:
     - --before=${{ inputs.before }}
     - --after=${{ inputs.after }}

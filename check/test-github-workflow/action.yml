@@ -11,6 +11,6 @@ outputs:
     description: Whether every selected file passed
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/check-test-github-workflow@sha256:293b7f245ff37e743444af24ca07f6c590221f21a6a19a19722f3cceeb076489
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-github-workflow@sha256:647c3f79d09d7f22fae8cc3e859d385d02a2d297651e4e724ae1d0d9f06026ad
   args:
     - --files=${{ inputs.files }}

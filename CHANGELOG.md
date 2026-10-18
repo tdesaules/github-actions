@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.3.0
+
+- remove host Python from the Buildah launcher (0b29f62)
+
+- add Markdown, link and action metadata checks (5792510)
+
+- add selective planning and qualification actions (345d3c0)
+
+- add a containerized Renovate action (8799e5d)
+
+- qualify the new check and orchestration candidates natively (6a1a669)
+
+- distinguish orchestration building blocks from activation (b632581)
+
+- exclude runner fixtures from catalogue validation (66e8918)
+
+- transfer candidates through an isolated registry (86f20c0)
+
+- record the published 0.2.0 qualification evidence (f51b13b)
+
+- include Git in the Go test environment (d3703d5)
+
+- rebuild selected images that are not published yet (9a539e2)
+
+- remove the vulnerable Markdown CLI glob dependency (007cb07)
+
+- remediate Renovate cache and brace vulnerabilities (a944b39)
+
+- preserve Markdown spacing between changelog sections (63ca3e9)
+
 ## 0.2.0
 
 - rename the catalogue workflow to main (e79a29b)
