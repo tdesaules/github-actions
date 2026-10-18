@@ -1,0 +1,20 @@
+name: Update dependencies
+description: Run pinned Renovate for one explicit GitHub repository without host tools or a Docker socket
+inputs:
+  repository:
+    description: GitHub owner/repository to maintain
+    required: true
+  dry-run:
+    description: Resolve proposed updates without creating branches or pull requests
+    default: 'false'
+  token:
+    description: Dedicated bot or App installation token with repository update and pull request permissions
+    required: true
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/maintenance-update-dependencies:unpublished
+  env:
+    RENOVATE_TOKEN: ${{ inputs.token }}
+  args:
+    - --repository=${{ inputs.repository }}
+    - --dry-run=${{ inputs.dry-run }}

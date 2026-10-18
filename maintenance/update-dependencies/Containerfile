@@ -1,0 +1,26 @@
+FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY maintenance/update-dependencies/main.go ./maintenance/update-dependencies/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./maintenance/update-dependencies
+
+FROM ghcr.io/renovatebot/renovate:44.151.0@sha256:8a79148ec24cc05809782e20e720dafe9dde0c24a00f26e76d14dec2cbd74a53 AS tool
+# Runtime assembly needs to create /runtime in this intermediate stage.
+# hadolint ignore=DL3002
+USER 0:0
+COPY shared/collect-binaries.sh /collect-binaries.sh
+RUN sh /collect-binaries.sh /usr/local/renovate/node /usr/bin/git /bin/sh /usr/bin/bash /usr/bin/env /usr/lib/git-core/git-remote-http
+
+FROM scratch AS final
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=tool /runtime/ /
+COPY --from=tool /usr/local/renovate/ /usr/local/renovate/
+COPY --from=tool /usr/lib/git-core/ /usr/lib/git-core/
+# Go is a runtime dependency of Renovate's gomod artifact updates.
+COPY --from=build /usr/local/go/ /usr/local/go/
+COPY --from=build /entrypoint /entrypoint
+ENV PATH=/usr/local/go/bin:/usr/bin:/bin HOME=/tmp GOCACHE=/tmp/go-cache GOPATH=/tmp/go SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt CGO_ENABLED=0
+USER 65532:65532
+WORKDIR /tmp
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="maintenance-update-dependencies" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND AGPL-3.0-only"
