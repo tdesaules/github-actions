@@ -36,7 +36,8 @@ archives `39123032133`, la validation du tag `39123757061` et la consommation
 des images publiées `39123757139` ont réussi.
 
 Les extensions Markdown, liens et validation des métadonnées d'actions sont
-implémentées et testées localement, avec des références `:unpublished`.
+qualifiées sur les deux architectures dans le run `39138914416`. Leurs images
+signées sont publiées par le run `39144169525` et épinglées dans le tag `0.3.0`.
 La migration vers le workflow composé d'actions reste
 [en cours](orchestration-refactor.md).
 

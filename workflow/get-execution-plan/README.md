@@ -1,6 +1,6 @@
 # Get execution plan
 
-Candidate action; its image has not yet been published.
+The image is published and pinned by digest in tag `0.3.0`.
 
 Inputs: `before` (base commit), `after` (checked-out target commit), `full`
 (default `false`). Push events supply the base commit automatically. Missing

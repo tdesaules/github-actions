@@ -52,6 +52,7 @@ aux SHA-256 attendus. Toute preuve absente, ambiguë, modifiée ou d'une autre
 version conserve le blocage. La correspondance et les empreintes sont conservées
 dans `ignoredMatches` et `review-evidence.json`.
 
-Les scans locaux AMD64 passent au seuil `high` : Markdown sans revue, Renovate
-avec cette preuve de correction. La qualification hébergée des deux architectures
-reste nécessaire avant publication.
+Les scans passent au seuil `high` : Markdown sans revue, Renovate avec cette
+preuve de correction. Les deux architectures ont réussi la qualification
+hébergée `39138914416` ; la publication signée `39144169525` a réutilisé ces
+archives sans reconstruction.

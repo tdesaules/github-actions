@@ -1,6 +1,6 @@
 # New test fixtures
 
-Candidate action; its image has not yet been published.
+The image is published and pinned by digest in tag `0.3.0`.
 
 Provide `directory` to generate positive/negative check fixtures and
 deterministic `fixture.oci.tar` (AMD64) and `arm64.oci.tar` archives. The archives

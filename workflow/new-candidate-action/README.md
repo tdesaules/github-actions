@@ -1,6 +1,6 @@
 # New candidate action
 
-Candidate action; its image has not yet been published.
+The image is published and pinned by digest in tag `0.3.0`.
 
 Provide `directory` (source action), `image` (already loaded `localhost/...:tag`)
 and `destination` (separate generated directory). The operation preserves

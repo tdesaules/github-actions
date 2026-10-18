@@ -1,6 +1,6 @@
 # Update dependencies
 
-Candidate action running Renovate 44.167.1 for one explicit GitHub repository.
+Action running Renovate 44.167.1 for one explicit GitHub repository.
 Required inputs: `repository` (`owner/name`) and `token`; `dry-run` defaults to
 `false`. Authentication is passed through `RENOVATE_TOKEN`, never an argument.
 The token needs contents, pull request and workflow update permissions.
@@ -16,5 +16,5 @@ is retained; vulnerability review requires all three patched source hashes in
 the SBOM. Missing or modified evidence keeps the vulnerability blocking.
 
 `--repository` and `--dry-run` override `INPUT_REPOSITORY` and `INPUT_DRY-RUN`.
-The image is unpublished and maintenance integration is pending. Disable hosted
+The image is pinned by digest in tag `0.3.0`; maintenance integration is pending. Disable hosted
 Renovate App execution before activating this runner to avoid duplicate updates.

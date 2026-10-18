@@ -1,6 +1,6 @@
 # New image metadata
 
-Candidate action; its image has not yet been published.
+The image is published and pinned by digest in tag `0.3.0`.
 
 Invoke after successful tests and scans. Required inputs: `archive`, `image`,
 `architecture` (`amd64` or `arm64`), `revision` (full Git SHA), `version` and
