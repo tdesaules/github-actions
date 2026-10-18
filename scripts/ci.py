@@ -68,10 +68,12 @@ def select(paths, full=False, root=ROOT):
     # Tests of an action-only change use its pinned image, not a rebuilt image.
     matrix = []
     for image in sorted({actions[a] for a in selected_actions} | images):
+        reference = IMAGE.search((root / owners[image] / 'action.yml').read_text())[1]
+        rebuild = image in images or reference.endswith(':unpublished')
         for arch in ("amd64", "arm64"):
             matrix.append({"image": image, "directory": owners[image], "arch": arch,
                            "runner": "ubuntu-24.04" if arch == "amd64" else "ubuntu-24.04-arm",
-                           "rebuild": image in images})
+                           "rebuild": rebuild})
     if len(matrix) > 256:
         raise ValueError("GitHub supports at most 256 matrix jobs")
     return {"include": matrix}

@@ -54,6 +54,18 @@ class SelectionTests(unittest.TestCase):
         self.assertEqual(len(jobs), 2)
         self.assertTrue(all(not j["rebuild"] for j in jobs))
 
+    def test_unpublished_selection_cannot_reuse_a_registry_image(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            directory = root / 'check/test-fixture'
+            directory.mkdir(parents=True)
+            (directory / 'action.yml').write_text('runs:\n  image: docker://example.invalid/check-test-fixture:unpublished\n')
+            discovered = ({'check/test-fixture': 'check-test-fixture'}, {'check-test-fixture': 'check/test-fixture'})
+            with patch.object(ci, 'discover', return_value=discovered):
+                jobs = ci.select(['.github/workflows/main.yml'], root=root)['include']
+            self.assertEqual(len(jobs), 2)
+            self.assertTrue(all(job['rebuild'] for job in jobs))
+
     def test_removed_component_not_scheduled(self):
         self.assertEqual(ci.select(["oci/deleted/Containerfile"]), {"include": []})
 
