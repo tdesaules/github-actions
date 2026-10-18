@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0
+
+- rename the catalogue workflow to main (e79a29b)
+
+- record the first stable automated release (083ab0c)
+
+- exercise publication recovery and atomic push races (07b369a)
+
+- add five independently containerized repository checks (0bffb12)
 ## 0.1.0
 
 - add native Docker actions and bootstrap pipeline (3209df8)
