@@ -53,6 +53,18 @@ images. Renames are supplied as deletion plus addition, and deleted files are
 recorded but never passed to file checkers. Markdown and link configuration
 changes select their dependent documents. Empty image matrices remain valid.
 
+## Hosted lint activation
+
+Run `39148591681` at commit `1064f08` passed with the action-composed `lint` job.
+The planner selected action metadata, workflow syntax, YAML, Markdown and links
+for that change. The composite executed those five checks and skipped
+Containerfile, shell and TOML checks because their selections were absent.
+All selected checks passed using the published digest-pinned images.
+
+The `lint` job contains only checkout, `get-execution-plan` and
+`test-source-files` action invocations. Pushes compare the event's base and target
+commits; dispatch and tag runs request a full source check.
+
 ## Remaining integration
 
 Artifact aggregation, release planning/finalization and registry signature
