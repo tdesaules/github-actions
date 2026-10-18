@@ -22,6 +22,12 @@ def prepare(directory):
         'invalid.yaml': 'name: first\nname: duplicate\n',
         'valid config.toml': '[package]\nname = "hello world"\n',
         'invalid.toml': 'name = "first"\nname = "duplicate"\n',
+        'valid document.md': '# Fixture\n\nValid Markdown.\n',
+        'invalid document.md': '#Bad heading\n',
+        'valid links.md': '# Links\n\n[Local file](valid%20config.toml)\n',
+        'invalid links.md': '# Links\n\n[Missing file](missing-file.toml)\n',
+        'valid action.yml': 'name: Fixture\ndescription: Compose a fixture\nruns:\n  using: composite\n  steps:\n    - uses: ./check/test-yaml\n',
+        'invalid action.yml': 'name: Fixture\ndescription: Invalid host orchestration\nruns:\n  using: composite\n  steps:\n    - run: python3 script.py\n',
     }
     for name, content in fixtures.items():
         (directory / name).write_text(content)
@@ -31,6 +37,9 @@ def prepare(directory):
         'check-test-shell': ('script without extension', 'script invalid.script'),
         'check-test-yaml': ('valid stream.yaml', 'invalid.yaml'),
         'check-test-toml': ('valid config.toml', 'invalid.toml'),
+        'check-test-markdown': ('valid document.md', 'invalid document.md'),
+        'check-test-links': ('valid links.md', 'invalid links.md'),
+        'check-test-action-metadata': ('valid action.yml', 'invalid action.yml'),
     }
 
 

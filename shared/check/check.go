@@ -61,9 +61,12 @@ func files(value string) ([]string, error) {
 	return paths, nil
 }
 
-func run(args []string, validate func(string) error) error {
+func run(args []string, validate func(string) error, options ...func(*flag.FlagSet)) error {
 	flags := flag.NewFlagSet("check", flag.ContinueOnError)
 	selected := flags.String("files", os.Getenv("INPUT_FILES"), "JSON array of files to check")
+	for _, option := range options {
+		option(flags)
+	}
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -110,7 +113,7 @@ func run(args []string, validate func(string) error) error {
 }
 
 // Main binds validation at build time, not through an operation selector.
-func Main(version string, validate func(string) error) {
+func Main(version string, validate func(string) error, options ...func(*flag.FlagSet)) {
 	if len(os.Args) == 2 && os.Args[1] == "--tool-version" {
 		fmt.Println(version)
 		return
@@ -134,7 +137,7 @@ func Main(version string, validate func(string) error) {
 			os.Exit(1)
 		}
 	}
-	if err := run(os.Args[1:], validate); err != nil {
+	if err := run(os.Args[1:], validate, options...); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return
 		}

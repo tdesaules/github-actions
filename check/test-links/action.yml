@@ -1,0 +1,19 @@
+name: Test links
+description: Check links in explicitly selected files with Lychee
+inputs:
+  files:
+    description: Nonempty JSON array of file paths
+    required: true
+  config:
+    description: Optional path to a Lychee TOML configuration
+outputs:
+  checked:
+    description: Number of checked files
+  passed:
+    description: Whether every file passed
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-links:unpublished
+  args:
+    - --files=${{ inputs.files }}
+    - --config=${{ inputs.config }}

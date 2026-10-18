@@ -1,0 +1,16 @@
+name: Test action metadata
+description: Validate catalogue action contracts and container ownership
+inputs:
+  files:
+    description: Nonempty JSON array of action metadata paths
+    required: true
+outputs:
+  checked:
+    description: Number of checked files
+  passed:
+    description: Whether every file passed
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-action-metadata:unpublished
+  args:
+    - --files=${{ inputs.files }}

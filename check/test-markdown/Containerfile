@@ -1,0 +1,26 @@
+FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/check/ ./shared/check/
+COPY check/test-markdown/main.go ./check/test-markdown/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./check/test-markdown
+
+FROM docker.io/davidanson/markdownlint-cli2:v0.23.3@sha256:d5f3f3f04b2e285dcbcdcd13b4454d119e273e3c393a9dabd163dba4abad526d AS tool
+# Runtime assembly needs to create /runtime in this intermediate stage.
+# hadolint ignore=DL3002
+USER 0:0
+COPY shared/collect-binaries.sh /collect-binaries.sh
+RUN sh /collect-binaries.sh /usr/local/bin/node
+
+FROM scratch AS final
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=tool /runtime/ /
+COPY --from=tool /usr/local/lib/node_modules/markdownlint-cli2/ /usr/local/lib/node_modules/markdownlint-cli2/
+COPY --from=build /entrypoint /entrypoint
+ENV PATH=/usr/local/bin HOME=/tmp SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+# Entrypoint adopts the runner UID for output files.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="check-test-markdown" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND MIT"

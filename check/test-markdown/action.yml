@@ -1,0 +1,16 @@
+name: Test Markdown
+description: Lint explicitly selected Markdown files with markdownlint-cli2
+inputs:
+  files:
+    description: Nonempty JSON array of literal Markdown paths, without glob expansion
+    required: true
+outputs:
+  checked:
+    description: Number of checked files
+  passed:
+    description: Whether every file passed
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-markdown:unpublished
+  args:
+    - --files=${{ inputs.files }}
