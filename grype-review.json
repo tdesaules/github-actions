@@ -3,5 +3,17 @@
   "package": "github.com/docker/docker",
   "affected_package": "github.com/docker/docker/pkg/authorization",
   "reference": "https://github.com/moby/moby/commit/e89edb19ad7de0407a5d31e3111cb01aa10b5a38",
-  "reason": "The vulnerable daemon authorization package is not linked into this client tool. Revalidated against nonempty Go package symbol evidence for every scanned binary."
+  "reason": "The vulnerable daemon authorization package is not linked into this client tool. Revalidated against nonempty Go package symbol evidence for every scanned binary.",
+  "patched_npm": {
+    "vulnerability": "GHSA-vfj7-8cjw-p6xm",
+    "package": "braces",
+    "version": "3.0.3",
+    "reference": "https://github.com/micromatch/braces/issues/70",
+    "reason": "All recursive AST walkers carry the tested local depth guard. Original package identity is retained; exact patched file SHA-256 evidence is required for every installed copy.",
+    "files": {
+      "lib/compile.js": "884df6b9668826553e0e1aa38041cf5d7e98e674d06dc5568614e4964a7f7c16",
+      "lib/expand.js": "68a1c7b7672535bbdc8fa17c17365a7622af53e2ea1e27f0b92631d78da83da2",
+      "lib/stringify.js": "1f6f8a54edbb816a01c5ea41348aa0a5ee2f29605c3ad955b3abbf3cfc6b2b6c"
+    }
+  }
 }

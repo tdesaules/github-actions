@@ -17,7 +17,9 @@ def reports(directory, source='oci-archive:/reports/image.oci.tar', platform=Non
             database_directory=None, update_database=True):
     bind = mount(directory.resolve(), "/reports")
     platform_args = ['--platform', platform] if platform else []
-    run(ENGINE, "run", "--rm", "--user=0", "-v", bind, '-e', 'SYFT_GOLANG_CAPTURE_SYMBOLS=all', SYFT, "scan", source, *platform_args, "-o", "spdx-json=/reports/sbom.spdx.json", '-o', 'syft-json=/reports/sbom.syft.json')
+    run(ENGINE, "run", "--rm", "--user=0", "-v", bind,
+        '-e', 'SYFT_GOLANG_CAPTURE_SYMBOLS=all', '-e', 'SYFT_FILE_METADATA_SELECTION=all',
+        SYFT, "scan", source, *platform_args, "-o", "spdx-json=/reports/sbom.spdx.json", '-o', 'syft-json=/reports/sbom.syft.json')
     # Save database metadata separately so reports remain attributable to a DB snapshot.
     database_directory = database_directory or directory / 'grype-db'
     database_directory.mkdir(parents=True, exist_ok=True)

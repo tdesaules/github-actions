@@ -4,12 +4,14 @@ COPY go.mod go.sum ./
 COPY maintenance/update-dependencies/main.go ./maintenance/update-dependencies/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./maintenance/update-dependencies
 
-FROM ghcr.io/renovatebot/renovate:44.151.0@sha256:8a79148ec24cc05809782e20e720dafe9dde0c24a00f26e76d14dec2cbd74a53 AS tool
+FROM ghcr.io/renovatebot/renovate:44.167.1@sha256:9fd39fa2ec276b15f4d2331337ce620f88696d6687b70da29efbf615bda9ef0c AS tool
 # Runtime assembly needs to create /runtime in this intermediate stage.
 # hadolint ignore=DL3002
 USER 0:0
 COPY shared/collect-binaries.sh /collect-binaries.sh
-RUN sh /collect-binaries.sh /usr/local/renovate/node /usr/bin/git /bin/sh /usr/bin/bash /usr/bin/env /usr/lib/git-core/git-remote-http
+COPY maintenance/update-dependencies/patch-braces.cjs /patch-braces.cjs
+RUN /usr/local/renovate/node /patch-braces.cjs \
+    && sh /collect-binaries.sh /usr/local/renovate/node /usr/bin/git /bin/sh /usr/bin/bash /usr/bin/env /usr/lib/git-core/git-remote-http
 
 FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
