@@ -29,8 +29,15 @@ Il n'existe pas de manifeste central du catalogue.
 
 ## État
 
-Implémentation et tests locaux en cours ; références `:unpublished` temporaires.
-La qualification hébergée puis la publication signée doivent réussir avant de
-recommander une version Git de ces actions aux consommateurs.
+Les cinq actions du premier lot sont publiées dans la version
+[`0.2.0`](https://github.com/tdesaules/github-actions/releases/tag/0.2.0).
+La qualification native `39119872096`, la préparation avec réutilisation des
+archives `39123032133`, la validation du tag `39123757061` et la consommation
+des images publiées `39123757139` ont réussi.
+
+Les extensions Markdown, liens et validation des métadonnées d'actions sont
+implémentées et testées localement, avec des références `:unpublished`.
+La migration vers le workflow composé d'actions reste
+[en cours](orchestration-refactor.md).
 
 Les contrôles BitBake/Yocto, C, patches et templates LXC restent hors de ce lot.
