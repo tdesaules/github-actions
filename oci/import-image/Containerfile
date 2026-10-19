@@ -8,7 +8,7 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /entrypoint ./oci/impor
 FROM entrypoint AS tool
 RUN BUILDTAGS=containers_image_openpgp,exclude_graphdriver_btrfs,exclude_graphdriver_devicemapper sh shared/runtime/compile-tool.sh github.com/containers/skopeo v1.22.3 h1:r85TJYmaMhSgmtuPWxrsPQgaWL/+Q3y/cLLGE/DXjlc= skopeo golang.org/x/net@v0.60.0 golang.org/x/crypto@v0.56.0 golang.org/x/text@v0.41.0 google.golang.org/grpc@v1.83.2 go.opentelemetry.io/otel@v1.41.0 github.com/opencontainers/selinux@v1.13.0 github.com/sigstore/fulcio@v1.8.6
 
-FROM quay.io/skopeo/stable:v1.22.3@sha256:7e735527d9d64c7456fc82d7f954c380b4a5dd1a8173115ce2ed7b3442ef36e0 AS runtime
+FROM quay.io/skopeo/stable:v1.22.3@sha256:6ca79dc9f56b60a0ca92a7b7ebc0cd0d1d9f13b70561fad07920d3d1dfade1c0 AS runtime
 COPY --from=tool /tool /usr/bin/skopeo
 COPY shared/runtime/collect-runtime.sh /collect-runtime.sh
 RUN sh /collect-runtime.sh skopeo

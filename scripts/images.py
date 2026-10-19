@@ -19,7 +19,7 @@ ENGINE = os.environ.get("CONTAINER_ENGINE", "podman")
 if Path("/tmp/opencode").is_dir():
     tempfile.tempdir = "/tmp/opencode"
 BOOTSTRAP = "quay.io/buildah/stable:v1.43.4@sha256:07e637ad7a1df37f44afea8287935b350224ac193d63e5cc96debb50a366853c"
-SKOPEO_BOOTSTRAP = "quay.io/skopeo/stable:v1.22.3@sha256:7e735527d9d64c7456fc82d7f954c380b4a5dd1a8173115ce2ed7b3442ef36e0"
+SKOPEO_BOOTSTRAP = "quay.io/skopeo/stable:v1.22.3@sha256:6ca79dc9f56b60a0ca92a7b7ebc0cd0d1d9f13b70561fad07920d3d1dfade1c0"
 
 
 def run(*args, **kwargs):
