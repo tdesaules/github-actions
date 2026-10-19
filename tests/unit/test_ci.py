@@ -93,6 +93,32 @@ class SelectionTests(unittest.TestCase):
         self.assertTrue(all(j['rebuild'] for j in jobs))
 
 
+class CheckDiffTests(unittest.TestCase):
+    def test_documents_and_empty_diff_skip_checks(self):
+        for paths in ([], ['README.md', 'check/test-go/README.md']):
+            self.assertFalse(any(ci.check_changes(paths).values()))
+
+    def test_go_rename_or_deletion_selects_go(self):
+        self.assertEqual(ci.check_changes(['lint/yaml/deleted_test.go']),
+                         {'catalog': False, 'go': True, 'python': False})
+
+    def test_python_change_selects_python(self):
+        self.assertEqual(ci.check_changes(['scripts/release.py']),
+                         {'catalog': False, 'go': False, 'python': True})
+
+    def test_metadata_does_not_run_go_suite(self):
+        self.assertEqual(ci.check_changes(['lint/yaml/action.yml']),
+                         {'catalog': True, 'go': False, 'python': True})
+
+    def test_shared_test_runner_selects_both_languages(self):
+        result = ci.check_changes(['shared/testsuite/testsuite.go'])
+        self.assertTrue(result['go'] and result['python'])
+
+    def test_full_and_workflow_changes_select_all_checks(self):
+        self.assertTrue(all(ci.check_changes([], full=True).values()))
+        self.assertTrue(all(ci.check_changes(['.github/workflows/main.yml']).values()))
+
+
 class LintDiffTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()

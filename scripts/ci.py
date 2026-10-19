@@ -143,6 +143,48 @@ def lint_files(paths, tracked, full=False, root=ROOT):
     return files
 
 
+def check_changes(paths, full=False):
+    """Conditions for independent checks; deletions are deliberately included."""
+    selected = dict.fromkeys(('catalog', 'go', 'python'), full)
+    for path in paths:
+        p = Path(path)
+        if p.suffix.lower() in ('.md', '.markdown'):
+            continue
+        if path.startswith('.github/workflows/') or path in ('taskfile.yml', '.containerignore', '.dockerignore'):
+            selected = dict.fromkeys(selected, True)
+        if p.name in ('action.yml', 'Containerfile') or path.startswith('check/test-catalog/'):
+            selected['catalog'] = True
+        if p.suffix == '.go' or path in ('go.mod', 'go.sum') or path.startswith('check/test-go/'):
+            selected['go'] = True
+        if path.startswith(('scripts/', 'tests/unit/', 'check/test-python/')) or p.name in ('action.yml', 'Containerfile'):
+            selected['python'] = True
+        if path.startswith('shared/testsuite/'):
+            selected['python'] = True
+    return selected
+
+
+def source_changes(after):
+    full = os.environ.get('GITHUB_EVENT_NAME', 'push') != 'push' or os.environ.get('GITHUB_REF', '').startswith('refs/tags/')
+    payload = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text()) if os.environ.get('GITHUB_EVENT_PATH') else {}
+    before = payload.get('before', '')
+    if not before or set(before) == {'0'}:
+        full = True
+    return ([], True) if full else (changed_paths(before, after), False)
+
+
+def emit_source_changes(paths, full):
+    tracked = subprocess.check_output(['git', 'ls-files', '-z'], cwd=ROOT).decode().split('\0')
+    for name, files in lint_files(paths, [p for p in tracked if p], full=full).items():
+        emit(name + '-files', files)
+        emit(name + '-changed', str(bool(files)).lower())
+    for name, changed in check_changes(paths, full).items():
+        emit(name + '-changed', str(changed).lower())
+        metadata = ROOT / 'check' / ('test-' + name) / 'action.yml'
+        match = IMAGE.search(metadata.read_text())
+        published = bool(match and re.search(r'@sha256:[a-f0-9]{64}$', match[1]))
+        emit(name + '-published', str(published).lower())
+
+
 def aggregate(paths):
     result = {}
     for path in sorted(paths):
@@ -177,9 +219,14 @@ def emit(name, value):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("select", "validate", "aggregate"))
+    parser.add_argument("command", choices=("changes", "select", "validate", "aggregate"))
     parser.add_argument("paths", nargs="*")
     args = parser.parse_args()
+    if args.command == 'changes':
+        after = os.environ.get('GITHUB_SHA') or git('rev-parse', 'HEAD')
+        paths, full = source_changes(after)
+        emit_source_changes(paths, full)
+        return
     if args.command == "aggregate":
         print(json.dumps(aggregate(args.paths), indent=2))
         return
@@ -231,11 +278,6 @@ def main():
     if pipeline_mode == 'prepare' and os.environ.get('ARTIFACT_RUN_ID'):
         # The workflow validates the source run before selecting this empty matrix.
         matrix = {'include': []}
-    tracked = subprocess.check_output(['git', 'ls-files', '-z'], cwd=ROOT).decode().split('\0')
-    for name, files in lint_files(paths, [p for p in tracked if p],
-                                 full=full or pipeline_mode in ('prepare', 'release')).items():
-        emit(name + '-files', files)
-        emit(name + '-changed', str(bool(files)).lower())
     emit("mode", pipeline_mode)
     emit("matrix", matrix)
     emit("has-work", str(bool(matrix["include"])).lower())

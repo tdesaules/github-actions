@@ -1,0 +1,23 @@
+FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/testsuite/ ./shared/testsuite/
+COPY check/test-python/main.go ./check/test-python/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./check/test-python \
+    && apk add --no-cache bash=5.3.9-r1 git=2.54.0-r0 python3=3.14.8-r0
+COPY shared/collect-binaries.sh /collect-binaries.sh
+RUN sh /collect-binaries.sh /usr/bin/python3 /usr/bin/git /bin/sh /bin/bash /usr/bin/env \
+    && find /usr/lib/python3.14/lib-dynload -name '*.so' -exec sh /collect-binaries.sh {} +
+
+FROM scratch AS final
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=build /runtime/ /
+COPY --from=build /usr/lib/python3.14/ /usr/lib/python3.14/
+COPY --from=build /usr/libexec/git-core/ /usr/libexec/git-core/
+COPY --from=build /usr/share/git-core/ /usr/share/git-core/
+COPY --from=build /entrypoint /entrypoint
+ENV PATH=/usr/bin:/bin HOME=/tmp PYTHONDONTWRITEBYTECODE=1
+USER 65532:65532
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="check-test-python" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

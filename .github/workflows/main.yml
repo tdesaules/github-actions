@@ -62,30 +62,47 @@ jobs:
       release-version: ${{ steps.plan.outputs.release-version }}
       release-changed: ${{ steps.plan.outputs.release-changed }}
       artifact-pattern: ${{ steps.resume.outputs.artifact-pattern }}
-      actionlint-files: ${{ steps.select.outputs.actionlint-files }}
-      hadolint-files: ${{ steps.select.outputs.hadolint-files }}
-      shellcheck-files: ${{ steps.select.outputs.shellcheck-files }}
-      yaml-files: ${{ steps.select.outputs.yaml-files }}
-      toml-files: ${{ steps.select.outputs.toml-files }}
-      markdownlint-files: ${{ steps.select.outputs.markdownlint-files }}
-      lychee-files: ${{ steps.select.outputs.lychee-files }}
-      actionlint-changed: ${{ steps.select.outputs.actionlint-changed }}
-      hadolint-changed: ${{ steps.select.outputs.hadolint-changed }}
-      shellcheck-changed: ${{ steps.select.outputs.shellcheck-changed }}
-      yaml-changed: ${{ steps.select.outputs.yaml-changed }}
-      toml-changed: ${{ steps.select.outputs.toml-changed }}
-      markdownlint-changed: ${{ steps.select.outputs.markdownlint-changed }}
-      lychee-changed: ${{ steps.select.outputs.lychee-changed }}
+      actionlint-files: ${{ steps.sources.outputs.actionlint-files }}
+      hadolint-files: ${{ steps.sources.outputs.hadolint-files }}
+      shellcheck-files: ${{ steps.sources.outputs.shellcheck-files }}
+      yaml-files: ${{ steps.sources.outputs.yaml-files }}
+      toml-files: ${{ steps.sources.outputs.toml-files }}
+      markdownlint-files: ${{ steps.sources.outputs.markdownlint-files }}
+      lychee-files: ${{ steps.sources.outputs.lychee-files }}
+      actionlint-changed: ${{ steps.sources.outputs.actionlint-changed }}
+      hadolint-changed: ${{ steps.sources.outputs.hadolint-changed }}
+      shellcheck-changed: ${{ steps.sources.outputs.shellcheck-changed }}
+      yaml-changed: ${{ steps.sources.outputs.yaml-changed }}
+      toml-changed: ${{ steps.sources.outputs.toml-changed }}
+      markdownlint-changed: ${{ steps.sources.outputs.markdownlint-changed }}
+      lychee-changed: ${{ steps.sources.outputs.lychee-changed }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Validate Docker action and image relationships
+      - name: Read changed files
+        id: sources
+        run: python3 scripts/ci.py changes
+      - name: Test catalog
+        if: ${{ !cancelled() && steps.sources.outputs.catalog-changed == 'true' && steps.sources.outputs.catalog-published == 'true' }}
+        uses: ./check/test-catalog
+      - name: Test Python
+        if: ${{ !cancelled() && steps.sources.outputs.python-changed == 'true' && steps.sources.outputs.python-published == 'true' }}
+        uses: ./check/test-python
+      - name: Test Go
+        if: ${{ !cancelled() && steps.sources.outputs.go-changed == 'true' && steps.sources.outputs.go-published == 'true' }}
+        uses: ./check/test-go
+      # Bootstrap only until these three images have passed native qualification
+      # and their action metadata contains the published immutable digests.
+      - name: Bootstrap catalog validation before image publication
+        if: ${{ !cancelled() && steps.sources.outputs.catalog-changed == 'true' && steps.sources.outputs.catalog-published == 'false' }}
         run: python3 scripts/ci.py validate
-      - name: Test selection, versions and aggregation
+      - name: Bootstrap Python tests before image publication
+        if: ${{ !cancelled() && steps.sources.outputs.python-changed == 'true' && steps.sources.outputs.python-published == 'false' }}
         run: python3 -m unittest discover -s tests/unit -v
-      - name: Test action entrypoints
+      - name: Bootstrap Go tests before image publication
+        if: ${{ !cancelled() && steps.sources.outputs.go-changed == 'true' && steps.sources.outputs.go-published == 'false' }}
         run: >-
           docker run --rm -v "$PWD:/src:ro" -w /src
           docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d
@@ -115,10 +132,10 @@ jobs:
           ARTIFACT_RUN_ID: ${{ inputs.artifact-run-id }}
         run: python3 scripts/ci.py select
       - name: Validate action metadata
-        if: steps.select.outputs.action-metadata-changed == 'true'
+        if: ${{ !cancelled() && steps.sources.outputs.action-metadata-changed == 'true' }}
         uses: ./check/test-action-metadata
         with:
-          files: ${{ steps.select.outputs.action-metadata-files }}
+          files: ${{ steps.sources.outputs.action-metadata-files }}
       - name: Compare Docker runtime profiles
         if: inputs.qualify-runner
         run: python3 scripts/qualify-runner.py
@@ -246,8 +263,20 @@ jobs:
         if: matrix.image == 'oci-build-image'
         run: python3 scripts/testing.py --image oci-build-image --version "$VERSION"
       - name: Test check image with read-only sources and negative fixtures
-        if: startsWith(matrix.image, 'check-')
+        if: startsWith(matrix.image, 'check-') && !contains(fromJSON('["check-test-go","check-test-python","check-test-catalog"]'), matrix.image)
         run: python3 scripts/test-checks.py --image "$IMAGE" --version "$VERSION"
+      - name: Test native catalog validation
+        if: matrix.image == 'check-test-catalog'
+        uses: ./.candidate-actions/test-catalog
+      - name: Test suite images with read-only sources and negative fixtures
+        if: contains(fromJSON('["check-test-go","check-test-python","check-test-catalog"]'), matrix.image)
+        run: python3 scripts/test-suites.py --image "$IMAGE" --version "$VERSION"
+      - name: Test native Go suite
+        if: matrix.image == 'check-test-go'
+        uses: ./.candidate-actions/test-go
+      - name: Test native Python suite
+        if: matrix.image == 'check-test-python'
+        uses: ./.candidate-actions/test-python
       - name: Test native candidate preparation
         if: matrix.image == 'workflow-new-candidate-action'
         uses: ./.candidate-actions/new-candidate-action

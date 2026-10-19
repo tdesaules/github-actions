@@ -1,0 +1,20 @@
+FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/testsuite/ ./shared/testsuite/
+COPY check/test-go/main.go ./check/test-go/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./check/test-go
+RUN mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
+
+FROM scratch AS final
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=build /runtime/ /
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+# The compiler is the runtime tool of this test action.
+COPY --from=build /usr/local/go/ /usr/local/go/
+COPY --from=build /entrypoint /entrypoint
+ENV PATH=/usr/local/go/bin HOME=/tmp GOCACHE=/tmp/go-cache GOPATH=/tmp/go CGO_ENABLED=0
+USER 65532:65532
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="check-test-go" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

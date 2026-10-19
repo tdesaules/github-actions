@@ -1,0 +1,11 @@
+name: Test Go
+description: Run the Go test suite in an independent container
+inputs:
+  directory:
+    description: Go module directory relative to the workspace
+    default: .
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-go:unpublished
+  args:
+    - --directory=${{ inputs.directory }}

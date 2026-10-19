@@ -1,0 +1,11 @@
+name: Test Catalog
+description: Validate image ownership, pinned bases and scratch final stages
+inputs:
+  directory:
+    description: Catalogue root relative to the workspace
+    default: .
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-catalog:unpublished
+  args:
+    - --directory=${{ inputs.directory }}

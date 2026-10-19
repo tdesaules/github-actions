@@ -1,0 +1,11 @@
+name: Test Python
+description: Run unittest discovery under tests/unit in an independent container
+inputs:
+  directory:
+    description: Project directory containing tests/unit
+    default: .
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-python:unpublished
+  args:
+    - --directory=${{ inputs.directory }}
