@@ -43,7 +43,7 @@ runs:
     - id: builder
       shell: bash
       env:
-        BUILDER_IMAGE: docker://ghcr.io/tdesaules/github-actions/oci-build-image@sha256:5900ebe41f45caf4124a4250c1ec97255ccd5be7683700d8874d97f278e06a23
+        BUILDER_IMAGE: docker://ghcr.io/tdesaules/github-actions/oci-build-image@sha256:e0ec38233d8fc111e397e1ecf1f545669b5f2377dfe721d188e4e32fcc81e3b4
         INPUT_CONTEXT: ${{ inputs.context }}
         INPUT_CONTAINERFILE: ${{ inputs.containerfile }}
         INPUT_IMAGE: ${{ inputs.image }}

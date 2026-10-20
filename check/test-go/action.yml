@@ -6,6 +6,6 @@ inputs:
     default: .
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/check-test-go:unpublished
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-go@sha256:5d1a752ce65930e6e33a68228297d8a78ca0bfe080e92b4b83062f40fd9e1a49
   args:
     - --directory=${{ inputs.directory }}

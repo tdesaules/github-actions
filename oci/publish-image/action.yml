@@ -19,7 +19,7 @@ outputs:
     description: Published transport reference
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/oci-publish-image@sha256:267d80d8e68b4c6ddc8fcf36cfea6f47dcd5f733d46c90e64a0d202b4548bddf
+  image: docker://ghcr.io/tdesaules/github-actions/oci-publish-image@sha256:4361eec2a34750aac4dba741c5f1f40eb0c86d98c3b371f4b8bc293fa2e6f645
   args:
     - --source=${{ inputs.source }}
     - --destination=${{ inputs.destination }}

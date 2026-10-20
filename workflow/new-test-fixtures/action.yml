@@ -6,6 +6,6 @@ inputs:
     required: true
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-test-fixtures@sha256:d0cca01e4f577bdffd36e396bd1b92a6b545aa67f00d4804ad01855d4017a58e
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-test-fixtures@sha256:e01ec4cc9228a75be874d09d1f6a1dc16b24e20f45bee469bac1e323391f6473
   args:
     - --directory=${{ inputs.directory }}

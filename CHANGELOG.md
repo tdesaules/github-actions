@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.0.0
+
+- compose selective checks from published native actions (a7169c2)
+
+- record published orchestration and check images (1064f08)
+
+- record successful hosted selective activation (c54839b)
+
+- expose dedicated linters directly in the workflow (7bf9146)
+
+- add selective containerized catalogue and test suites (71deccb)
+
+- replace unavailable Skopeo bootstrap digest (dc751b8)
+
+- allow execution of temporary Go test binaries (f807268)
+
+- avoid failing HTTP/2 module downloads (316031e)
+
+- bootstrap Skopeo from the published catalogue (74122e1)
+
+- preserve sticky temporary directory permissions (35b759d)
+
 ## 0.3.0
 
 - remove host Python from the Buildah launcher (0b29f62)
