@@ -34,7 +34,8 @@ def test(image, reference):
             failure = 'FROM alpine:latest AS final\n'
         else:
             raise ValueError(image)
-        command = [ENGINE, 'run', '--rm', '--read-only', '--tmpfs', '/tmp:rw,mode=1777',
+        # Go executes compiled test binaries here; Docker defaults tmpfs to noexec.
+        command = [ENGINE, 'run', '--rm', '--read-only', '--tmpfs', '/tmp:rw,exec,mode=1777',
                    '-v', mount(root, '/github/workspace', True),
                    '-e', 'INPUT_DIRECTORY=missing', reference, '--directory=project with spaces']
         subprocess.run(command, check=True)
