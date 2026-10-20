@@ -1,6 +1,10 @@
 #!/bin/sh
 # Rebuild pinned upstream source with explicitly selected dependency fixes.
 set -eu
+# Hosted module downloads repeatedly fail with HTTP/2 INTERNAL_ERROR from the
+# proxy/checksum service. Scope HTTP/1.1 to this build process; retain TLS and
+# Go checksum verification.
+export GODEBUG="${GODEBUG:+$GODEBUG,}http2client=0"
 mkdir -p /runtime/tmp
 chmod 1777 /runtime/tmp
 module=$1
@@ -8,7 +12,10 @@ version=$2
 checksum=$3
 command=$4
 shift 4
-go mod download -json "$module@$version" > /tmp/module.json
+if ! go mod download -json "$module@$version" > /tmp/module.json; then
+  cat /tmp/module.json >&2
+  exit 1
+fi
 grep -F "\"Sum\": \"$checksum\"" /tmp/module.json
 mkdir -p /tool-source
 cp -R "$(go env GOPATH)/pkg/mod/$module@$version/." /tool-source/
