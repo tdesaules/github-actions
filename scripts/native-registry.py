@@ -13,7 +13,7 @@ from images import ENGINE, ROOT, action_ref, mount, run
 from oci_archive import inspect_archive
 
 REGISTRY = 'docker.io/library/registry:3.0.0@sha256:6c5666b861f3505b116bb9aa9b25175e71210414bd010d92035ff64018f9457e'
-SKOPEO = 'quay.io/skopeo/stable:v1.22.3@sha256:6ca79dc9f56b60a0ca92a7b7ebc0cd0d1d9f13b70561fad07920d3d1dfade1c0'
+SKOPEO = 'ghcr.io/tdesaules/github-actions/oci-import-image@sha256:11f4439932710275ca5ffce92e71eef3680e09907c99c2eb0b83dfd32ebbdba1'
 
 
 def main():
@@ -50,7 +50,7 @@ def main():
     if args.signer_version or args.verifier_version:
         run(ENGINE, 'run', '--rm', '-v', mount(directory, '/fixtures'),
             '-e', 'SSL_CERT_FILE=/fixtures/registry-cert.pem', '--entrypoint=/usr/bin/skopeo',
-            SKOPEO, 'copy', '--retry-times=3', '--preserve-digests',
+            '--entrypoint=/usr/bin/skopeo', SKOPEO, 'copy', '--retry-times=3', '--preserve-digests',
             'oci-archive:/fixtures/fixture.oci.tar', 'docker://'+repository+'@'+digest)
         run(ENGINE, 'run', '--rm', '--user', f'{os.getuid()}:{os.getgid()}',
             '-v', mount(directory, '/fixtures'), '-e', 'COSIGN_PASSWORD=',

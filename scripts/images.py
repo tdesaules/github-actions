@@ -19,7 +19,7 @@ ENGINE = os.environ.get("CONTAINER_ENGINE", "podman")
 if Path("/tmp/opencode").is_dir():
     tempfile.tempdir = "/tmp/opencode"
 BOOTSTRAP = "quay.io/buildah/stable:v1.43.4@sha256:07e637ad7a1df37f44afea8287935b350224ac193d63e5cc96debb50a366853c"
-SKOPEO_BOOTSTRAP = "quay.io/skopeo/stable:v1.22.3@sha256:6ca79dc9f56b60a0ca92a7b7ebc0cd0d1d9f13b70561fad07920d3d1dfade1c0"
+SKOPEO_BOOTSTRAP = "ghcr.io/tdesaules/github-actions/oci-import-image@sha256:11f4439932710275ca5ffce92e71eef3680e09907c99c2eb0b83dfd32ebbdba1"
 
 
 def run(*args, **kwargs):
@@ -53,7 +53,7 @@ def load_archive(archive, reference):
         # archive. The unchanged config ID identifies the tested rootfs/config.
         with tempfile.TemporaryDirectory(prefix="docker-load-") as tmp:
             run(ENGINE, "run", "--rm", "-v", mount(Path(archive).resolve().parent, "/input", True),
-                "-v", mount(tmp, "/output"), SKOPEO_BOOTSTRAP, "copy",
+                "-v", mount(tmp, "/output"), "--entrypoint=/usr/bin/skopeo", SKOPEO_BOOTSTRAP, "copy",
                 "oci-archive:/input/"+Path(archive).name, "docker-archive:/output/image.tar:"+reference)
             run(ENGINE, "load", "-i", Path(tmp) / "image.tar")
     else:

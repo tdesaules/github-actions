@@ -9,7 +9,7 @@ import subprocess
 from ci import ROOT, IMAGE, discover, git, mode
 from images import ENGINE
 
-SKOPEO = "quay.io/skopeo/stable:v1.22.3@sha256:6ca79dc9f56b60a0ca92a7b7ebc0cd0d1d9f13b70561fad07920d3d1dfade1c0"
+SKOPEO = "ghcr.io/tdesaules/github-actions/oci-import-image@sha256:11f4439932710275ca5ffce92e71eef3680e09907c99c2eb0b83dfd32ebbdba1"
 COSIGN = "ghcr.io/sigstore/cosign/cosign:v3.1.3@sha256:9e5c2f2edc34351160407ca3416c61855bdf9403c3c5936e0f0be7fc261611b8"
 
 
@@ -25,7 +25,7 @@ def main():
         references.add(ref)
     identity = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/.github/workflows/main.yml@refs/heads/main"
     for ref in sorted(references):
-        raw = subprocess.check_output([ENGINE, "run", "--rm", SKOPEO, "inspect", "--raw", "docker://"+ref])
+        raw = subprocess.check_output([ENGINE, "run", "--rm", "--entrypoint=/usr/bin/skopeo", SKOPEO, "inspect", "--raw", "docker://"+ref])
         if "sha256:"+hashlib.sha256(raw).hexdigest() != ref.split("@", 1)[1]:
             raise ValueError(f"digest mismatch: {ref}")
         manifests = json.loads(raw).get("manifests", [])

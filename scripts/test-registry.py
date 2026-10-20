@@ -54,7 +54,8 @@ def main():
                     # Model an interrupted publication with children already present.
                     run(ENGINE, 'run', '--rm', '--network', name, '-v', mount(workspace, '/github/workspace'),
                         '-e', 'SSL_CERT_FILE=/github/workspace/cert.pem', '--entrypoint=/usr/bin/skopeo',
-                        'quay.io/skopeo/stable:v1.22.3@sha256:6ca79dc9f56b60a0ca92a7b7ebc0cd0d1d9f13b70561fad07920d3d1dfade1c0',
+                        '--entrypoint=/usr/bin/skopeo',
+                        'ghcr.io/tdesaules/github-actions/oci-import-image@sha256:11f4439932710275ca5ffce92e71eef3680e09907c99c2eb0b83dfd32ebbdba1',
                         'copy', '--preserve-digests', 'oci-archive:/github/workspace/'+archive.name,
                         'docker://registry:5000/fixture@'+expected[arch])
             inputs = {"sources": '["amd64.tar","arm64.tar"]', "destination": "docker://registry:5000/fixture"}
