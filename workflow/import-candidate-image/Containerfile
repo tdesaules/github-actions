@@ -13,7 +13,7 @@ FROM ghcr.io/tdesaules/github-actions/oci-import-image@sha256:11f4439932710275ca
 FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=runtime /etc/ /etc/
-COPY --from=runtime /tmp/ /tmp/
+COPY --from=tool /runtime/ /
 COPY --from=runtime /var/ /var/
 COPY --from=runtime /run/ /run/
 COPY --from=tool /tool /usr/bin/skopeo
