@@ -74,7 +74,25 @@ func run() error {
 	}
 	version := previous
 	if changed {
+		// libgit2 (used by git-cliff) does not inherit Git CLI -c options.
+		// Trust only this checkout in a private, disposable configuration.
+		home, err := os.MkdirTemp("", "release-plan-git-")
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(home)
+		root, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		gitConfig := filepath.Join(home, ".gitconfig")
+		configure := exec.Command("git", "config", "--file", gitConfig, "--add", "safe.directory", root)
+		configure.Stderr = os.Stderr
+		if err := configure.Run(); err != nil {
+			return err
+		}
 		cmd := exec.Command("git-cliff", "--config", *config, "--bumped-version")
+		cmd.Env = append(os.Environ(), "HOME="+home, "XDG_CONFIG_HOME="+home, "GIT_CONFIG_GLOBAL="+gitConfig)
 		cmd.Stderr = os.Stderr
 		data, err := cmd.Output()
 		if err != nil {
