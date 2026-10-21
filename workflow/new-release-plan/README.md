@@ -10,4 +10,4 @@ Inputs: `config` (default `cliff.toml`), `output` (default
 Requires full Git history. Does not publish images, mutate refs or create tags.
 
 Its independent scratch image contains Git, git-cliff and a fixed Go executable.
-Awaiting native image qualification/publication before activation in `check`.
+Published with `1.0.1`, it is called directly by `check` for release preparation.

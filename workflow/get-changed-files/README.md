@@ -9,5 +9,5 @@ Inputs: `before`, `after` (default `HEAD`), `full` (default `false`). Requires a
 checkout with the compared history. Explicit flags override `INPUT_*` values.
 The action invokes no linters, tests, Python or operation dispatcher.
 
-Its independent scratch image contains Git and a fixed Go executable. Awaiting
-native image qualification/publication before activation in `check`.
+Its independent scratch image contains Git and a fixed Go executable. Published
+with `1.0.1`, it is called directly by `check` before checks and matrix selection.

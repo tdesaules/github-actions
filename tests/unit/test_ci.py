@@ -93,66 +93,6 @@ class SelectionTests(unittest.TestCase):
         self.assertTrue(all(j['rebuild'] for j in jobs))
 
 
-class CheckDiffTests(unittest.TestCase):
-    def test_documents_and_empty_diff_skip_checks(self):
-        for paths in ([], ['README.md', 'check/test-go/README.md']):
-            self.assertFalse(any(ci.check_changes(paths).values()))
-
-    def test_go_rename_or_deletion_selects_go(self):
-        self.assertEqual(ci.check_changes(['lint/yaml/deleted_test.go']),
-                         {'catalog': False, 'go': True, 'python': False})
-
-    def test_python_change_selects_python(self):
-        self.assertEqual(ci.check_changes(['scripts/release.py']),
-                         {'catalog': False, 'go': False, 'python': True})
-
-    def test_metadata_does_not_run_go_suite(self):
-        self.assertEqual(ci.check_changes(['lint/yaml/action.yml']),
-                         {'catalog': True, 'go': False, 'python': True})
-
-    def test_shared_test_runner_selects_both_languages(self):
-        result = ci.check_changes(['shared/testsuite/testsuite.go'])
-        self.assertTrue(result['go'] and result['python'])
-
-    def test_full_and_workflow_changes_select_all_checks(self):
-        self.assertTrue(all(ci.check_changes([], full=True).values()))
-        self.assertTrue(all(ci.check_changes(['.github/workflows/main.yml']).values()))
-
-
-class LintDiffTests(unittest.TestCase):
-    def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
-        self.tracked = ['docs/new name.md', 'README.md', 'lint/hadolint/Containerfile',
-                        '.github/workflows/main.yml', 'scripts/no-extension', 'config.toml']
-        for path in self.tracked:
-            target = self.root / path
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text('#!/bin/sh\nexit 0\n' if path == 'scripts/no-extension' else 'fixture\n')
-
-    def select(self, paths, full=False):
-        return ci.lint_files(paths, self.tracked, full, self.root)
-
-    def test_document_rename_ignores_deleted_path(self):
-        result = self.select(['docs/old name.md', 'docs/new name.md'])
-        self.assertEqual({k: v for k, v in result.items() if v},
-                         {'markdownlint': ['docs/new name.md'], 'lychee': ['docs/new name.md']})
-
-    def test_containerfile_and_workflow_have_explicit_checks(self):
-        result = self.select(['lint/hadolint/Containerfile', '.github/workflows/main.yml'])
-        self.assertEqual({k for k, v in result.items() if v}, {'hadolint', 'yaml', 'actionlint'})
-
-    def test_config_change_including_deletion_checks_all_documents(self):
-        result = self.select(['lychee.toml'])
-        self.assertEqual(result['lychee'], ['README.md', 'docs/new name.md'])
-        self.assertFalse(result['markdownlint'])
-
-    def test_empty_and_full_diff(self):
-        self.assertTrue(all(not v for v in self.select([]).values()))
-        self.assertEqual(self.select([], full=True)['shellcheck'], ['scripts/no-extension'])
-
-
 class ModesTests(unittest.TestCase):
     def test_modes(self):
         self.assertEqual(ci.mode("push", "refs/heads/feature"), "development")

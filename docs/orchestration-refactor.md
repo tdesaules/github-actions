@@ -26,12 +26,13 @@ Containerfile, fixed Go entrypoint and image. Their published `1.0.0` images are
 called directly; the bootstrap commands and `*-published` outputs are removed.
 Runner qualification also assembles published fixture and Buildah actions.
 
-Four further independent Go actions replace the remaining Python orchestration:
+Four further independent Go actions now perform the orchestration in `check`:
 `workflow/get-changed-files`, `workflow/get-image-matrix`,
-`workflow/new-release-plan` and `workflow/test-artifact-source`. They are first
-qualified as native candidates by the build matrix. Their calls in `check` will
-replace the remaining host commands after immutable image publication. They do
-not dispatch linters or tests; those remain explicit steps in the workflow.
+`workflow/new-release-plan` and `workflow/test-artifact-source`. Their immutable
+images were published with `1.0.1` by run `39621479547`. They are called directly
+with explicit inputs and outputs. They do not dispatch linters or tests; those
+remain explicit steps in the workflow. Neither `check` nor `lint` contains a
+`run` step. Checkout and artifact transport use the official GitHub actions.
 
 Source-check selection is separate from release matrix selection: release planning
 and exact-source artifact validation still precede the image matrix calculation.

@@ -9,4 +9,5 @@ values except the secret token, which is forwarded only through the environment.
 HTTP redirects are rejected; TLS verification remains enabled.
 
 The independent scratch image runs a fixed Go executable. No host GitHub CLI or
-Python is needed. Awaiting native qualification/publication before activation.
+Python is needed. Published with `1.0.1`, it is called directly by `check` when
+an artifact source run is requested.

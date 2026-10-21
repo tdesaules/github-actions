@@ -83,7 +83,11 @@ jobs:
           persist-credentials: false
       - name: Read changed files
         id: sources
-        run: python3 scripts/ci.py changes
+        uses: ./workflow/get-changed-files
+        with:
+          before: ${{ github.event.before }}
+          after: ${{ github.sha }}
+          full: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}
       - name: Test catalog
         if: ${{ !cancelled() && steps.sources.outputs.catalog-changed == 'true' }}
         uses: ./check/test-catalog
@@ -96,7 +100,7 @@ jobs:
       - name: Plan semantic release
         id: plan
         if: github.event_name == 'workflow_dispatch' && !inputs.qualify-runner && !inputs.publish-bootstrap
-        run: python3 scripts/release.py plan
+        uses: ./workflow/new-release-plan
       - name: Retain release plan
         if: steps.plan.outputs.release-changed == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -107,16 +111,23 @@ jobs:
       - name: Validate publication artifact source
         id: resume
         if: github.event_name == 'workflow_dispatch' && inputs.artifact-run-id != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ARTIFACT_RUN_ID: ${{ inputs.artifact-run-id }}
-        run: python3 scripts/resume.py
+        uses: ./workflow/test-artifact-source
+        with:
+          run-id: ${{ inputs.artifact-run-id }}
+          repository: ${{ github.repository }}
+          revision: ${{ github.sha }}
+          token: ${{ github.token }}
       - name: Select mode and dynamic matrix
         id: select
         if: '!inputs.qualify-runner'
-        env:
-          ARTIFACT_RUN_ID: ${{ inputs.artifact-run-id }}
-        run: python3 scripts/ci.py select
+        uses: ./workflow/get-image-matrix
+        with:
+          files: ${{ steps.sources.outputs.files }}
+          full: ${{ steps.sources.outputs.full }}
+          event: ${{ github.event_name }}
+          ref: ${{ github.ref }}
+          release-plan: ${{ steps.plan.outcome == 'success' && '.build/publication/release-plan.json' || '' }}
+          reuse-artifacts: ${{ steps.resume.outcome == 'success' }}
       - name: Validate action metadata
         if: ${{ !cancelled() && steps.sources.outputs.action-metadata-changed == 'true' }}
         uses: ./check/test-action-metadata

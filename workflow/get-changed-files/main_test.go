@@ -39,3 +39,24 @@ func TestDiffClassification(t *testing.T) {
 		t.Fatal("deleted shared dependency ignored")
 	}
 }
+
+func TestCheckConditions(t *testing.T) {
+	for _, tc := range []struct {
+		paths []string
+		full  bool
+		want  map[string]bool
+	}{
+		{nil, false, map[string]bool{"catalog": false, "go": false, "python": false}},
+		{[]string{"README.md", "check/test-go/README.md"}, false, map[string]bool{"catalog": false, "go": false, "python": false}},
+		{[]string{"lint/yaml/deleted_test.go"}, false, map[string]bool{"catalog": false, "go": true, "python": false}},
+		{[]string{"scripts/release.py"}, false, map[string]bool{"catalog": false, "go": false, "python": true}},
+		{[]string{"lint/yaml/action.yml"}, false, map[string]bool{"catalog": true, "go": false, "python": true}},
+		{[]string{"shared/testsuite/testsuite.go"}, false, map[string]bool{"catalog": false, "go": true, "python": true}},
+		{[]string{".github/workflows/main.yml"}, false, map[string]bool{"catalog": true, "go": true, "python": true}},
+		{nil, true, map[string]bool{"catalog": true, "go": true, "python": true}},
+	} {
+		if got := checks(tc.paths, tc.full); !reflect.DeepEqual(got, tc.want) {
+			t.Fatalf("checks(%v, %t) = %v, want %v", tc.paths, tc.full, got, tc.want)
+		}
+	}
+}
