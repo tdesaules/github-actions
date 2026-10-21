@@ -1,0 +1,8 @@
+{
+  "name": "renovate-markdown-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "markdown-it": "15.0.3"
+  }
+}

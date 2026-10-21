@@ -31,6 +31,23 @@ aux autres vulnérabilités du module ni aux images des consommateurs.
 
 ## Markdown et Renovate
 
+### Correction de markdown-it dans Renovate
+
+Le run `39571354933` a bloqué Renovate sur `GHSA-gfr2-rv44-r23c`, affectant
+`markdown-it` 15.0.2. Le runtime utilise désormais la version amont 15.0.3 et sa
+fermeture de dépendances verrouillée dans
+`maintenance/update-dependencies/dependencies.markdown/package-lock.json`.
+`npm ci` vérifie les intégrités du lockfile, sans exécuter de scripts de paquets.
+
+`update-markdown.cjs` remplace chaque copie installée attendue et vérifie le
+rendu ordinaire ainsi que les longues références non terminées de l'avis.
+Une version source inattendue ou l'absence du paquet fait échouer la construction.
+Le paquet corrigé conserve sa véritable identité et sa version amont : aucune
+nouvelle exclusion Grype n'est ajoutée. Le scan local de l'archive reconstruite
+passe avec le seuil `high` ; la qualification native reste exécutée en CI.
+
+### Corrections précédentes
+
 L'image Markdown utilise directement `markdownlint` 0.41.1 et sa fermeture de
 dépendances depuis une image amont épinglée. Le CLI et son moteur de globs,
 qui embarquaient `braces`, ne sont plus inclus. Les chemins restent explicites,

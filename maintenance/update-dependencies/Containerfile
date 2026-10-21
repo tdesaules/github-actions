@@ -4,13 +4,21 @@ COPY go.mod go.sum ./
 COPY maintenance/update-dependencies/main.go ./maintenance/update-dependencies/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./maintenance/update-dependencies
 
+FROM docker.io/library/node:24-alpine@sha256:6a1c190e17215d844926b0677f4bf87273ff7d5e54db06d3b5b5863ab0b09a3d AS markdown
+WORKDIR /deps
+COPY maintenance/update-dependencies/dependencies.markdown/package.json maintenance/update-dependencies/dependencies.markdown/package-lock.json ./
+RUN npm ci --ignore-scripts --omit=dev --no-audit --no-fund
+
 FROM ghcr.io/renovatebot/renovate:44.167.1@sha256:9fd39fa2ec276b15f4d2331337ce620f88696d6687b70da29efbf615bda9ef0c AS tool
 # Runtime assembly needs to create /runtime in this intermediate stage.
 # hadolint ignore=DL3002
 USER 0:0
 COPY shared/collect-binaries.sh /collect-binaries.sh
 COPY maintenance/update-dependencies/patch-braces.cjs /patch-braces.cjs
+COPY --from=markdown /deps/node_modules/ /usr/local/renovate/markdown-it-fixed/node_modules/
+COPY maintenance/update-dependencies/update-markdown.cjs /update-markdown.cjs
 RUN /usr/local/renovate/node /patch-braces.cjs \
+    && /usr/local/renovate/node /update-markdown.cjs \
     && sh /collect-binaries.sh /usr/local/renovate/node /usr/bin/git /bin/sh /usr/bin/bash /usr/bin/env /usr/lib/git-core/git-remote-http
 
 FROM scratch AS final
