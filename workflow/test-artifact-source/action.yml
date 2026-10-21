@@ -18,7 +18,7 @@ outputs:
     description: Artifact names restricted to the verified run and attempt
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-artifact-source:unpublished
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-artifact-source@sha256:95fbe2ec3e2fa99cc86314e0b3700628992dbed5cc69774a5b3133025682e6cf
   env:
     INPUT_TOKEN: ${{ inputs.token }}
   args:

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.1
+
+- retire bootstrap checks and add native orchestration (2e94dd6)
+
+- scope libgit2 trust to the mounted checkout (d551bc6)
+
+- replace vulnerable markdown-it with upstream fix (1eb0171)
+
 ## 1.0.0
 
 - compose selective checks from published native actions (a7169c2)

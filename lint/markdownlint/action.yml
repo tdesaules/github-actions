@@ -11,6 +11,6 @@ outputs:
     description: Whether every file passed
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/check-test-markdown@sha256:e04cf0157ef5451b65796c39417347ffb77f76733cba2fc50f3e40b79d8476a9
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-markdown@sha256:481d156c84ff4c788a6f29a72e4a601dbea4c371ce404c646b0df8e5fe0ec589
   args:
     - --files=${{ inputs.files }}

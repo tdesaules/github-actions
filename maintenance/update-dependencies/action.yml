@@ -12,7 +12,7 @@ inputs:
     required: true
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/maintenance-update-dependencies@sha256:77bd2a0f10d4d0ab4c1a1acfc2fbb26c41e86a1ff1a5d315a0236251539b363e
+  image: docker://ghcr.io/tdesaules/github-actions/maintenance-update-dependencies@sha256:daad72118793c5c81c0e3c21f74bfe8903e4c8eff1d2cea4a5b875d3edd63fb9
   env:
     RENOVATE_TOKEN: ${{ inputs.token }}
   args:

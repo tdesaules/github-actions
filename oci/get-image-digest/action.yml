@@ -20,7 +20,7 @@ outputs:
     description: Digest-qualified image reference
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/oci-get-image-digest@sha256:ed95d929e676667f9ca6c59e64e3ae671792004a364912fa313870b7af74bf93
+  image: docker://ghcr.io/tdesaules/github-actions/oci-get-image-digest@sha256:7ac5b96c6dd05b984d32c2e600a0cfbebf5736c3c0bc25f24005c8c134bb971d
   args:
     - --image=${{ inputs.image }}
     - --expected-digest=${{ inputs.expected-digest }}
