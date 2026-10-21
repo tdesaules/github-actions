@@ -15,7 +15,7 @@ on:
         type: boolean
         default: false
       qualify-runner:
-        description: Compare Docker profiles and native actions on both hosted architectures
+        description: Qualify published checks and the Buildah launcher on both hosted architectures
         type: boolean
         default: false
       publish-bootstrap:
@@ -85,28 +85,14 @@ jobs:
         id: sources
         run: python3 scripts/ci.py changes
       - name: Test catalog
-        if: ${{ !cancelled() && steps.sources.outputs.catalog-changed == 'true' && steps.sources.outputs.catalog-published == 'true' }}
+        if: ${{ !cancelled() && steps.sources.outputs.catalog-changed == 'true' }}
         uses: ./check/test-catalog
       - name: Test Python
-        if: ${{ !cancelled() && steps.sources.outputs.python-changed == 'true' && steps.sources.outputs.python-published == 'true' }}
+        if: ${{ !cancelled() && steps.sources.outputs.python-changed == 'true' }}
         uses: ./check/test-python
       - name: Test Go
-        if: ${{ !cancelled() && steps.sources.outputs.go-changed == 'true' && steps.sources.outputs.go-published == 'true' }}
+        if: ${{ !cancelled() && steps.sources.outputs.go-changed == 'true' }}
         uses: ./check/test-go
-      # Bootstrap only until these three images have passed native qualification
-      # and their action metadata contains the published immutable digests.
-      - name: Bootstrap catalog validation before image publication
-        if: ${{ !cancelled() && steps.sources.outputs.catalog-changed == 'true' && steps.sources.outputs.catalog-published == 'false' }}
-        run: python3 scripts/ci.py validate
-      - name: Bootstrap Python tests before image publication
-        if: ${{ !cancelled() && steps.sources.outputs.python-changed == 'true' && steps.sources.outputs.python-published == 'false' }}
-        run: python3 -m unittest discover -s tests/unit -v
-      - name: Bootstrap Go tests before image publication
-        if: ${{ !cancelled() && steps.sources.outputs.go-changed == 'true' && steps.sources.outputs.go-published == 'false' }}
-        run: >-
-          docker run --rm -v "$PWD:/src:ro" -w /src
-          docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d
-          go test ./...
       - name: Plan semantic release
         id: plan
         if: github.event_name == 'workflow_dispatch' && !inputs.qualify-runner && !inputs.publish-bootstrap
@@ -136,30 +122,28 @@ jobs:
         uses: ./check/test-action-metadata
         with:
           files: ${{ steps.sources.outputs.action-metadata-files }}
-      - name: Compare Docker runtime profiles
+      - name: Create native runner fixtures
         if: inputs.qualify-runner
-        run: python3 scripts/qualify-runner.py
-      - name: Qualify actual native Docker action
+        uses: ./workflow/new-test-fixtures
+        with:
+          directory: .build/qualification
+      - name: Qualify the published Buildah launcher
         if: inputs.qualify-runner
-        id: native
-        continue-on-error: true
-        uses: ./tests/runner
-      - name: Record native action outcome
-        if: always() && inputs.qualify-runner
-        env:
-          OUTCOME: ${{ steps.native.outcome }}
-        run: |
-          mkdir -p .build/qualification
-          echo "$OUTCOME" > .build/qualification/native-outcome.txt
+        uses: ./oci/build-image
+        with:
+          context: .build/qualification/fixture with spaces
+          containerfile: .build/qualification/fixture with spaces/Containerfile
+          image: localhost/runner-proof
+          version: 0.0.0-qualification
+          platform: ${{ runner.arch == 'ARM64' && 'linux/arm64' || 'linux/amd64' }}
+          output: .build/qualification/proof.oci.tar
       - name: Upload qualification evidence
         if: always() && inputs.qualify-runner
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: qualification-${{ matrix.runner }}
           path: |
-            .build/qualification/*.log
-            .build/qualification/*.json
-            .build/qualification/*.txt
+            .build/qualification/*.tar
           include-hidden-files: true
 
   lint:
@@ -232,6 +216,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          fetch-depth: 0
           persist-credentials: false
       - name: Bootstrap containerized Buildah
         if: matrix.rebuild
@@ -268,6 +253,34 @@ jobs:
       - name: Test native catalog validation
         if: matrix.image == 'check-test-catalog'
         uses: ./.candidate-actions/test-catalog
+      - name: Test native changed-file detection on an empty diff
+        if: matrix.image == 'workflow-get-changed-files'
+        uses: ./.candidate-actions/get-changed-files
+        with:
+          before: ${{ github.sha }}
+          after: ${{ github.sha }}
+      - name: Test native empty image matrix
+        if: matrix.image == 'workflow-get-image-matrix'
+        uses: ./.candidate-actions/get-image-matrix
+        with:
+          event: push
+          ref: refs/heads/main
+          files: '[]'
+      - name: Test native release planning
+        if: matrix.image == 'workflow-new-release-plan'
+        uses: ./.candidate-actions/new-release-plan
+        with:
+          output: .build/fixtures/release-plan.json
+      - name: Reject an invalid artifact source
+        if: matrix.image == 'workflow-test-artifact-source'
+        id: invalid-artifact
+        continue-on-error: true
+        uses: ./.candidate-actions/test-artifact-source
+        with:
+          run-id: invalid
+          repository: ${{ github.repository }}
+          revision: ${{ github.sha }}
+          token: unused-fixture-token
       - name: Test suite images with read-only sources and negative fixtures
         if: contains(fromJSON('["check-test-go","check-test-python","check-test-catalog"]'), matrix.image)
         run: python3 scripts/test-suites.py --image "$IMAGE" --version "$VERSION"
@@ -490,12 +503,14 @@ jobs:
           PUBLISH: ${{ steps.invalid-publish.outcome }}
           SIGNATURE: ${{ steps.invalid-signature.outcome }}
           RENOVATE: ${{ steps.invalid-renovate.outcome }}
+          ARTIFACT: ${{ steps.invalid-artifact.outcome }}
         run: |
           case "$IMAGE" in
             oci-merge-image-index) test "$INDEX" = failure ;;
             oci-publish-image) test "$PUBLISH" = failure ;;
             oci-test-image-signature) test "$SIGNATURE" = failure ;;
             maintenance-update-dependencies) test "$RENOVATE" = failure ;;
+            workflow-test-artifact-source) test "$ARTIFACT" = failure ;;
           esac
       - name: Generate SBOM and scan exact candidate archive
         if: matrix.rebuild

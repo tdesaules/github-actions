@@ -22,12 +22,16 @@ Python relationship regressions. Workflow changes and full runs select all check
 Deleted and renamed paths participate in these conditions.
 
 `check/test-catalog`, `check/test-go` and `check/test-python` each own their
-Containerfile, fixed Go entrypoint and image. The workflow calls them directly
-once their metadata has published digests. While their images are `:unpublished`,
-explicit bootstrap steps retain the existing checks under the same conditions.
-The native build matrix qualifies each new action and its negative fixtures on
-both architectures before publication. Remove these bootstrap steps and the
-`*-published` outputs after the three images are published.
+Containerfile, fixed Go entrypoint and image. Their published `1.0.0` images are
+called directly; the bootstrap commands and `*-published` outputs are removed.
+Runner qualification also assembles published fixture and Buildah actions.
+
+Four further independent Go actions replace the remaining Python orchestration:
+`workflow/get-changed-files`, `workflow/get-image-matrix`,
+`workflow/new-release-plan` and `workflow/test-artifact-source`. They are first
+qualified as native candidates by the build matrix. Their calls in `check` will
+replace the remaining host commands after immutable image publication. They do
+not dispatch linters or tests; those remain explicit steps in the workflow.
 
 Source-check selection is separate from release matrix selection: release planning
 and exact-source artifact validation still precede the image matrix calculation.

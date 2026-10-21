@@ -1,0 +1,27 @@
+name: Test artifact source
+description: Require a successful catalogue run at the exact main revision before artifact reuse
+inputs:
+  run-id:
+    description: Source GitHub Actions run ID
+    required: true
+  repository:
+    description: Repository owner/name
+    required: true
+  revision:
+    description: Exact source commit SHA
+    required: true
+  token:
+    description: GitHub token with actions read permission
+    required: true
+outputs:
+  artifact-pattern:
+    description: Artifact names restricted to the verified run and attempt
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-artifact-source:unpublished
+  env:
+    INPUT_TOKEN: ${{ inputs.token }}
+  args:
+    - --run-id=${{ inputs.run-id }}
+    - --repository=${{ inputs.repository }}
+    - --revision=${{ inputs.revision }}

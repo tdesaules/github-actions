@@ -1,0 +1,20 @@
+name: New release plan
+description: Plan a stable semantic release with Git and git-cliff without publishing refs
+inputs:
+  config:
+    description: git-cliff configuration path
+    default: cliff.toml
+  output:
+    description: Release plan JSON path
+    default: .build/publication/release-plan.json
+outputs:
+  release-version:
+    description: Planned stable semantic version
+  release-changed:
+    description: Whether a new release is needed
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-release-plan:unpublished
+  args:
+    - --config=${{ inputs.config }}
+    - --output=${{ inputs.output }}

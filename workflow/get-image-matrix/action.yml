@@ -1,0 +1,40 @@
+name: Get image matrix
+description: Select native image qualification jobs from source metadata and changed paths
+inputs:
+  files:
+    description: JSON array of changed paths
+    default: '[]'
+  full:
+    description: Select all images
+    default: 'false'
+  event:
+    description: GitHub event name
+    required: true
+  ref:
+    description: Git ref being qualified
+    required: true
+  release-plan:
+    description: Optional release plan JSON path
+    default: ''
+  reuse-artifacts:
+    description: Skip builds after independent exact-source artifact validation
+    default: 'false'
+outputs:
+  mode:
+    description: Development, prepare, release or maintenance mode
+  matrix:
+    description: Native image qualification matrix JSON
+  has-work:
+    description: Whether the matrix is nonempty
+  version:
+    description: Qualification version or release tag
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-image-matrix:unpublished
+  args:
+    - --files=${{ inputs.files }}
+    - --full=${{ inputs.full }}
+    - --event=${{ inputs.event }}
+    - --ref=${{ inputs.ref }}
+    - --release-plan=${{ inputs.release-plan }}
+    - --reuse-artifacts=${{ inputs.reuse-artifacts }}

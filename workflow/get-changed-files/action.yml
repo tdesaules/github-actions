@@ -1,0 +1,62 @@
+name: Get changed files
+description: Read the Git diff and expose literal file lists for explicit workflow conditions
+inputs:
+  before:
+    description: Base commit; empty or all-zero means all tracked files
+    default: ''
+  after:
+    description: Head commit
+    default: HEAD
+  full:
+    description: Check all tracked files
+    default: 'false'
+outputs:
+  files:
+    description: Changed paths as a JSON array including deleted and renamed paths
+  full:
+    description: Whether all tracked files were selected
+  actionlint-files:
+    description: Workflow file paths as JSON
+  actionlint-changed:
+    description: Whether Actionlint has work
+  hadolint-files:
+    description: Containerfile paths as JSON
+  hadolint-changed:
+    description: Whether Hadolint has work
+  shellcheck-files:
+    description: Shell file paths as JSON
+  shellcheck-changed:
+    description: Whether ShellCheck has work
+  yaml-files:
+    description: YAML file paths as JSON
+  yaml-changed:
+    description: Whether YAML validation has work
+  toml-files:
+    description: TOML file paths as JSON
+  toml-changed:
+    description: Whether TOML validation has work
+  markdownlint-files:
+    description: Markdown file paths as JSON
+  markdownlint-changed:
+    description: Whether Markdownlint has work
+  lychee-files:
+    description: Link check file paths as JSON
+  lychee-changed:
+    description: Whether Lychee has work
+  action-metadata-files:
+    description: Action metadata file paths as JSON
+  action-metadata-changed:
+    description: Whether action metadata validation has work
+  catalog-changed:
+    description: Whether catalogue validation has work
+  go-changed:
+    description: Whether Go tests have work
+  python-changed:
+    description: Whether Python tests have work
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-changed-files:unpublished
+  args:
+    - --before=${{ inputs.before }}
+    - --after=${{ inputs.after }}
+    - --full=${{ inputs.full }}

@@ -9,5 +9,5 @@ Published references must contain an immutable SHA-256 digest.
 Input `directory` defaults to `.`; `--directory` overrides `INPUT_DIRECTORY`.
 `--tool-version` prints the validator version. Sources and rootfs may be read-only.
 
-The image is awaiting native qualification and immutable publication. The main
-workflow retains an explicitly named bootstrap step until publication completes.
+The image was qualified on AMD64 and ARM64 and published with release `1.0.0`.
+The workflow calls this action directly under its changed-file condition.

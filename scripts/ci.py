@@ -179,10 +179,6 @@ def emit_source_changes(paths, full):
         emit(name + '-changed', str(bool(files)).lower())
     for name, changed in check_changes(paths, full).items():
         emit(name + '-changed', str(changed).lower())
-        metadata = ROOT / 'check' / ('test-' + name) / 'action.yml'
-        match = IMAGE.search(metadata.read_text())
-        published = bool(match and re.search(r'@sha256:[a-f0-9]{64}$', match[1]))
-        emit(name + '-published', str(published).lower())
 
 
 def aggregate(paths):
