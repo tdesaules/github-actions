@@ -281,6 +281,9 @@ func digest() error {
 	return output("reference", repositoryName(ref)+"@"+value)
 }
 
+// OIDCToken requests the same Sigstore audience used by the signing action.
+func OIDCToken() (string, error) { return oidcToken() }
+
 func oidcToken() (string, error) {
 	endpoint := os.Getenv("ACTIONS_ID_TOKEN_REQUEST_URL")
 	bearer := os.Getenv("ACTIONS_ID_TOKEN_REQUEST_TOKEN")

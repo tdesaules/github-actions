@@ -44,7 +44,25 @@ from its new source location.
 
 ## Remaining orchestration work
 
+The release migration introduces separate native actions for publication planning,
+archive/index publication, signing, signature/tag verification, atomic release
+finalization and GitHub Release creation. The native build matrix qualifies each
+candidate before the release job switches to its published immutable image.
+Host publication remains in place during this image qualification phase.
+
+Maintenance link checks now call the published changed-files and Lychee actions.
+The obsolete shared-package retirement input and deletion steps are removed.
+Two native candidates provide catalogue SBOM generation and vulnerability scans;
+the existing scan call remains until both are published. The Go advisory-review
+implementation preserves the prior fail-closed evidence checks and `high` gate.
+
+Renovate is wired through `maintenance/update-dependencies` with the dedicated
+`RENOVATE_TOKEN` secret. Set the repository variable `RENOVATE_ENABLED=true` only
+after configuring that token and disabling the hosted Renovate App for this
+repository. The variable is currently unset and the secret is absent; bot updates
+therefore remain inactive. Release App credentials are not reused for Renovate.
+
 Artifact aggregation, release planning/finalization and registry signature
 fixtures still use host orchestration. They require separate reusable interfaces.
-Renovate's image is published, but its maintenance activation still requires a
-dedicated bot/App token. Release credentials are not implicitly reused.
+The full release and maintenance activation will follow successful candidate
+qualification and publication.

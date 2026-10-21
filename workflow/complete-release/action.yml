@@ -1,0 +1,16 @@
+name: Complete release
+description: Commit verified image digests and changelog, then atomically push main and a new release tag
+inputs:
+  directory:
+    description: Verified publication journal and release plan directory
+    default: .build/publication
+  token:
+    description: Release App token with contents and workflow update permissions
+    required: true
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-complete-release:unpublished
+  env:
+    INPUT_TOKEN: ${{ inputs.token }}
+  args:
+    - --directory=${{ inputs.directory }}

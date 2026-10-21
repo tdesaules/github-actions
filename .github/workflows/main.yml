@@ -10,10 +10,6 @@ on:
         description: Rescan published images and check documentation links without building
         type: boolean
         default: false
-      retire-shared-images:
-        description: With maintenance on main, delete the five superseded shared GHCR packages after verifying replacements
-        type: boolean
-        default: false
       qualify-runner:
         description: Qualify published checks and the Buildah launcher on both hosted architectures
         type: boolean
@@ -292,6 +288,70 @@ jobs:
           repository: ${{ github.repository }}
           revision: ${{ github.sha }}
           token: unused-fixture-token
+      - name: Reject an invalid publication owner
+        if: matrix.image == 'workflow-new-publication-plan'
+        id: invalid-publication-plan
+        continue-on-error: true
+        uses: ./.candidate-actions/new-publication-plan
+        with:
+          owner: invalid/owner
+      - name: Reject missing publication archives
+        if: matrix.image == 'workflow-publish-catalog-images'
+        id: invalid-catalog-publication
+        continue-on-error: true
+        uses: ./.candidate-actions/publish-catalog-images
+        with:
+          directory: .build/fixtures/missing-publication
+          registry-username: fixture
+          registry-password: unused-fixture-token
+      - name: Reject signing without a publication plan
+        if: matrix.image == 'workflow-new-catalog-signatures'
+        id: invalid-catalog-signing
+        continue-on-error: true
+        uses: ./.candidate-actions/new-catalog-signatures
+        with:
+          directory: .build/fixtures/missing-publication
+          registry-username: fixture
+          registry-password: unused-fixture-token
+      - name: Reject verification without a publication plan
+        if: matrix.image == 'workflow-test-catalog-signatures'
+        id: invalid-catalog-verification
+        continue-on-error: true
+        uses: ./.candidate-actions/test-catalog-signatures
+        with:
+          directory: .build/fixtures/missing-publication
+          repository: ${{ github.repository }}
+      - name: Reject finalization without verified publication
+        if: matrix.image == 'workflow-complete-release'
+        id: invalid-release-finalization
+        continue-on-error: true
+        uses: ./.candidate-actions/complete-release
+        with:
+          directory: .build/fixtures/missing-publication
+          token: unused-fixture-token
+      - name: Reject an invalid GitHub release tag
+        if: matrix.image == 'workflow-new-github-release'
+        id: invalid-github-release
+        continue-on-error: true
+        uses: ./.candidate-actions/new-github-release
+        with:
+          repository: ${{ github.repository }}
+          tag: invalid
+          token: unused-fixture-token
+      - name: Reject unwritable catalogue SBOM output
+        if: matrix.image == 'maintenance-new-catalog-sboms'
+        id: invalid-catalog-sbom
+        continue-on-error: true
+        uses: ./.candidate-actions/new-catalog-sboms
+        with:
+          output: /proc/catalogue-reports
+      - name: Reject missing vulnerability review policy
+        if: matrix.image == 'maintenance-test-catalog-vulnerabilities'
+        id: invalid-catalog-scan
+        continue-on-error: true
+        uses: ./.candidate-actions/test-catalog-vulnerabilities
+        with:
+          policy: .build/fixtures/missing-policy.json
       - name: Test suite images with read-only sources and negative fixtures
         if: contains(fromJSON('["check-test-go","check-test-python","check-test-catalog"]'), matrix.image)
         run: python3 scripts/test-suites.py --image "$IMAGE" --version "$VERSION"
@@ -515,6 +575,14 @@ jobs:
           SIGNATURE: ${{ steps.invalid-signature.outcome }}
           RENOVATE: ${{ steps.invalid-renovate.outcome }}
           ARTIFACT: ${{ steps.invalid-artifact.outcome }}
+          PUBLICATION_PLAN: ${{ steps.invalid-publication-plan.outcome }}
+          CATALOG_PUBLICATION: ${{ steps.invalid-catalog-publication.outcome }}
+          CATALOG_SIGNING: ${{ steps.invalid-catalog-signing.outcome }}
+          CATALOG_VERIFICATION: ${{ steps.invalid-catalog-verification.outcome }}
+          RELEASE_FINALIZATION: ${{ steps.invalid-release-finalization.outcome }}
+          GITHUB_RELEASE: ${{ steps.invalid-github-release.outcome }}
+          CATALOG_SBOM: ${{ steps.invalid-catalog-sbom.outcome }}
+          CATALOG_SCAN: ${{ steps.invalid-catalog-scan.outcome }}
         run: |
           case "$IMAGE" in
             oci-merge-image-index) test "$INDEX" = failure ;;
@@ -522,6 +590,14 @@ jobs:
             oci-test-image-signature) test "$SIGNATURE" = failure ;;
             maintenance-update-dependencies) test "$RENOVATE" = failure ;;
             workflow-test-artifact-source) test "$ARTIFACT" = failure ;;
+            workflow-new-publication-plan) test "$PUBLICATION_PLAN" = failure ;;
+            workflow-publish-catalog-images) test "$CATALOG_PUBLICATION" = failure ;;
+            workflow-new-catalog-signatures) test "$CATALOG_SIGNING" = failure ;;
+            workflow-test-catalog-signatures) test "$CATALOG_VERIFICATION" = failure ;;
+            workflow-complete-release) test "$RELEASE_FINALIZATION" = failure ;;
+            workflow-new-github-release) test "$GITHUB_RELEASE" = failure ;;
+            maintenance-new-catalog-sboms) test "$CATALOG_SBOM" = failure ;;
+            maintenance-test-catalog-vulnerabilities) test "$CATALOG_SCAN" = failure ;;
           esac
       - name: Generate SBOM and scan exact candidate archive
         if: matrix.rebuild
@@ -643,7 +719,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-      packages: write
+      packages: read
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -651,25 +727,24 @@ jobs:
           fetch-depth: 0
       - name: Rescan pinned images with refreshed vulnerability database
         run: python3 scripts/maintenance.py
-      - name: Check documentation HTTP links
+      - name: Select documentation links
         if: '!cancelled()'
-        run: >-
-          docker run --rm -v "$PWD:/repo:ro" -w /repo
-          docker.io/lycheeverse/lychee:0.24.2@sha256:e2d19e57cf6ab037026f20b8e449a1f30d9d7f81eef4194763aab2eab20bd28d
-          --config lychee.toml README.md 'docs/**/*.md' 'oci/**/*.md' 'check/**/*.md' 'lint/**/*.md' 'workflow/**/*.md' 'maintenance/**/*.md'
-      - name: Verify replacements before retiring shared images
-        if: inputs.maintenance && inputs.retire-shared-images && github.ref == 'refs/heads/main'
-        run: python3 scripts/verify-release.py
-      - name: Delete superseded shared GHCR packages
-        if: inputs.maintenance && inputs.retire-shared-images && github.ref == 'refs/heads/main'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          OWNER: ${{ github.repository_owner }}
-        run: |
-          for image in buildah skopeo syft grype cosign; do
-            gh api --method DELETE "/users/$OWNER/packages/container/github-actions%2F$image"
-            echo "Deleted github-actions/$image" >> "$GITHUB_STEP_SUMMARY"
-          done
+        id: documents
+        uses: ./workflow/get-changed-files
+        with:
+          full: 'true'
+      - name: Lychee
+        if: ${{ !cancelled() && steps.documents.outputs.lychee-changed == 'true' }}
+        uses: ./lint/lychee
+        with:
+          files: ${{ steps.documents.outputs.lychee-files }}
+          config: lychee.toml
+      - name: Update dependencies with Renovate
+        if: ${{ !cancelled() && vars.RENOVATE_ENABLED == 'true' }}
+        uses: ./maintenance/update-dependencies
+        with:
+          repository: ${{ github.repository }}
+          token: ${{ secrets.RENOVATE_TOKEN }}
       - name: Upload maintenance reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

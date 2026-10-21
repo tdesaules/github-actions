@@ -1,0 +1,20 @@
+name: New catalog signatures
+description: Sign newly published index and platform digests with GitHub OIDC
+inputs:
+  directory:
+    description: Verified publication plan directory
+    default: .build/publication
+  registry-username:
+    description: GHCR username
+    required: true
+  registry-password:
+    description: GHCR write token
+    required: true
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-catalog-signatures:unpublished
+  env:
+    INPUT_REGISTRY-USERNAME: ${{ inputs.registry-username }}
+    INPUT_REGISTRY-PASSWORD: ${{ inputs.registry-password }}
+  args:
+    - --directory=${{ inputs.directory }}

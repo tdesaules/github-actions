@@ -1,0 +1,28 @@
+name: Test catalog signatures
+description: Verify every catalogue index and platform signature, including reused images and release tags
+inputs:
+  directory:
+    description: Publication plan and signature evidence directory
+    default: .build/publication
+  repository:
+    description: Repository whose main workflow signed the images
+    required: true
+  tag:
+    description: Optional existing release tag to validate against the checkout
+    default: ''
+  registry-username:
+    description: Optional GHCR username
+    default: ''
+  registry-password:
+    description: Optional GHCR read token
+    default: ''
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-catalog-signatures:unpublished
+  env:
+    INPUT_REGISTRY-USERNAME: ${{ inputs.registry-username }}
+    INPUT_REGISTRY-PASSWORD: ${{ inputs.registry-password }}
+  args:
+    - --directory=${{ inputs.directory }}
+    - --repository=${{ inputs.repository }}
+    - --tag=${{ inputs.tag }}

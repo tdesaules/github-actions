@@ -1,0 +1,19 @@
+name: New publication plan
+description: Validate exact-source tested archives and plan digest-preserving catalogue publication
+inputs:
+  directory:
+    description: Downloaded qualification artifact directory
+    default: .build/publication
+  owner:
+    description: GitHub registry owner
+    required: true
+  release-plan:
+    description: Release plan path; empty requires full bootstrap qualification
+    default: ''
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-publication-plan:unpublished
+  args:
+    - --directory=${{ inputs.directory }}
+    - --owner=${{ inputs.owner }}
+    - --release-plan=${{ inputs.release-plan }}

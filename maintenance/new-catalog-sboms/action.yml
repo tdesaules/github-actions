@@ -1,0 +1,11 @@
+name: New catalog SBOMs
+description: Generate SPDX and evidence-rich Syft reports for both pinned image architectures
+inputs:
+  output:
+    description: Directory for per-image per-architecture reports
+    default: .build/maintenance
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/maintenance-new-catalog-sboms:unpublished
+  args:
+    - --output=${{ inputs.output }}

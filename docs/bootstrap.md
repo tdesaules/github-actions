@@ -107,13 +107,12 @@ L'entrée manuelle `maintenance` permet d'exécuter ce même job sans constructi
 Une seule base Grype actualisée est partagée entre les vingt scans ; elle n'est
 pas incluse dans les artefacts de rapports.
 Les politiques de revue de dépendances restent identiques à celles des builds.
-`renovate.json` configure les mises à jour des bases, actions et dépendances Go ;
-l'installation/activation de l'application Renovate sur le dépôt reste une
-configuration externe. L'automerge est désactivé.
+`renovate.json` configure les mises à jour des bases, actions et dépendances Go.
+Le runner conteneurisé utilise le secret dédié `RENOVATE_TOKEN` et s'active avec
+la variable de dépôt `RENOVATE_ENABLED=true`, après désactivation de l'App
+Renovate hébergée sur ce dépôt. L'automerge est désactivé.
 
-Pour la migration ponctuelle depuis les images partagées, l'entrée
-`retire-shared-images` avec `maintenance` sur `main` supprime les cinq anciens
-packages GHCR après rescan et vérification des nouvelles références et signatures.
-Le token du workflow doit disposer des droits d'administration sur ces packages.
-Les tags Git historiques ne sont pas déplacés ; leurs images supprimées ne
-seront plus téléchargeables.
+La migration ponctuelle depuis les cinq images partagées est terminée. L'entrée
+`retire-shared-images` et les étapes de suppression ont été retirées du workflow.
+Les tags Git historiques ne sont pas déplacés ; les images partagées supprimées
+ne sont plus téléchargeables.

@@ -1,0 +1,15 @@
+name: Test catalog vulnerabilities
+description: Refresh Grype and scan every catalogue SBOM with fail-closed advisory evidence at high severity
+inputs:
+  directory:
+    description: Directory containing per-image per-architecture SBOMs
+    default: .build/maintenance
+  policy:
+    description: Root advisory review policy
+    default: grype-review.json
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/maintenance-test-catalog-vulnerabilities:unpublished
+  args:
+    - --directory=${{ inputs.directory }}
+    - --policy=${{ inputs.policy }}

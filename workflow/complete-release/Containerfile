@@ -1,0 +1,25 @@
+FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/catalog/ ./shared/catalog/
+COPY shared/publication/ ./shared/publication/
+COPY shared/runtime/ ./shared/runtime/
+COPY shared/workflow/ ./shared/workflow/
+COPY workflow/complete-release/main.go ./workflow/complete-release/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/complete-release \
+    && apk add --no-cache git=2.54.0-r0
+COPY shared/collect-binaries.sh /collect-binaries.sh
+RUN sh /collect-binaries.sh /usr/bin/git /bin/sh /usr/libexec/git-core/git-remote-http
+FROM ghcr.io/tdesaules/github-actions/workflow-new-release-plan@sha256:a48c968e989fc4def8703d229ce29eec52532522f1750fa60e3d6ac4fe12d5da AS runtime
+FROM scratch AS final
+COPY --from=runtime / /
+COPY --from=build /runtime/ /
+COPY --from=build /usr/libexec/git-core/ /usr/libexec/git-core/
+COPY --from=build /entrypoint /entrypoint
+ENV PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp GIT_TERMINAL_PROMPT=0
+# Commits verified metadata in the runner checkout.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="workflow-complete-release" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND Apache-2.0 AND MIT"

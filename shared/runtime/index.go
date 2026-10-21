@@ -33,6 +33,12 @@ type ociIndex struct {
 	Manifests     []ociDescriptor `json:"manifests"`
 }
 
+// AssembleIndex validates both source archives and creates a digest-preserving
+// OCI layout. Publication orchestration uses the same verifier as the action.
+func AssembleIndex(sources []string, layout string) ([]byte, error) {
+	return assembleIndex(sources, layout)
+}
+
 func assembleIndex(sources []string, layout string) ([]byte, error) {
 	blobs := filepath.Join(layout, "blobs", "sha256")
 	if err := os.MkdirAll(blobs, 0755); err != nil {

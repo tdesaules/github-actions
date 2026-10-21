@@ -1,0 +1,27 @@
+name: New GitHub release
+description: Create an idempotent GitHub Release for an already verified existing SemVer tag
+inputs:
+  repository:
+    description: GitHub owner/repository
+    required: true
+  tag:
+    description: Verified existing release tag
+    required: true
+  notes:
+    description: Release notes file
+    default: CHANGELOG.md
+  token:
+    description: GitHub token with contents write permission
+    required: true
+outputs:
+  created:
+    description: Whether a new release was created
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-github-release:unpublished
+  env:
+    INPUT_TOKEN: ${{ inputs.token }}
+  args:
+    - --repository=${{ inputs.repository }}
+    - --tag=${{ inputs.tag }}
+    - --notes=${{ inputs.notes }}

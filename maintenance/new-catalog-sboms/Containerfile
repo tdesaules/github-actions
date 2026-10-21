@@ -1,0 +1,18 @@
+FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/catalog/ ./shared/catalog/
+COPY shared/workflow/ ./shared/workflow/
+COPY maintenance/new-catalog-sboms/main.go ./maintenance/new-catalog-sboms/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./maintenance/new-catalog-sboms
+FROM ghcr.io/tdesaules/github-actions/oci-new-sbom@sha256:ee0f3d55551b4684fcf74066df72ee0d9655aecd50b6a9f5a2d74d58d863cbfc AS runtime
+FROM scratch AS final
+COPY --from=runtime / /
+COPY --from=build /entrypoint /entrypoint
+ENV PATH=/usr/bin HOME=/tmp
+# Writes reports into the runner workspace.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="maintenance-new-catalog-sboms" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND Apache-2.0"
