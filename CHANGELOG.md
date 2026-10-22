@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0
+
+- activate published Docker orchestration actions (6af5a11)
+
+- add native release and maintenance stages (1dbab55)
+
+- remove shell dependency from registry fixtures (e379bd6)
+
 ## 1.0.1
 
 - retire bootstrap checks and add native orchestration (2e94dd6)

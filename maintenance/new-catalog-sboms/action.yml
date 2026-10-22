@@ -6,6 +6,6 @@ inputs:
     default: .build/maintenance
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/maintenance-new-catalog-sboms:unpublished
+  image: docker://ghcr.io/tdesaules/github-actions/maintenance-new-catalog-sboms@sha256:8aae67eca4840032940ede41833b5f4dbef265b28b7a1825bc2b46ad6e1ba9ed
   args:
     - --output=${{ inputs.output }}
