@@ -10,8 +10,8 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// Keep source checks action-composed: host execution must not creep back in.
-func TestCheckAndLintUsePublishedActions(t *testing.T) {
+// Keep migrated jobs action-composed: host execution must not creep back in.
+func TestMigratedJobsUsePublishedActions(t *testing.T) {
 	root := filepath.Join("..", "..")
 	data, err := os.ReadFile(filepath.Join(root, ".github/workflows/main.yml"))
 	if err != nil {
@@ -25,7 +25,7 @@ func TestCheckAndLintUsePublishedActions(t *testing.T) {
 	if err := yaml.Unmarshal(data, &workflow); err != nil {
 		t.Fatal(err)
 	}
-	for _, job := range []string{"check", "lint"} {
+	for _, job := range []string{"check", "lint", "release", "maintenance"} {
 		steps := workflow.Jobs[job].Steps
 		if len(steps) == 0 {
 			t.Fatalf("missing steps in %s", job)
@@ -36,7 +36,7 @@ func TestCheckAndLintUsePublishedActions(t *testing.T) {
 			}
 			uses, _ := step["uses"].(string)
 			if !strings.HasPrefix(uses, "./") {
-				if !strings.HasPrefix(uses, "actions/checkout@") && !strings.HasPrefix(uses, "actions/upload-artifact@") && !strings.HasPrefix(uses, "actions/download-artifact@") {
+				if !strings.HasPrefix(uses, "actions/checkout@") && !strings.HasPrefix(uses, "actions/upload-artifact@") && !strings.HasPrefix(uses, "actions/download-artifact@") && !strings.HasPrefix(uses, "actions/create-github-app-token@") {
 					t.Errorf("%s: unexpected non-container action %q", job, uses)
 				}
 				continue

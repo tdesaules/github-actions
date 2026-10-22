@@ -7,11 +7,11 @@
 1. L'image Buildah amont, épinglée par digest multiarchitecture, construit notre
    image `oci-build-image` finale `scratch` et l'exporte en archive OCI.
 2. L'archive est chargée et explicitement taguée par son ID de configuration.
-3. Notre candidate Buildah construit les neuf autres images spécialisées.
+3. Notre candidate Buildah construit les autres images découvertes dans le catalogue.
 4. Chaque outil est démarré et son architecture/entrypoint contrôlés.
 
-Résultats : `.build/oci-<action>/<architecture>/image.oci.tar` et tags locaux
-`localhost/github-actions/oci-<action>:0.0.0-bootstrap`. Ces tags servent
+Résultats : `.build/<image>/<architecture>/image.oci.tar` et tags locaux
+`localhost/github-actions/<image>:0.0.0-bootstrap`. Ces tags servent
 uniquement à l'exécution locale ; la publication GHCR utilise les digests.
 
 Le bootstrap local n'annonce pas une validation GitHub, ni une publication
@@ -23,9 +23,9 @@ multiarchitecture si une seule architecture a été exécutée.
 - `workflow_dispatch` sur `main` : préparation SemVer avec git-cliff ; première
   release complète, puis sélection depuis le tag stable précédent et réutilisation
   des digests inchangés. Sans changement publiable, aucune release n'est créée.
-- Option `publish-bootstrap` : publication après succès de tous les tests et scans.
-- Option `sign` (active par défaut) : signature keyless puis vérification exacte
-  de l'identité et de l'émetteur, pour les deux manifestes et l'index.
+- Toute release exige une signature keyless puis une vérification exacte de
+  l'identité et de l'émetteur, pour les deux manifestes et l'index. Les anciennes
+  options de migration `publish-bootstrap` et `sign` sont retirées du workflow.
 - Tag SemVer : validation des références déjà épinglées et de leurs signatures,
   puis création idempotente de la GitHub Release.
 - Schedule : rescans avec une base Grype actualisée ; pas de build ni publication.

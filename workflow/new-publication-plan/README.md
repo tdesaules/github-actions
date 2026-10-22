@@ -11,4 +11,4 @@ complete bootstrap set. Writes `publication.json` and exact index manifests.
 This fixed Go action publishes nothing. Its scratch image contains Git and
 Skopeo and reuses the published matrix executable for source selection.
 
-The image is being qualified before activation in the release job.
+Published in `1.1.0`, the action is called directly by the release job.

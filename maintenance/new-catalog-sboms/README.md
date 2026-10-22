@@ -8,4 +8,5 @@ Input `output` defaults to `.build/maintenance`. Reports are stored under
 `<image>/<architecture>/`. Individual scan failures are collected while other
 images continue. Vulnerability evaluation is a separate action.
 
-The fixed Go/Syft scratch image is being qualified before activation.
+The fixed Go/Syft scratch image was published in `1.1.0` and is called directly
+by the maintenance job.

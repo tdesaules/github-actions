@@ -11,7 +11,8 @@ d'authentification temporaire de mode 0600, supprimé après l'opération. Aucun
 secret n'est placé dans les arguments de Skopeo.
 
 Cette brique peut publier un tag ; la politique de non-écrasement des tags de
-release est assurée par `scripts/publish.py`. Utiliser ensuite
+release est assurée par `workflow/new-publication-plan` et
+`workflow/publish-catalog-images`. Utiliser ensuite
 `get-image-digest` pour vérifier le digest distant.
 
 Tests : conversion réelle d'archives/layouts, refus d'une source registre dans

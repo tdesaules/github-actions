@@ -9,6 +9,7 @@ Inputs: `directory`, `token` (release App token, environment-only). Credentials
 are scoped to child Git processes. git-cliff receives a private temporary Git
 configuration trusting only the current checkout.
 
-The fixed Go/Git/git-cliff scratch image is being qualified before activation.
+The fixed Go/Git/git-cliff scratch image was published in `1.1.0` and is called
+directly by the release job.
 Real-Git regression tests cover success, concurrent advancement and rejected
 atomic pushes. These local tests do not claim a hosted interruption campaign.

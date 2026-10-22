@@ -10,4 +10,5 @@ verifies their index digests and both architectures. This validates release tags
 without rebuilding or changing them.
 
 Inputs: `directory`, `repository`, optional `tag` and registry credentials.
-The fixed Go/Git/Skopeo/Cosign scratch image is being qualified before activation.
+The fixed Go/Git/Skopeo/Cosign scratch image was published in `1.1.0` and is called
+directly by the release job.

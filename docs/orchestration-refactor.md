@@ -37,23 +37,23 @@ remain explicit steps in the workflow. Neither `check` nor `lint` contains a
 Source-check selection is separate from release matrix selection: release planning
 and exact-source artifact validation still precede the image matrix calculation.
 
-The published container references remain pinned to the independently qualified
-images from `0.3.0`. Moving the source directories does not fabricate new registry
-digests or rename published packages. Subsequent qualification builds each image
-from its new source location.
+Moving the linter source directories initially preserved the qualified `0.3.0`
+image references. Subsequent releases updated those immutable digests after native
+qualification, without renaming published packages.
 
-## Remaining orchestration work
+## Release and maintenance
 
-The release migration introduces separate native actions for publication planning,
+The release job calls separate native actions for publication planning,
 archive/index publication, signing, signature/tag verification, atomic release
-finalization and GitHub Release creation. The native build matrix qualifies each
-candidate before the release job switches to its published immutable image.
-Host publication remains in place during this image qualification phase.
+finalization and GitHub Release creation. These images were qualified by run
+`39730651196` and published without rebuilding by run `39794449722` in `1.1.0`.
+The release job contains no host command steps. Releases always require signatures;
+the historical workflow bootstrap and optional-signing inputs are retired.
 
 Maintenance link checks now call the published changed-files and Lychee actions.
 The obsolete shared-package retirement input and deletion steps are removed.
-Two native candidates provide catalogue SBOM generation and vulnerability scans;
-the existing scan call remains until both are published. The Go advisory-review
+Published native actions generate catalogue SBOMs and scan both architectures.
+The maintenance job contains no host command steps. The Go advisory-review
 implementation preserves the prior fail-closed evidence checks and `high` gate.
 
 Renovate is wired through `maintenance/update-dependencies` with the dedicated
@@ -62,7 +62,8 @@ after configuring that token and disabling the hosted Renovate App for this
 repository. The variable is currently unset and the secret is absent; bot updates
 therefore remain inactive. Release App credentials are not reused for Renovate.
 
-Artifact aggregation, release planning/finalization and registry signature
-fixtures still use host orchestration. They require separate reusable interfaces.
-The full release and maintenance activation will follow successful candidate
-qualification and publication.
+## Remaining orchestration work
+
+The `build` job still uses host orchestration for construction, candidate loading,
+fixtures and reports. Its conversion remains separate from the four migrated jobs
+(`check`, `lint`, `release`, `maintenance`).

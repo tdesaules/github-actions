@@ -14,14 +14,6 @@ on:
         description: Qualify published checks and the Buildah launcher on both hosted architectures
         type: boolean
         default: false
-      publish-bootstrap:
-        description: Publish all tested action images by digest (main only)
-        type: boolean
-        default: false
-      sign:
-        description: Sign published bootstrap images using GitHub OIDC
-        type: boolean
-        default: true
       artifact-run-id:
         description: Reuse tested archives from a successful run at this exact main commit
         type: string
@@ -95,7 +87,7 @@ jobs:
         uses: ./check/test-go
       - name: Plan semantic release
         id: plan
-        if: github.event_name == 'workflow_dispatch' && !inputs.qualify-runner && !inputs.publish-bootstrap
+        if: github.event_name == 'workflow_dispatch' && !inputs.qualify-runner
         uses: ./workflow/new-release-plan
       - name: Retain release plan
         if: steps.plan.outputs.release-changed == 'true'
@@ -624,7 +616,7 @@ jobs:
     if: >-
       always() && !cancelled() && needs.check.result == 'success' &&
       needs.lint.result == 'success' &&
-      ((needs.check.outputs.mode == 'prepare' && (needs.build.result == 'success' || needs.check.outputs.has-work == 'false') && (inputs.publish-bootstrap || needs.check.outputs.release-changed == 'true')) ||
+      ((needs.check.outputs.mode == 'prepare' && (needs.build.result == 'success' || needs.check.outputs.has-work == 'false') && needs.check.outputs.release-changed == 'true') ||
        needs.check.outputs.mode == 'release')
     runs-on: ubuntu-24.04
     permissions:
@@ -642,23 +634,22 @@ jobs:
           persist-credentials: false
       - name: Reject premature release tags
         if: needs.check.outputs.mode == 'release'
-        run: python3 scripts/verify-release.py
+        uses: ./workflow/test-catalog-signatures
+        with:
+          repository: ${{ github.repository }}
+          tag: ${{ github.ref_name }}
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ github.token }}
       - name: Publish verified GitHub Release
         if: needs.check.outputs.mode == 'release'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "Release already exists: $RELEASE_TAG"
-          else
-            args=()
-            if [[ "$RELEASE_TAG" == *-* ]]; then args+=(--prerelease); fi
-            gh release create "$RELEASE_TAG" --verify-tag --title "$RELEASE_TAG" --notes-file CHANGELOG.md "${args[@]}"
-          fi
+        uses: ./workflow/new-github-release
+        with:
+          repository: ${{ github.repository }}
+          tag: ${{ github.ref_name }}
+          token: ${{ github.token }}
       - name: Create release App token
         id: app
-        if: needs.check.outputs.mode == 'prepare' && !inputs.publish-bootstrap
+        if: needs.check.outputs.mode == 'prepare'
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
         with:
           app-id: ${{ vars.RELEASE_APP_ID }}
@@ -674,37 +665,46 @@ jobs:
           run-id: ${{ inputs.artifact-run-id || github.run_id }}
           github-token: ${{ github.token }}
       - name: Download release plan
-        if: needs.check.outputs.mode == 'prepare' && !inputs.publish-bootstrap
+        if: needs.check.outputs.mode == 'prepare'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: release-plan
           path: .build/publication
-      - name: Publish bootstrap, verify and prepare digest patch
+      - name: Validate exact-source publication artifacts
         if: needs.check.outputs.mode == 'prepare'
-        env:
-          GHCR_TOKEN: ${{ github.token }}
-          GHCR_USERNAME: ${{ github.actor }}
-          OWNER: ${{ github.repository_owner }}
-          SIGN: ${{ inputs.sign }}
-          RELEASE_VERSION: ${{ inputs.publish-bootstrap && '0.0.0-bootstrap' || needs.check.outputs.release-version }}
-        run: |
-          args=()
-          if [ "$SIGN" = true ] || [ "$RELEASE_VERSION" != 0.0.0-bootstrap ]; then args+=(--sign); fi
-          python3 scripts/publish.py .build/publication --owner "${OWNER,,}" --version "$RELEASE_VERSION" "${args[@]}"
+        uses: ./workflow/new-publication-plan
+        with:
+          owner: ${{ github.repository_owner }}
+          release-plan: .build/publication/release-plan.json
+      - name: Publish exact archives and verify remote digests
+        if: needs.check.outputs.mode == 'prepare'
+        uses: ./workflow/publish-catalog-images
+        with:
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ github.token }}
+      - name: Sign newly published platform and index digests
+        if: needs.check.outputs.mode == 'prepare'
+        uses: ./workflow/new-catalog-signatures
+        with:
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ github.token }}
+      - name: Verify new and reused image signatures
+        if: needs.check.outputs.mode == 'prepare'
+        uses: ./workflow/test-catalog-signatures
+        with:
+          repository: ${{ github.repository }}
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ github.token }}
       - name: Commit pins and atomically push release tag
-        if: needs.check.outputs.mode == 'prepare' && !inputs.publish-bootstrap
-        env:
-          RELEASE_APP_TOKEN: ${{ steps.app.outputs.token }}
-        run: |
-          export GIT_CONFIG_COUNT=1
-          export GIT_CONFIG_KEY_0=http.https://github.com/.extraheader
-          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$RELEASE_APP_TOKEN" | base64 -w0)"
-          python3 scripts/release.py finish
+        if: needs.check.outputs.mode == 'prepare'
+        uses: ./workflow/complete-release
+        with:
+          token: ${{ steps.app.outputs.token }}
       - name: Retain publication journal and digest patch
-        if: always() && needs.check.outputs.mode == 'prepare'
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: bootstrap-publication-${{ github.run_id }}-${{ github.run_attempt }}
+          name: publication-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             .build/publication/publication.json
             .build/publication/action-digests.patch
@@ -725,8 +725,11 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - name: Rescan pinned images with refreshed vulnerability database
-        run: python3 scripts/maintenance.py
+      - name: Generate SBOMs for both published architectures
+        uses: ./maintenance/new-catalog-sboms
+      - name: Scan catalogue with refreshed vulnerability database
+        if: '!cancelled()'
+        uses: ./maintenance/test-catalog-vulnerabilities
       - name: Select documentation links
         if: '!cancelled()'
         id: documents

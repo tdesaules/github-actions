@@ -10,4 +10,5 @@ Inputs: `directory`, `registry-username`, `registry-password`. Credentials are
 environment-only and stored in a private temporary auth file, removed on exit.
 Updates `publication.json` after each verified image. Signing is a separate action.
 
-The fixed Go/Skopeo scratch image is being qualified before release activation.
+The fixed Go/Skopeo scratch image was published in `1.1.0` and is called directly
+by the release job.

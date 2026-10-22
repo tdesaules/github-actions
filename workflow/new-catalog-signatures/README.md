@@ -8,4 +8,5 @@ Inputs: `directory`, `registry-username`, `registry-password`. Requires job
 permission `id-token: write`. Registry credentials are passed only through the
 environment. Transparency-log verification remains enabled.
 
-The fixed Go/Cosign scratch image is being qualified before release activation.
+The fixed Go/Cosign scratch image was published in `1.1.0` and is called directly
+by the release job.

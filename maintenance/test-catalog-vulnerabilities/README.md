@@ -10,4 +10,5 @@ nonempty symbol evidence for every copy and absence of the affected package.
 Patched npm exclusions require unique exact SHA-256 evidence for every walker in
 every copy; missing, altered, ambiguous or wrong-version evidence fails closed.
 
-The fixed Go/Grype scratch image is being qualified before activation.
+The fixed Go/Grype scratch image was published in `1.1.0` and is called directly
+by the maintenance job.

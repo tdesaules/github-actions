@@ -7,4 +7,5 @@ prereleases. The workflow must first verify the catalogue tag and signatures.
 Inputs: `repository`, `tag`, `notes` (default `CHANGELOG.md`), `token`.
 The token is environment-only. Outputs `created`. Redirects are rejected.
 
-The fixed Go scratch image is being qualified before activation.
+The fixed Go scratch image was published in `1.1.0` and is called directly by the
+release job after tag and signature verification.
