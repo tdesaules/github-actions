@@ -62,6 +62,14 @@ def prepare(workspace):
     (directory / "Containerfile").write_text('FROM scratch\nCOPY hello.txt /hello.txt\n')
     fixture_archive(workspace / "fixture.oci.tar")
     fixture_archive(workspace / 'arm64.oci.tar', 'arm64')
+    checksums = {name: hashlib.sha256((workspace / name).read_bytes()).hexdigest()
+                 for name in ('fixture.oci.tar', 'arm64.oci.tar')}
+    (workspace / 'fixture-checksums.json').write_text(json.dumps(checksums))
+    (workspace / 'fixture-build.json').write_text(json.dumps({
+        'image': 'fixture', 'arch': 'amd64', 'revision': '0' * 40,
+        'version': 'fixture', 'archive_sha256': checksums['fixture.oci.tar'], 'tested': False}))
+    (workspace / 'syft-empty.json').write_text(json.dumps({'artifacts': [], 'files': []}))
+    (workspace / 'review-empty.json').write_text(json.dumps({'ignore': []}))
 
 
 def negative(ref, operation, workspace, inputs, extra=None):

@@ -1,0 +1,21 @@
+FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/workflow/ ./shared/workflow/
+COPY workflow/start-test-registry/main.go ./workflow/start-test-registry/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/start-test-registry \
+    && mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
+FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS registry
+COPY shared/runtime/compile-tool.sh /compile-tool.sh
+RUN sh /compile-tool.sh github.com/distribution/distribution/v3 v3.1.2 h1:/Bv2YIqqSR00HiO49FT93hovy6r9IlrzwUDsJjCN5qg= registry golang.org/x/net@v0.60.0 google.golang.org/grpc@v1.83.2 github.com/cyphar/filepath-securejoin@v0.7.0
+FROM scratch AS final
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=build /runtime/ /
+COPY --from=registry /tool /usr/bin/registry
+COPY --from=build /entrypoint /entrypoint
+ENV HOME=/tmp OTEL_TRACES_EXPORTER=none OTEL_METRICS_EXPORTER=none
+EXPOSE 5000 5443
+USER 65532:65532
+WORKDIR /tmp
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="workflow-start-test-registry" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND Apache-2.0"

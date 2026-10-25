@@ -1,0 +1,31 @@
+name: Test candidate runtime
+description: Verify native OCI runtime, negative fixtures and read-only source permissions without an engine socket
+inputs:
+  archive:
+    description: OCI build archive; empty to inspect the published reference
+    default: ''
+  reference:
+    description: Immutable reference used only when archive is empty
+    default: ''
+  image:
+    description: Expected image owner label
+    required: true
+  architecture:
+    description: Native amd64 or arm64 architecture
+    required: true
+  revision:
+    description: Optional expected build revision label
+    default: ''
+  output:
+    description: Runtime test report JSON path
+    required: true
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-candidate-runtime:unpublished
+  args:
+    - --archive=${{ inputs.archive }}
+    - --reference=${{ inputs.reference }}
+    - --image=${{ inputs.image }}
+    - --architecture=${{ inputs.architecture }}
+    - --revision=${{ inputs.revision }}
+    - --output=${{ inputs.output }}

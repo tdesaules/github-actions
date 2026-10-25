@@ -1,14 +1,21 @@
 FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS build
 WORKDIR /src
 COPY go.mod go.sum ./
+COPY shared/fixtures/ ./shared/fixtures/
+COPY workflow/new-test-fixtures/fail/ ./workflow/new-test-fixtures/fail/
+COPY workflow/new-test-fixtures/success/ ./workflow/new-test-fixtures/success/
 COPY workflow/new-test-fixtures/main.go ./workflow/new-test-fixtures/main.go
-RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/new-test-fixtures
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/new-test-fixtures \
+    && CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /fixture-fail-run ./workflow/new-test-fixtures/fail \
+    && CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /fixture-success-run ./workflow/new-test-fixtures/success
 RUN mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
 
 FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=build /runtime/ /
 COPY --from=build /entrypoint /entrypoint
+COPY --from=build /fixture-fail-run /fixture-fail-run
+COPY --from=build /fixture-success-run /fixture-success-run
 # Generates fixtures in the runner workspace.
 # hadolint ignore=DL3002
 USER 0:0

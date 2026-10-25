@@ -63,3 +63,59 @@ func TestMigratedJobsUsePublishedActions(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildAndQualificationAreSeparate(t *testing.T) {
+	data, err := os.ReadFile("../../.github/workflows/main.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document struct {
+		Jobs map[string]struct {
+			Needs    any               `yaml:"needs"`
+			Env      map[string]string `yaml:"env"`
+			Strategy struct {
+				FailFast    *bool `yaml:"fail-fast"`
+				MaxParallel int   `yaml:"max-parallel"`
+				Matrix      any   `yaml:"matrix"`
+			} `yaml:"strategy"`
+			Steps []map[string]any `yaml:"steps"`
+		} `yaml:"jobs"`
+	}
+	if err = yaml.Unmarshal(data, &document); err != nil {
+		t.Fatal(err)
+	}
+	if len(document.Jobs) != 6 {
+		t.Fatalf("expected six explicit pipeline jobs, got %d", len(document.Jobs))
+	}
+	for _, name := range []string{"build", "test"} {
+		job := document.Jobs[name]
+		if job.Strategy.FailFast == nil || *job.Strategy.FailFast || job.Strategy.MaxParallel != 4 || job.Strategy.Matrix != "${{ fromJSON(needs.check.outputs.matrix) }}" {
+			t.Fatalf("%s: qualification matrix constraints lost", name)
+		}
+	}
+	if document.Jobs["build"].Env["VERSION"] != document.Jobs["test"].Env["VERSION"] || strings.Contains(document.Jobs["build"].Env["VERSION"], "run_attempt") {
+		t.Fatal("test-only retries must retain the built candidate version")
+	}
+	for job, dependency := range map[string]string{"test": "build", "release": "test"} {
+		found := false
+		for _, need := range document.Jobs[job].Needs.([]any) {
+			found = found || need == dependency
+		}
+		if !found {
+			t.Fatalf("%s does not depend on %s", job, dependency)
+		}
+	}
+	for _, step := range document.Jobs["build"].Steps {
+		uses, _ := step["uses"].(string)
+		run, _ := step["run"].(string)
+		if uses == "./workflow/new-image-metadata" || strings.Contains(run, " new-metadata") {
+			t.Fatal("build must not emit tested qualification metadata")
+		}
+	}
+	for _, step := range document.Jobs["test"].Steps {
+		run, _ := step["run"].(string)
+		if strings.Contains(run, "scripts/images.py build-image") {
+			t.Fatal("test must not reconstruct candidate images")
+		}
+	}
+}

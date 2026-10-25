@@ -21,6 +21,16 @@ mkdir -p /tool-source
 cp -R "$(go env GOPATH)/pkg/mod/$module@$version/." /tool-source/
 chmod -R u+w /tool-source
 cd /tool-source
+target="./cmd/$command"
+if [ "$command" = registry ]; then
+  # Build the untouched registry source as a versioned dependency so its real
+  # upstream version remains visible in Go build information and the SBOM.
+  mkdir -p /versioned-tool
+  cd /versioned-tool
+  go mod init github.com/tdesaules/registry-build
+  go mod edit "-require=$module@$version"
+  target="$module/cmd/$command"
+fi
 for requirement in "$@"; do
   go mod edit "-require=$requirement"
 done
@@ -35,6 +45,9 @@ if [ "$command" = buildah ]; then
   go mod edit -require=github.com/fsouza/go-dockerclient@v1.13.3
 fi
 linkflags=''
+if [ "$command" = registry ]; then
+  linkflags="-X github.com/distribution/distribution/v3/version.version=$version"
+fi
 cgo=0
 if [ "$command" = buildah ]; then
   # Namespace setup uses a C constructor before Go starts; disabling CGO
@@ -42,4 +55,4 @@ if [ "$command" = buildah ]; then
   cgo=1
   linkflags='-linkmode external -extldflags -static'
 fi
-CGO_ENABLED=$cgo go build -p 2 -tags "${BUILDTAGS:-}" -mod=mod -trimpath -ldflags="-s -w $linkflags -X main.version=${version#v} -X main.gitDescription=$version -X sigs.k8s.io/release-utils/version.gitVersion=$version" -o /tool "./cmd/$command"
+CGO_ENABLED=$cgo go build -p 2 -tags "${BUILDTAGS:-}" -mod=mod -trimpath -ldflags="-s -w $linkflags -X main.version=${version#v} -X main.gitDescription=$version -X sigs.k8s.io/release-utils/version.gitVersion=$version" -o /tool "$target"

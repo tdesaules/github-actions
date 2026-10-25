@@ -1,0 +1,22 @@
+name: Test step outcomes
+description: Assert expected negative action outcomes and absence of invalid success outputs
+inputs:
+  outcomes:
+    description: GitHub steps context serialized as JSON
+    required: true
+  expected-failures:
+    description: JSON array of step IDs that must have failed
+    default: '[]'
+  absent-files:
+    description: JSON array of output paths that must not exist
+    default: '[]'
+outputs:
+  verified:
+    description: Whether all assertions passed
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-step-outcomes:unpublished
+  args:
+    - --outcomes=${{ inputs.outcomes }}
+    - --expected-failures=${{ inputs.expected-failures }}
+    - --absent-files=${{ inputs.absent-files }}

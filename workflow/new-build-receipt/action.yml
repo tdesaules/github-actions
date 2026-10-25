@@ -1,0 +1,35 @@
+name: New build receipt
+description: Record an untested archive checksum bound to its image, architecture and source revision
+inputs:
+  archive:
+    description: Built OCI archive path
+    required: true
+  output:
+    description: Untested build receipt JSON path
+    required: true
+  expected-sha256:
+    description: SHA-256 emitted by the builder
+    required: true
+  image:
+    description: Image component name
+    required: true
+  architecture:
+    description: Native architecture
+    required: true
+  revision:
+    description: Source commit SHA
+    required: true
+  version:
+    description: Candidate version
+    required: true
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-build-receipt:unpublished
+  args:
+    - --archive=${{ inputs.archive }}
+    - --output=${{ inputs.output }}
+    - --expected-sha256=${{ inputs.expected-sha256 }}
+    - --image=${{ inputs.image }}
+    - --architecture=${{ inputs.architecture }}
+    - --revision=${{ inputs.revision }}
+    - --version=${{ inputs.version }}

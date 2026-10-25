@@ -1,0 +1,24 @@
+FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/candidate/ ./shared/candidate/
+COPY shared/catalog/ ./shared/catalog/
+COPY shared/fixtures/ ./shared/fixtures/
+COPY shared/workflow/ ./shared/workflow/
+COPY workflow/test-candidate-runtime/main.go ./workflow/test-candidate-runtime/main.go
+COPY workflow/test-candidate-runtime/service.go ./workflow/test-candidate-runtime/service.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/test-candidate-runtime \
+    && echo 'disposable-candidate-runtime' > /candidate-runtime-marker
+FROM ghcr.io/tdesaules/github-actions/oci-import-image@sha256:9158f97b4f7d5179b18682f840391dc66f821edc2ec135e227e3267f523dc5aa AS runtime
+FROM scratch AS final
+COPY --from=runtime / /
+COPY --from=build /entrypoint /entrypoint
+COPY --from=build /candidate-runtime-marker /.candidate-runtime
+ENV PATH=/usr/bin HOME=/tmp
+# Installs the candidate in this disposable container, then runs it as UID/GID 65532.
+# No engine socket, privileged mode or additional capabilities are requested.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="workflow-test-candidate-runtime" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND Apache-2.0"

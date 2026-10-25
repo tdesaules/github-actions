@@ -23,6 +23,7 @@ type job struct {
 	Arch      string `json:"arch"`
 	Runner    string `json:"runner"`
 	Rebuild   bool   `json:"rebuild"`
+	Reference string `json:"reference"`
 }
 type matrix struct {
 	Include []job `json:"include"`
@@ -104,7 +105,7 @@ func selectImages(components []component, paths []string, full bool) matrix {
 			if arch == "arm64" {
 				runner += "-arm"
 			}
-			r.Include = append(r.Include, job{c.image, c.directory, arch, runner, rebuild || strings.HasSuffix(c.reference, ":unpublished")})
+			r.Include = append(r.Include, job{Image: c.image, Directory: c.directory, Arch: arch, Runner: runner, Rebuild: rebuild || strings.HasSuffix(c.reference, ":unpublished"), Reference: c.reference})
 		}
 	}
 	return r
@@ -196,7 +197,13 @@ func run() error {
 	if len(m.Include) > 256 {
 		return fmt.Errorf("matrix exceeds 256 jobs")
 	}
-	for name, value := range map[string]any{"mode": mode, "version": version, "matrix": m, "has-work": len(m.Include) > 0} {
+	registry := ""
+	for _, c := range components {
+		if c.directory == "workflow/start-test-registry" {
+			registry = c.reference
+		}
+	}
+	for name, value := range map[string]any{"mode": mode, "version": version, "matrix": m, "has-work": len(m.Include) > 0, "test-registry-image": registry} {
 		if err := workflow.Output(name, value); err != nil {
 			return err
 		}

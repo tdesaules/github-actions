@@ -1,0 +1,22 @@
+name: Test index result
+description: Verify TLS index publication, exact platform digests, unchanged archives and retry stability
+inputs:
+  directory:
+    description: Synthetic archive and registry fixture directory
+    default: .build/fixtures
+  index:
+    description: Native index output path
+    required: true
+  retry-index:
+    description: Output path from the successful retry
+    required: true
+outputs:
+  verified:
+    description: Whether index, archives and registry state passed verification
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-index-result:unpublished
+  args:
+    - --directory=${{ inputs.directory }}
+    - --index=${{ inputs.index }}
+    - --retry-index=${{ inputs.retry-index }}

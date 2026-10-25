@@ -1,0 +1,23 @@
+name: Test reviewed vulnerabilities
+description: Scan an evidence-reviewed candidate SBOM at high severity and retain the database snapshot
+inputs:
+  sbom:
+    description: Syft JSON candidate SBOM
+    required: true
+  config:
+    description: Evidence-derived Grype configuration
+    required: true
+  output:
+    description: Grype JSON report path
+    required: true
+  database-metadata:
+    description: Exact Grype database snapshot metadata path
+    required: true
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-reviewed-vulnerabilities:unpublished
+  args:
+    - --sbom=${{ inputs.sbom }}
+    - --config=${{ inputs.config }}
+    - --output=${{ inputs.output }}
+    - --database-metadata=${{ inputs.database-metadata }}

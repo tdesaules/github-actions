@@ -64,6 +64,8 @@ therefore remain inactive. Release App credentials are not reused for Renovate.
 
 ## Remaining orchestration work
 
-The `build` job still uses host orchestration for construction, candidate loading,
-fixtures and reports. Its conversion remains separate from the four migrated jobs
-(`check`, `lint`, `release`, `maintenance`).
+Construction and qualification are now separate `build` and `test` jobs; see
+[the build/test contract](build-test.md). Construction uses the published Buildah
+action. Native receipt, runtime, registry and report actions are being qualified
+before replacing the temporary bridges and remaining test orchestration. The
+four previously migrated jobs remain action-composed.

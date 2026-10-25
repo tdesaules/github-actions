@@ -1,0 +1,18 @@
+FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/catalog/ ./shared/catalog/
+COPY shared/workflow/ ./shared/workflow/
+COPY workflow/test-reviewed-vulnerabilities/main.go ./workflow/test-reviewed-vulnerabilities/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/test-reviewed-vulnerabilities
+FROM ghcr.io/tdesaules/github-actions/oci-test-vulnerabilities@sha256:95314a5d45db03f2988572c84c4b2b8aecca2f2dd643e0b2dfa5587a00234238 AS runtime
+FROM scratch AS final
+COPY --from=runtime / /
+COPY --from=build /entrypoint /entrypoint
+ENV PATH=/usr/bin HOME=/tmp
+# Writes candidate reports into the runner workspace.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="workflow-test-reviewed-vulnerabilities" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND Apache-2.0"

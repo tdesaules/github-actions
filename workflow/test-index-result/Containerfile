@@ -1,0 +1,20 @@
+FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/catalog/ ./shared/catalog/
+COPY shared/publication/ ./shared/publication/
+COPY shared/runtime/ ./shared/runtime/
+COPY shared/workflow/ ./shared/workflow/
+COPY workflow/test-index-result/main.go ./workflow/test-index-result/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/test-index-result \
+    && mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
+FROM scratch AS final
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=build /runtime/ /
+COPY --from=build /entrypoint /entrypoint
+# GitHub owns the output file.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="workflow-test-index-result" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

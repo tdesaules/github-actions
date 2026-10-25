@@ -192,10 +192,61 @@ jobs:
           config: lychee.toml
 
   build:
+    name: build (${{ matrix.image }}, ${{ matrix.arch }})
     needs: [check, lint]
     if: >-
       always() && !cancelled() && needs.check.result == 'success' &&
       needs.lint.result == 'success' && needs.check.outputs.has-work == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.check.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: read
+    env:
+      IMAGE: ${{ matrix.image }}
+      VERSION: ${{ needs.check.outputs.version }}-${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Build selected native OCI archive
+        if: matrix.rebuild
+        id: archive
+        uses: ./oci/build-image
+        with:
+          context: .
+          containerfile: ${{ matrix.directory }}/Containerfile
+          image: localhost/github-actions/${{ matrix.image }}
+          version: ${{ env.VERSION }}
+          platform: linux/${{ matrix.arch }}
+          labels: '{"org.opencontainers.image.revision":"${{ github.sha }}"}'
+          output: image.oci.tar
+      - name: Record untested build receipt during native action qualification
+        if: matrix.rebuild
+        env:
+          BUILDER_SHA256: ${{ steps.archive.outputs.archive-sha256 }}
+        run: python3 scripts/images.py new-build-receipt --image "$IMAGE" --version "$VERSION"
+      - name: Transfer untested archive and build receipt
+        if: matrix.rebuild
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: build-${{ matrix.image }}-${{ matrix.arch }}-${{ github.run_id }}
+          path: |
+            image.oci.tar
+            build.json
+          if-no-files-found: error
+          overwrite: true
+
+  test:
+    name: test (${{ matrix.image }}, ${{ matrix.arch }})
+    needs: [check, lint, build]
+    if: >-
+      always() && !cancelled() && needs.check.result == 'success' &&
+      needs.lint.result == 'success' && needs.build.result == 'success' &&
+      needs.check.outputs.has-work == 'true'
     strategy:
       fail-fast: false
       max-parallel: 4
@@ -211,18 +262,21 @@ jobs:
       packages: read
     env:
       IMAGE: ${{ matrix.image }}
-      VERSION: ${{ needs.check.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+      VERSION: ${{ needs.check.outputs.version }}-${{ github.run_id }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Bootstrap containerized Buildah
+      - name: Download untested build artifact
         if: matrix.rebuild
-        run: python3 scripts/images.py build-image --image oci-build-image --version "$VERSION"
-      - name: Build selected image with candidate Buildah
-        if: matrix.rebuild && matrix.image != 'oci-build-image'
-        run: python3 scripts/images.py build-image --image "$IMAGE" --version "$VERSION"
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: build-${{ matrix.image }}-${{ matrix.arch }}-${{ github.run_id }}
+          path: .build/${{ matrix.image }}/${{ matrix.arch }}
+      - name: Verify and load the exact build archive during native action qualification
+        if: matrix.rebuild
+        run: python3 scripts/images.py load-build-artifact --image "$IMAGE" --version "$VERSION"
       - name: Load pinned image for action-only changes
         if: '!matrix.rebuild'
         env:
@@ -382,6 +436,93 @@ jobs:
           revision: ${{ github.sha }}
           version: ${{ env.VERSION }}
           output: .build/fixtures/tested-metadata.json
+      - name: Reject a build receipt with a mismatched builder checksum
+        if: matrix.image == 'workflow-new-build-receipt'
+        id: invalid-build-receipt
+        continue-on-error: true
+        uses: ./.candidate-actions/new-build-receipt
+        with:
+          archive: .build/fixtures/fixture.oci.tar
+          output: .build/fixtures/rejected-build.json
+          expected-sha256: '0000000000000000000000000000000000000000000000000000000000000000'
+          image: fixture
+          architecture: amd64
+          revision: ${{ github.sha }}
+          version: fixture
+      - name: Test native build artifact verification
+        if: matrix.image == 'workflow-test-build-artifact'
+        uses: ./.candidate-actions/test-build-artifact
+        with:
+          archive: .build/fixtures/fixture.oci.tar
+          receipt: .build/fixtures/fixture-build.json
+          image: fixture
+          architecture: amd64
+          revision: '0000000000000000000000000000000000000000'
+          version: fixture
+      - name: Test native candidate runtime qualification without a socket
+        if: matrix.image == 'workflow-test-candidate-runtime'
+        uses: ./.candidate-actions/test-candidate-runtime
+        with:
+          archive: .build/${{ matrix.image }}/${{ matrix.arch }}/image.oci.tar
+          image: ${{ matrix.image }}
+          architecture: ${{ matrix.arch }}
+          revision: ${{ github.sha }}
+          output: .build/${{ matrix.image }}/${{ matrix.arch }}/runtime-tests.json
+      - name: Download the native runtime test tool for service qualification
+        if: matrix.image == 'workflow-start-test-registry' && contains(needs.check.outputs.matrix, 'workflow-test-candidate-runtime')
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: build-workflow-test-candidate-runtime-${{ matrix.arch }}-${{ github.run_id }}
+          path: .build/workflow-test-candidate-runtime/${{ matrix.arch }}
+      - name: Prepare the tested-source runtime tool during qualification
+        if: matrix.image == 'workflow-start-test-registry' && contains(needs.check.outputs.matrix, 'workflow-test-candidate-runtime')
+        run: |
+          python3 scripts/images.py load-build-artifact --image workflow-test-candidate-runtime --version "$VERSION"
+          python3 scripts/images.py new-candidate-actions --image workflow-test-candidate-runtime --version "$VERSION"
+      - name: Test the native registry service lifecycle
+        if: matrix.image == 'workflow-start-test-registry' && contains(needs.check.outputs.matrix, 'workflow-test-candidate-runtime')
+        uses: ./.candidate-actions/test-candidate-runtime
+        with:
+          archive: .build/${{ matrix.image }}/${{ matrix.arch }}/image.oci.tar
+          image: ${{ matrix.image }}
+          architecture: ${{ matrix.arch }}
+          revision: ${{ github.sha }}
+          output: .build/${{ matrix.image }}/${{ matrix.arch }}/runtime-tests.json
+      - name: Test native fail-closed review generation
+        if: matrix.image == 'workflow-new-vulnerability-review'
+        uses: ./.candidate-actions/new-vulnerability-review
+        with:
+          sbom: .build/fixtures/syft-empty.json
+          output: .build/fixtures/reviewed.json
+          evidence: .build/fixtures/review-evidence.json
+      - name: Reject malformed step outcomes
+        if: matrix.image == 'workflow-test-step-outcomes'
+        id: invalid-step-outcomes
+        continue-on-error: true
+        uses: ./.candidate-actions/test-step-outcomes
+        with:
+          outcomes: '[]'
+      - name: Test native negative-outcome assertions
+        if: matrix.image == 'workflow-test-step-outcomes'
+        uses: ./.candidate-actions/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: '["invalid-step-outcomes"]'
+      - name: Reject unwritable registry fixtures before connecting
+        if: matrix.image == 'workflow-new-registry-fixtures'
+        id: invalid-registry-fixtures
+        continue-on-error: true
+        uses: ./.candidate-actions/new-registry-fixtures
+        with:
+          directory: /proc/registry-fixtures
+      - name: Reject missing index evidence
+        if: matrix.image == 'workflow-test-index-result'
+        id: invalid-index-result
+        continue-on-error: true
+        uses: ./.candidate-actions/test-index-result
+        with:
+          index: .build/fixtures/missing-index.json
+          retry-index: .build/fixtures/missing-retry.json
       - name: Test native workflow check
         if: matrix.image == 'check-test-github-workflow'
         uses: ./.candidate-actions/actionlint
@@ -535,12 +676,30 @@ jobs:
         with:
           source: dir:.build/fixtures/fixture with spaces
           output: .build/fixtures/reports with spaces/sbom.json
+      - name: Test evidence-rich native SBOM format
+        if: matrix.image == 'oci-new-sbom'
+        uses: ./.candidate-actions/new-sbom
+        env:
+          SYFT_GOLANG_CAPTURE_SYMBOLS: all
+          SYFT_FILE_METADATA_SELECTION: all
+        with:
+          source: dir:.build/fixtures/fixture with spaces
+          format: syft-json
+          output: .build/fixtures/reports with spaces/sbom.syft.json
       - name: Prepare scanner fixture with pinned upstream Syft
-        if: matrix.image == 'oci-test-vulnerabilities'
+        if: contains(fromJSON('["oci-test-vulnerabilities","workflow-test-reviewed-vulnerabilities"]'), matrix.image)
         run: >-
           docker run --rm --user=0 -v "$PWD/.build/fixtures:/fixtures"
           docker.io/anchore/syft:v1.54.1@sha256:3eb5379ba7b409c3f4069b686110527af0c47df993fa5c10d13e7cf34f49b1aa
-          scan oci-archive:/fixtures/fixture.oci.tar -o spdx-json=/fixtures/sbom.json
+          scan oci-archive:/fixtures/fixture.oci.tar -o syft-json=/fixtures/sbom.json
+      - name: Test native reviewed vulnerability scan
+        if: matrix.image == 'workflow-test-reviewed-vulnerabilities'
+        uses: ./.candidate-actions/test-reviewed-vulnerabilities
+        with:
+          sbom: .build/fixtures/sbom.json
+          config: .build/fixtures/review-empty.json
+          output: .build/fixtures/reviewed-grype.json
+          database-metadata: .build/fixtures/reviewed-db.json
       - name: Test native vulnerability action
         if: matrix.image == 'oci-test-vulnerabilities'
         uses: ./.candidate-actions/test-vulnerabilities
@@ -575,6 +734,10 @@ jobs:
           GITHUB_RELEASE: ${{ steps.invalid-github-release.outcome }}
           CATALOG_SBOM: ${{ steps.invalid-catalog-sbom.outcome }}
           CATALOG_SCAN: ${{ steps.invalid-catalog-scan.outcome }}
+          BUILD_RECEIPT: ${{ steps.invalid-build-receipt.outcome }}
+          STEP_OUTCOMES: ${{ steps.invalid-step-outcomes.outcome }}
+          REGISTRY_FIXTURES: ${{ steps.invalid-registry-fixtures.outcome }}
+          INDEX_RESULT: ${{ steps.invalid-index-result.outcome }}
         run: |
           case "$IMAGE" in
             oci-merge-image-index) test "$INDEX" = failure ;;
@@ -590,6 +753,10 @@ jobs:
             workflow-new-github-release) test "$GITHUB_RELEASE" = failure ;;
             maintenance-new-catalog-sboms) test "$CATALOG_SBOM" = failure ;;
             maintenance-test-catalog-vulnerabilities) test "$CATALOG_SCAN" = failure ;;
+            workflow-new-build-receipt) test "$BUILD_RECEIPT" = failure && test ! -e .build/fixtures/rejected-build.json ;;
+            workflow-test-step-outcomes) test "$STEP_OUTCOMES" = failure ;;
+            workflow-new-registry-fixtures) test "$REGISTRY_FIXTURES" = failure ;;
+            workflow-test-index-result) test "$INDEX_RESULT" = failure ;;
           esac
       - name: Generate SBOM and scan exact candidate archive
         if: matrix.rebuild
@@ -612,13 +779,18 @@ jobs:
         run: docker rm -f action-test-registry || true
 
   release:
-    needs: [check, lint, build]
+    needs: [check, lint, build, test]
     if: >-
       always() && !cancelled() && needs.check.result == 'success' &&
       needs.lint.result == 'success' &&
-      ((needs.check.outputs.mode == 'prepare' && (needs.build.result == 'success' || needs.check.outputs.has-work == 'false') && needs.check.outputs.release-changed == 'true') ||
+      ((needs.check.outputs.mode == 'prepare' && ((needs.build.result == 'success' && needs.test.result == 'success') || needs.check.outputs.has-work == 'false') && needs.check.outputs.release-changed == 'true') ||
        needs.check.outputs.mode == 'release')
     runs-on: ubuntu-24.04
+    # Compatibility for journals written as root/0600 by pre-fix published
+    # actions. Remove after publishing the readable-artifact fix.
+    container:
+      image: docker.io/library/node:24-bookworm@sha256:6449e19d8184d84062525b6a7524def03146c2cb04a7f08b076680d0e8e4240a
+      options: --user 0
     permissions:
       contents: write
       actions: read
@@ -717,6 +889,10 @@ jobs:
   maintenance:
     if: github.event_name == 'schedule' || inputs.maintenance
     runs-on: ubuntu-24.04
+    # Same compatibility boundary for pre-fix review evidence artifacts.
+    container:
+      image: docker.io/library/node:24-bookworm@sha256:6449e19d8184d84062525b6a7524def03146c2cb04a7f08b076680d0e8e4240a
+      options: --user 0
     permissions:
       contents: read
       packages: read

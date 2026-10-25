@@ -1,0 +1,5 @@
+name: Start test registry
+description: Serve an ephemeral TLS registry and its public fixture CA inside a private job service
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-start-test-registry:unpublished

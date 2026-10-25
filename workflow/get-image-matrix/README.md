@@ -2,6 +2,9 @@
 
 Discovers independent image owners from action metadata and Containerfiles.
 Consumes changed paths, including deletions, and returns an AMD64/ARM64 matrix.
+Each row also exposes its source image reference for metadata-only tests. The
+`test-registry-image` output is discovered from the registry service's action
+metadata, without a separate image catalogue or lockfile.
 Metadata-only changes reuse published images; unpublished images are rebuilt.
 An empty selection produces `{"include":[]}`. The workflow controls concurrency.
 

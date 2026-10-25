@@ -1,0 +1,26 @@
+name: New registry fixtures
+description: Fetch the private test service CA and prepare native digest and signature fixtures
+inputs:
+  directory:
+    description: Directory containing the synthetic OCI archives
+    default: .build/fixtures
+  seed:
+    description: Publish the fixture manifest before signature tests
+    default: 'false'
+  signed-fixture:
+    description: Seed and sign the fixture before verification tests
+    default: 'false'
+outputs:
+  repository:
+    description: TLS repository transport for index publication
+  reference:
+    description: Immutable fixture reference for signing and verification
+  destination:
+    description: TLS digest destination transport for publication
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-registry-fixtures:unpublished
+  args:
+    - --directory=${{ inputs.directory }}
+    - --seed=${{ inputs.seed }}
+    - --signed-fixture=${{ inputs.signed-fixture }}

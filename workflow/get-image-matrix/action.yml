@@ -20,6 +20,8 @@ inputs:
     description: Skip builds after independent exact-source artifact validation
     default: 'false'
 outputs:
+  test-registry-image:
+    description: Test registry service reference discovered from its action metadata
   mode:
     description: Development, prepare, release or maintenance mode
   matrix:

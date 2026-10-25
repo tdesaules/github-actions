@@ -1,0 +1,36 @@
+name: Test build artifact
+description: Verify a downloaded untested archive against its build receipt and expected matrix context
+inputs:
+  archive:
+    description: Downloaded OCI archive path
+    required: true
+  receipt:
+    description: Build receipt JSON path
+    required: true
+  image:
+    description: Expected image component
+    required: true
+  architecture:
+    description: Expected native architecture
+    required: true
+  revision:
+    description: Expected source commit SHA
+    required: true
+  version:
+    description: Expected candidate version
+    required: true
+outputs:
+  archive-sha256:
+    description: Verified archive SHA-256
+  verified:
+    description: Whether the archive matches its expected receipt
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-build-artifact:unpublished
+  args:
+    - --archive=${{ inputs.archive }}
+    - --receipt=${{ inputs.receipt }}
+    - --image=${{ inputs.image }}
+    - --architecture=${{ inputs.architecture }}
+    - --revision=${{ inputs.revision }}
+    - --version=${{ inputs.version }}

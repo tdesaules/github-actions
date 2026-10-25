@@ -5,7 +5,7 @@ inputs:
     description: 'Explicit oci-archive:, oci-dir:, registry: or dir: source'
     required: true
   format:
-    description: spdx-json or cyclonedx-json
+    description: spdx-json, cyclonedx-json or evidence-rich syft-json
     default: spdx-json
   output:
     description: SBOM output path

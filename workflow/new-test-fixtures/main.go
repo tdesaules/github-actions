@@ -11,7 +11,14 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
+	"syscall"
+
+	"github.com/tdesaules/github-actions/shared/fixtures"
 )
+
+var failureBinary = "/fixture-fail-run"
+var successBinary = "/fixture-success-run"
 
 func archive(path, arch string) error {
 	var layer bytes.Buffer
@@ -74,24 +81,27 @@ func execute(args []string) error {
 	if flags.NArg() != 0 || *directory == "" {
 		return errors.New("fixture directory is required")
 	}
-	files := map[string]string{
-		"fixture with spaces/hello.txt":     "hello\n",
-		"fixture with spaces/Containerfile": "FROM scratch\nCOPY hello.txt /hello.txt\nUSER 65532:65532\n",
-		"workflow valid.yml":                "name: fixture\non: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo hello\n",
-		"workflow invalid.yml":              "on: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo '${{ unknown.value }}'\n",
-		"Containerfile valid":               "FROM scratch\nCOPY hello /hello\nUSER 65532:65532\n",
-		"Containerfile invalid":             "FROM ubuntu:latest\nRUN apt-get update\n",
-		"script without extension":          "#!/bin/sh\nvalue='hello world'\nprintf '%s\\n' \"$value\"\n",
-		"script invalid.script":             "#!/bin/sh\necho $undefined_variable\n",
-		"valid stream.yaml":                 "name: first\n---\nname: second\n",
-		"invalid.yaml":                      "name: first\nname: duplicate\n",
-		"valid config.toml":                 "[package]\nname = 'hello world'\n",
-		"invalid.toml":                      "name = 'first'\nname = 'duplicate'\n",
-		"valid document.md":                 "# Fixture\n\nValid Markdown.\n",
-		"invalid document.md":               "#Bad heading\n",
-		"valid links.md":                    "# Links\n\n[Local file](valid%20config.toml)\n",
-		"invalid links.md":                  "# Links\n\n[Missing file](missing.toml)\n",
+	if output := os.Getenv("GITHUB_OUTPUT"); output != "" && os.Getuid() == 0 {
+		info, err := os.Stat(output)
+		if err != nil {
+			return err
+		}
+		stat := info.Sys().(*syscall.Stat_t)
+		if stat.Uid != 0 {
+			if err = syscall.Setgroups([]int{}); err != nil {
+				return err
+			}
+			if err = syscall.Setgid(int(stat.Gid)); err != nil {
+				return err
+			}
+			if err = syscall.Setuid(int(stat.Uid)); err != nil {
+				return err
+			}
+		}
 	}
+	files := fixtures.Files()
+	files["fixture with spaces/Containerfile"] = "FROM scratch AS build\nCOPY success-run /success-run\nRUN [\"/success-run\"]\nFROM scratch AS final\nCOPY --from=build /runtime/ /\nCOPY hello.txt /hello.txt\nUSER 65532:65532\n"
+	files["fixture with spaces/Containerfile.fail"] = "FROM scratch\nCOPY fail-run /fail-run\nRUN [\"/fail-run\"]\n"
 	for name, data := range files {
 		path := filepath.Join(*directory, name)
 		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
@@ -104,7 +114,43 @@ func execute(args []string) error {
 	if err := archive(filepath.Join(*directory, "fixture.oci.tar"), "amd64"); err != nil {
 		return err
 	}
-	return archive(filepath.Join(*directory, "arm64.oci.tar"), "arm64")
+	if err := archive(filepath.Join(*directory, "arm64.oci.tar"), "arm64"); err != nil {
+		return err
+	}
+	fail, err := os.ReadFile(failureBinary)
+	if err != nil {
+		return err
+	}
+	if err = os.WriteFile(filepath.Join(*directory, "fixture with spaces/fail-run"), fail, 0755); err != nil {
+		return err
+	}
+	success, err := os.ReadFile(successBinary)
+	if err != nil {
+		return err
+	}
+	if err = os.WriteFile(filepath.Join(*directory, "fixture with spaces/success-run"), success, 0755); err != nil {
+		return err
+	}
+	checksums := map[string]string{}
+	for _, name := range []string{"fixture.oci.tar", "arm64.oci.tar"} {
+		data, err := os.ReadFile(filepath.Join(*directory, name))
+		if err != nil {
+			return err
+		}
+		checksums[name] = fmt.Sprintf("%x", sha256.Sum256(data))
+	}
+	data, err := json.Marshal(checksums)
+	if err != nil {
+		return err
+	}
+	if err = os.WriteFile(filepath.Join(*directory, "fixture-checksums.json"), data, 0644); err != nil {
+		return err
+	}
+	data, err = json.Marshal(map[string]any{"image": "fixture", "arch": "amd64", "revision": strings.Repeat("0", 40), "version": "fixture", "archive_sha256": checksums["fixture.oci.tar"], "tested": false})
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(*directory, "fixture-build.json"), data, 0644)
 }
 
 func main() {

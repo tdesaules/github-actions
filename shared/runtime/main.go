@@ -417,8 +417,8 @@ func sbom() error {
 		return err
 	}
 	format := input("format", "spdx-json")
-	if format != "spdx-json" && format != "cyclonedx-json" {
-		return errors.New("format must be spdx-json or cyclonedx-json")
+	if format != "spdx-json" && format != "cyclonedx-json" && format != "syft-json" {
+		return errors.New("format must be spdx-json, cyclonedx-json or syft-json")
 	}
 	if err = run("scan", source, "--output", format+"="+path); err != nil {
 		return err

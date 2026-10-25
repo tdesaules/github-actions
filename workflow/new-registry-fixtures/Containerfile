@@ -1,0 +1,22 @@
+FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/catalog/ ./shared/catalog/
+COPY shared/publication/ ./shared/publication/
+COPY shared/runtime/ ./shared/runtime/
+COPY shared/workflow/ ./shared/workflow/
+COPY workflow/new-registry-fixtures/main.go ./workflow/new-registry-fixtures/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/new-registry-fixtures
+FROM ghcr.io/tdesaules/github-actions/oci-import-image@sha256:9158f97b4f7d5179b18682f840391dc66f821edc2ec135e227e3267f523dc5aa AS registry
+FROM ghcr.io/tdesaules/github-actions/oci-new-image-signature@sha256:583e9971b1dabaeaaf943562e394429139da229875bcfab672dea2ca87c3d9bc AS signer
+FROM scratch AS final
+COPY --from=registry / /
+COPY --from=signer /usr/bin/cosign /usr/bin/cosign
+COPY --from=build /entrypoint /entrypoint
+ENV PATH=/usr/bin HOME=/tmp
+# Writes fixtures and assigns private-key ownership to the runner UID.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="workflow-new-registry-fixtures" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND Apache-2.0"

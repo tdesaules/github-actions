@@ -9,6 +9,14 @@ import (
 
 func TestFixtureArchivesAreDeterministicAndArchitectureSpecific(t *testing.T) {
 	root := t.TempDir()
+	old := failureBinary
+	oldSuccess := successBinary
+	failureBinary = filepath.Join(root, "fail-run")
+	successBinary = failureBinary
+	t.Cleanup(func() { failureBinary = old; successBinary = oldSuccess })
+	if err := os.WriteFile(failureBinary, []byte("fixture"), 0755); err != nil {
+		t.Fatal(err)
+	}
 	first, second, arm := filepath.Join(root, "first.tar"), filepath.Join(root, "second.tar"), filepath.Join(root, "arm.tar")
 	for path, arch := range map[string]string{first: "amd64", second: "amd64", arm: "arm64"} {
 		if err := archive(path, arch); err != nil {

@@ -80,6 +80,12 @@ func Write(path string, value any) error {
 		return err
 	}
 	defer os.Remove(f.Name())
+	// Journals and review evidence are public build artifacts, not credentials.
+	// Docker actions may run as root while the artifact uploader runs as the runner.
+	if err = f.Chmod(0644); err != nil {
+		f.Close()
+		return err
+	}
 	if _, err = f.Write(append(data, '\n')); err != nil {
 		f.Close()
 		return err
