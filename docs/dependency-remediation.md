@@ -34,17 +34,23 @@ aux autres vulnérabilités du module ni aux images des consommateurs.
 ### Correction de markdown-it dans Renovate
 
 Le run `39571354933` a bloqué Renovate sur `GHSA-gfr2-rv44-r23c`, affectant
-`markdown-it` 15.0.2. Le runtime utilise désormais la version amont 15.0.3 et sa
-fermeture de dépendances verrouillée dans
-`maintenance/update-dependencies/dependencies.markdown/package-lock.json`.
-`npm ci` vérifie les intégrités du lockfile, sans exécuter de scripts de paquets.
+`markdown-it` 15.0.2. Renovate 44.181.6 embarque maintenant la version corrigée
+15.0.3 : l'ancien remplacement local et son lockfile sont supprimés. Les tests de
+rendu ordinaire et des longues références non terminées restent exécutés au build.
 
-`update-markdown.cjs` remplace chaque copie installée attendue et vérifie le
-rendu ordinaire ainsi que les longues références non terminées de l'avis.
-Une version source inattendue ou l'absence du paquet fait échouer la construction.
-Le paquet corrigé conserve sa véritable identité et sa version amont : aucune
-nouvelle exclusion Grype n'est ajoutée. Le scan local de l'archive reconstruite
-passe avec le seuil `high` ; la qualification native reste exécutée en CI.
+### Correction de Zod et Undici
+
+Le run `40229923136` a bloqué les deux architectures sur `GHSA-mrhx-c7xc-m3w5`
+dans Zod 4.6.5 et `GHSA-xjj6-f33q-929c` dans Undici 8.11.2. La base Renovate
+44.181.6 apporte Zod 4.6.7, mais conserve encore l'Undici affecté.
+
+`update-undici.cjs` remplace chaque copie attendue par la version amont 8.12.2,
+installée avec `npm ci --ignore-scripts` depuis le lockfile
+`maintenance/update-dependencies/dependencies.undici/package-lock.json`.
+L'identité réelle du paquet est conservée et aucune exclusion n'est ajoutée.
+Le build vérifie les versions, une requête avec le MockAgent d'Undici et les
+régressions Markdown. Le scan local de l'archive reconstruite passe au seuil
+`high` ; la qualification native des deux architectures reste exécutée en CI.
 
 ### Corrections précédentes
 

@@ -1,8 +1,8 @@
 {
-  "name": "renovate-markdown-runtime",
+  "name": "renovate-undici-runtime",
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "markdown-it": "15.0.3"
+    "undici": "8.12.2"
   }
 }

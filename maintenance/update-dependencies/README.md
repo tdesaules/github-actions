@@ -1,6 +1,9 @@
 # Update dependencies
 
-Action running Renovate 44.167.1 for one explicit GitHub repository.
+Action running Renovate 44.181.6 for one explicit GitHub repository.
+
+The runtime includes upstream Zod 4.6.7 and Markdown-it 15.0.3. Undici is replaced
+with its locked upstream 8.12.2 release until Renovate incorporates that fix.
 Required inputs: `repository` (`owner/name`) and `token`; `dry-run` defaults to
 `false`. Authentication is passed through `RENOVATE_TOKEN`, never an argument.
 The token needs contents, pull request and workflow update permissions.

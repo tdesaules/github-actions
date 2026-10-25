@@ -56,7 +56,7 @@ func execute(args []string) error {
 
 func main() {
 	if len(os.Args) == 2 && os.Args[1] == "--tool-version" {
-		fmt.Println("Renovate 44.167.1 (braces depth guard)")
+		fmt.Println("Renovate 44.181.6 (braces depth guard, undici 8.12.2)")
 		return
 	}
 	if err := execute(os.Args[1:]); err != nil {
