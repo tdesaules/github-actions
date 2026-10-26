@@ -9,4 +9,4 @@ Inputs: `directory` (default `.build/fixtures`), `seed`, `signed-fixture`.
 Outputs `repository`, `reference`, `destination`. CLI flags override `INPUT_*`.
 Only the CA retrieval uses private HTTP; image operations use verified TLS.
 
-The fixed Go/Skopeo/Cosign scratch image is awaiting qualification/publication.
+The fixed Go/Skopeo/Cosign scratch image was published in `1.2.0`.

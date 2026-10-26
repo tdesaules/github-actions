@@ -25,7 +25,7 @@ func TestMigratedJobsUsePublishedActions(t *testing.T) {
 	if err := yaml.Unmarshal(data, &workflow); err != nil {
 		t.Fatal(err)
 	}
-	for _, job := range []string{"check", "lint", "release", "maintenance"} {
+	for _, job := range []string{"check", "lint", "build", "test", "release", "maintenance"} {
 		steps := workflow.Jobs[job].Steps
 		if len(steps) == 0 {
 			t.Fatalf("missing steps in %s", job)
@@ -35,6 +35,8 @@ func TestMigratedJobsUsePublishedActions(t *testing.T) {
 				t.Errorf("%s: host run step %v", job, step["name"])
 			}
 			uses, _ := step["uses"].(string)
+			// Candidate actions preserve the source directory beneath this prefix.
+			uses = strings.Replace(uses, "./.candidate-actions/", "./", 1)
 			if !strings.HasPrefix(uses, "./") {
 				if !strings.HasPrefix(uses, "actions/checkout@") && !strings.HasPrefix(uses, "actions/upload-artifact@") && !strings.HasPrefix(uses, "actions/download-artifact@") && !strings.HasPrefix(uses, "actions/create-github-app-token@") {
 					t.Errorf("%s: unexpected non-container action %q", job, uses)
@@ -116,6 +118,39 @@ func TestBuildAndQualificationAreSeparate(t *testing.T) {
 		run, _ := step["run"].(string)
 		if strings.Contains(run, "scripts/images.py build-image") {
 			t.Fatal("test must not reconstruct candidate images")
+		}
+	}
+	steps := document.Jobs["test"].Steps
+	fixtures, runtime, scan, qualified := -1, -1, -1, -1
+	checks := []int{}
+	for i, step := range steps {
+		switch step["uses"] {
+		case "./workflow/new-test-fixtures":
+			fixtures = i
+		case "./workflow/test-candidate-runtime":
+			runtime = i
+		case "./workflow/test-reviewed-vulnerabilities":
+			scan = i
+		case "./workflow/test-build-artifact":
+			checks = append(checks, i)
+		}
+		if step["name"] == "Record successful matrix result" {
+			qualified = i
+			if step["if"] != "matrix.rebuild" {
+				t.Fatal("qualification marker must require successful preceding checks")
+			}
+		}
+	}
+	if fixtures < 0 || runtime <= fixtures {
+		t.Fatal("runner-owned fixtures must precede root-owned reports, including metadata-only tests")
+	}
+	if scan <= runtime || len(checks) != 2 || checks[0] >= runtime || checks[1] <= scan || qualified <= checks[1] {
+		t.Fatal("archive integrity must bracket tests and scans before qualification")
+	}
+	for _, step := range steps[qualified+1:] {
+		uses, _ := step["uses"].(string)
+		if !strings.HasPrefix(uses, "actions/upload-artifact@") {
+			t.Fatal("tests must not run after the qualification marker")
 		}
 	}
 }

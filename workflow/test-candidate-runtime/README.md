@@ -21,4 +21,4 @@ Inputs: `archive` or `reference`, `image`, `architecture`, optional `revision`,
 `output`. CLI flags override `INPUT_*`. Reports retain individual results and
 diagnostics. No arbitrary command input or operation selector is exposed.
 
-The image is awaiting qualification/publication before final workflow activation.
+Published in `1.2.0`, the image is called directly for every selected native test.

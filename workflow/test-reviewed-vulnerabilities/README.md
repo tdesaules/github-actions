@@ -7,5 +7,5 @@ Retains the Grype report on threshold failure. Temporary database caches are not
 included in qualification artifacts.
 
 Inputs: `sbom`, `config`, `output`, `database-metadata`. Paths must be distinct;
-CLI flags override `INPUT_*`. The fixed Go/Grype scratch image is awaiting
-qualification and immutable publication.
+CLI flags override `INPUT_*`. The fixed Go/Grype scratch image was published in
+`1.2.0` and gates qualification in the test job.

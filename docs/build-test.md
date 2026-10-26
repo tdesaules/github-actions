@@ -58,16 +58,17 @@ vrai `RUN` natif réussi et un `RUN` sortant en 42, sans téléchargement de bas
 Le service de registre expose HTTP uniquement pour le transport candidat privé
 et la CA de test. Les essais de publication/signature passent par TLS avec une
 CA vérifiée. Le registre est reconstruit avec Go épinglé depuis Distribution
-3.1.2 et analysé au seuil `high`. Son cycle de vie sera géré par les services du
+3.1.2 et analysé au seuil `high`. Son cycle de vie est géré par les services du
 job, sans commande Docker de démarrage ou de suppression sur le runner.
 
 ## Activation des images
 
-La séparation des jobs est active. Les nouvelles images sont d'abord qualifiées
-par ce pipeline avant leur publication immutable. Durant cette phase, la création
-du reçu et une partie des tests conservent des ponts Python explicitement
-identifiés. Ils seront remplacés par les actions ci-dessus après publication.
-Cette phase intermédiaire ne signifie pas que `test` est déjà entièrement migré.
+Les neuf images ont été qualifiées et publiées par le run `40352155319` dans
+`1.2.0`. Les six jobs sont maintenant composés d'appels `uses`, sans step `run`.
+La construction écrit le reçu via l'action publiée ; les tests passent par le
+registre candidat isolé et exécutent directement les actions générées sous
+`.candidate-actions/<famille>/<action>`. Les ponts Python de transfert sont retirés.
+Les scripts conservés dans le dépôt servent aux outils locaux, pas au workflow.
 
 Le téléchargement des artefacts utilise `download-artifact` 8.0.2 épinglé par
 commit. Le run `40238539314` avait produit les 94 archives qualifiées, mais la
@@ -77,7 +78,6 @@ artefacts. La validation de publication a correctement rejeté le lot incomplet
 
 Les journaux et preuves JSON sont désormais écrits en `0644`, afin que l'uploader
 du runner puisse lire les fichiers produits par les actions root. Les anciennes
-images publiées écrivaient certains de ces fichiers en `0600`. Un environnement
-Node épinglé, exécuté en root pour les actions officielles de transfert, maintient
-temporairement la compatibilité des jobs `release` et `maintenance` pendant la
-publication du correctif. Il sera retiré lors de l'activation des nouvelles images.
+images publiées écrivaient certains de ces fichiers en `0600`. L'environnement
+Node temporaire des jobs `release` et `maintenance` est retiré : les actions
+publiées corrigées produisent désormais des artefacts lisibles par le runner.

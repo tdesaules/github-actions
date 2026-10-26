@@ -6,5 +6,5 @@ revision and candidate version. Does not run tests or produce release metadata.
 
 Inputs: `archive`, `output`, `expected-sha256`, `image`, `architecture`,
 `revision`, `version`. CLI flags override `INPUT_*` values. A receipt cannot
-overwrite its archive. The fixed Go scratch image is awaiting qualification and
-publication before replacing the temporary build receipt bridge.
+overwrite its archive. The fixed Go scratch image was published in `1.2.0` and
+is called directly by the build job.

@@ -8,4 +8,4 @@ Inputs: `directory` (default `.build/fixtures`), `index`, `retry-index`.
 Uses the private fixture service and its CA, without redirects or TLS bypass.
 Outputs `verified`. CLI flags override `INPUT_*` values.
 
-The fixed Go scratch image is awaiting qualification and immutable publication.
+The fixed Go scratch image was published in `1.2.0` and is called by `test`.

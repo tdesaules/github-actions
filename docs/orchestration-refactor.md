@@ -62,10 +62,10 @@ after configuring that token and disabling the hosted Renovate App for this
 repository. The variable is currently unset and the secret is absent; bot updates
 therefore remain inactive. Release App credentials are not reused for Renovate.
 
-## Remaining orchestration work
+## Build and test
 
-Construction and qualification are now separate `build` and `test` jobs; see
-[the build/test contract](build-test.md). Construction uses the published Buildah
-action. Native receipt, runtime, registry and report actions are being qualified
-before replacing the temporary bridges and remaining test orchestration. The
-four previously migrated jobs remain action-composed.
+Construction and qualification are separate `build` and `test` jobs; see
+[the build/test contract](build-test.md). The `1.2.0` receipt, runtime, registry,
+review and report actions replace the remaining host commands. All six jobs now
+use explicit actions, with no `run` steps in the workflow. The narrowly scoped
+Buildah launcher remains the qualified composite exception.

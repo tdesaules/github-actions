@@ -13,4 +13,4 @@ contains a rebuilt registry binary, not a compiler or a container engine.
 
 There are no operation-selector inputs. The service runs until stopped by its
 job lifecycle; `--tool-version` is the standard smoke-test diagnostic.
-The scratch image is awaiting native qualification and immutable publication.
+Published in `1.2.0`, its digest is discovered from metadata for the job services.

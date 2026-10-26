@@ -144,8 +144,6 @@ def metadata(image, version):
     from oci_archive import check_temporary_directory
     directory = ROOT / ".build" / image / architecture()
     archive = directory / "image.oci.tar"
-    if os.environ.get('GITHUB_ACTIONS') == 'true' or (directory / 'build.json').exists():
-        verify_build_artifact(image, version)
     check_temporary_directory(archive)
     with archive.open("rb") as stream:
         checksum = hashlib.file_digest(stream, "sha256").hexdigest()
@@ -156,44 +154,9 @@ def metadata(image, version):
     (directory / "metadata.json").write_text(json.dumps(data, indent=2)+"\n")
 
 
-def build_receipt(image, version):
-    """Qualification bridge until the native receipt action is published."""
-    archive = ROOT / 'image.oci.tar'
-    with archive.open('rb') as stream:
-        checksum = hashlib.file_digest(stream, 'sha256').hexdigest()
-    if checksum != os.environ.get('BUILDER_SHA256'):
-        raise ValueError('archive differs from the builder checksum')
-    data = {'image': image, 'arch': architecture(), 'version': version,
-            'revision': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
-            'archive_sha256': checksum, 'tested': False}
-    (ROOT / 'build.json').write_text(json.dumps(data, indent=2)+'\n')
-
-
-def verify_build_artifact(image, version):
-    """Verify the build/test boundary and recheck it before qualification."""
-    directory = ROOT / '.build' / image / architecture()
-    data = json.loads((directory / 'build.json').read_text())
-    expected = {'image': image, 'arch': architecture(), 'version': version,
-                'revision': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()}
-    if data.get('tested') is not False or any(data.get(k) != v for k, v in expected.items()):
-        raise ValueError('build receipt does not match this source revision and matrix job')
-    archive = directory / 'image.oci.tar'
-    with archive.open('rb') as stream:
-        checksum = hashlib.file_digest(stream, 'sha256').hexdigest()
-    if checksum != data.get('archive_sha256'):
-        raise ValueError('downloaded build archive checksum mismatch')
-    return archive
-
-
-def load_build_artifact(image, version):
-    """Qualification bridge before the isolated candidate-registry transport."""
-    archive = verify_build_artifact(image, version)
-    load_archive(archive, local_ref(image, version))
-
-
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("build-image", "test-image", "initialize-bootstrap", "new-candidate-actions", "new-metadata", "new-build-receipt", "load-build-artifact"))
+    parser.add_argument("command", choices=("build-image", "test-image", "initialize-bootstrap", "new-candidate-actions", "new-metadata"))
     parser.add_argument("--image", default="all")
     parser.add_argument("--version", default="0.0.0-bootstrap")
     parser.add_argument("--direct", action="store_true", help="diagnostic engine build, not a nested Buildah qualification")
@@ -204,10 +167,6 @@ def main():
         candidates(args.image, args.version)
         return
     for image in images:
-        if args.command == 'new-build-receipt':
-            build_receipt(image, args.version)
-        if args.command == 'load-build-artifact':
-            load_build_artifact(image, args.version)
         if args.command in ("build-image", "initialize-bootstrap"):
             build(image, args.version, args.direct)
         if args.command in ("test-image", "initialize-bootstrap"):
