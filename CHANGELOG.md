@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.0
+
+- activate native release and maintenance actions (8a40c3b)
+
+- separate image builds from native qualification (18cd3c5)
+
+- update vulnerable Zod and Undici dependencies (4717cc8)
+
+- download every page of qualification artifacts (9d73698)
+
 ## 1.1.0
 
 - activate published Docker orchestration actions (6af5a11)

@@ -24,7 +24,7 @@ inputs:
     required: true
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-build-receipt:unpublished
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-build-receipt@sha256:5db1887bf6ee4d5feae030a9b76a6aaf95b667c163e835577297db07ff6271b3
   args:
     - --archive=${{ inputs.archive }}
     - --output=${{ inputs.output }}

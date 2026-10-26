@@ -6,6 +6,6 @@ inputs:
     default: .
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/check-test-catalog@sha256:43437434155e9af7e795f5a620e1507cba2eef121612c27b823b89f9a424b115
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-catalog@sha256:7b0001f4a66d249c13f69e4136cec010178603ef2025a24a889d718e13e035e1
   args:
     - --directory=${{ inputs.directory }}

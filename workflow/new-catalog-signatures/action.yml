@@ -12,7 +12,7 @@ inputs:
     required: true
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-catalog-signatures@sha256:95313eecb3b5b5e8256ed514056b4ec437bf83ec952277995668dfc49240f2d1
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-catalog-signatures@sha256:43bf97cad7e1309eeb34a7adf4ee26160e427d2c68c9f9f12f0b0790dd2399c1
   env:
     INPUT_REGISTRY-USERNAME: ${{ inputs.registry-username }}
     INPUT_REGISTRY-PASSWORD: ${{ inputs.registry-password }}

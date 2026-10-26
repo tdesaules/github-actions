@@ -13,7 +13,7 @@ outputs:
     description: Whether every file passed
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/check-test-links@sha256:89f42dc3e51a6f9d05f1578db7dd9c5011a9da0571c47854fda327f4ee158087
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-links@sha256:c7f3ed6fd3182c0715438166f837a461c211e0eab0391f3c684352d76bd8fd41
   args:
     - --files=${{ inputs.files }}
     - --config=${{ inputs.config }}
