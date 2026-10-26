@@ -69,6 +69,12 @@ du reçu et une partie des tests conservent des ponts Python explicitement
 identifiés. Ils seront remplacés par les actions ci-dessus après publication.
 Cette phase intermédiaire ne signifie pas que `test` est déjà entièrement migré.
 
+Le téléchargement des artefacts utilise `download-artifact` 8.0.2 épinglé par
+commit. Le run `40238539314` avait produit les 94 archives qualifiées, mais la
+version précédente ignorait la dernière page de l'API REST au-delà de 100
+artefacts. La validation de publication a correctement rejeté le lot incomplet
+(74 reçus sur 94 attendus), avant toute publication.
+
 Les journaux et preuves JSON sont désormais écrits en `0644`, afin que l'uploader
 du runner puisse lire les fichiers produits par les actions root. Les anciennes
 images publiées écrivaient certains de ces fichiers en `0600`. Un environnement

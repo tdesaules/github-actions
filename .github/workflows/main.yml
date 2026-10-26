@@ -270,7 +270,7 @@ jobs:
           persist-credentials: false
       - name: Download untested build artifact
         if: matrix.rebuild
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: build-${{ matrix.image }}-${{ matrix.arch }}-${{ github.run_id }}
           path: .build/${{ matrix.image }}/${{ matrix.arch }}
@@ -463,24 +463,25 @@ jobs:
         if: matrix.image == 'workflow-test-candidate-runtime'
         uses: ./.candidate-actions/test-candidate-runtime
         with:
-          archive: .build/${{ matrix.image }}/${{ matrix.arch }}/image.oci.tar
+          archive: ${{ matrix.rebuild && format('.build/{0}/{1}/image.oci.tar', matrix.image, matrix.arch) || '' }}
+          reference: ${{ matrix.reference }}
           image: ${{ matrix.image }}
           architecture: ${{ matrix.arch }}
-          revision: ${{ github.sha }}
+          revision: ${{ matrix.rebuild && github.sha || '' }}
           output: .build/${{ matrix.image }}/${{ matrix.arch }}/runtime-tests.json
       - name: Download the native runtime test tool for service qualification
-        if: matrix.image == 'workflow-start-test-registry' && contains(needs.check.outputs.matrix, 'workflow-test-candidate-runtime')
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        if: matrix.image == 'workflow-start-test-registry' && contains(needs.check.outputs.matrix, 'workflow-test-candidate-runtime') && !contains(needs.check.outputs.matrix, '"rebuild":false')
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: build-workflow-test-candidate-runtime-${{ matrix.arch }}-${{ github.run_id }}
           path: .build/workflow-test-candidate-runtime/${{ matrix.arch }}
       - name: Prepare the tested-source runtime tool during qualification
-        if: matrix.image == 'workflow-start-test-registry' && contains(needs.check.outputs.matrix, 'workflow-test-candidate-runtime')
+        if: matrix.image == 'workflow-start-test-registry' && contains(needs.check.outputs.matrix, 'workflow-test-candidate-runtime') && !contains(needs.check.outputs.matrix, '"rebuild":false')
         run: |
           python3 scripts/images.py load-build-artifact --image workflow-test-candidate-runtime --version "$VERSION"
           python3 scripts/images.py new-candidate-actions --image workflow-test-candidate-runtime --version "$VERSION"
       - name: Test the native registry service lifecycle
-        if: matrix.image == 'workflow-start-test-registry' && contains(needs.check.outputs.matrix, 'workflow-test-candidate-runtime')
+        if: matrix.image == 'workflow-start-test-registry' && contains(needs.check.outputs.matrix, 'workflow-test-candidate-runtime') && !contains(needs.check.outputs.matrix, '"rebuild":false')
         uses: ./.candidate-actions/test-candidate-runtime
         with:
           archive: .build/${{ matrix.image }}/${{ matrix.arch }}/image.oci.tar
@@ -677,7 +678,7 @@ jobs:
           source: dir:.build/fixtures/fixture with spaces
           output: .build/fixtures/reports with spaces/sbom.json
       - name: Test evidence-rich native SBOM format
-        if: matrix.image == 'oci-new-sbom'
+        if: matrix.image == 'oci-new-sbom' && matrix.rebuild
         uses: ./.candidate-actions/new-sbom
         env:
           SYFT_GOLANG_CAPTURE_SYMBOLS: all
@@ -830,7 +831,7 @@ jobs:
           permission-contents: write
       - name: Download tested matrix artifacts
         if: needs.check.outputs.mode == 'prepare'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: ${{ needs.check.outputs.artifact-pattern || format('oci-*-{0}-*', github.run_id) }}
           path: .build/publication
@@ -838,7 +839,7 @@ jobs:
           github-token: ${{ github.token }}
       - name: Download release plan
         if: needs.check.outputs.mode == 'prepare'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: release-plan
           path: .build/publication
