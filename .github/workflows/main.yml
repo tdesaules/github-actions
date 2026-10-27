@@ -865,6 +865,7 @@ jobs:
           path: |
             .build/${{ matrix.image }}/${{ matrix.arch }}/runtime-tests.json
             .build/fixtures/*.json
+            !.build/fixtures/signing.json
             .build/fixtures/registry-cert.pem
           if-no-files-found: warn
           include-hidden-files: true

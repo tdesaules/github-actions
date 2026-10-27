@@ -99,7 +99,12 @@ func run() error {
 		return err
 	}
 	if *sign {
-		config := filepath.Join(*directory, "signing.json")
+		private, err := os.MkdirTemp("", "fixture-signing-")
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(private)
+		config := filepath.Join(private, "signing.json")
 		if err = catalog.Run("cosign", "signing-config", "create", "--out", config); err != nil {
 			return err
 		}
