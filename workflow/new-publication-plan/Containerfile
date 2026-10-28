@@ -6,12 +6,14 @@ COPY shared/publication/ ./shared/publication/
 COPY shared/runtime/ ./shared/runtime/
 COPY shared/workflow/ ./shared/workflow/
 COPY workflow/new-publication-plan/main.go ./workflow/new-publication-plan/main.go
-RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/new-publication-plan
+COPY workflow/get-image-matrix/main.go workflow/get-image-matrix/dependencies.go ./workflow/get-image-matrix/
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/new-publication-plan \
+    && CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /matrix ./workflow/get-image-matrix
 FROM ghcr.io/tdesaules/github-actions/workflow-get-image-matrix@sha256:221d845a4d3c26bcd3a534b0800a4995f7f8acb60ba1097876dd214c4f241886 AS git
 FROM ghcr.io/tdesaules/github-actions/oci-import-image@sha256:172b727c3989d17cec77a430a98c1211a254240f31d87747a911871cfde67322 AS registry
 FROM scratch AS final
 COPY --from=git / /
-COPY --from=git /entrypoint /matrix
+COPY --from=build /matrix /matrix
 COPY --from=registry /usr/bin/skopeo /usr/bin/skopeo
 COPY --from=registry /etc/containers/ /etc/containers/
 COPY --from=registry /var/ /var/

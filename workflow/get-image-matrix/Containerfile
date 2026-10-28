@@ -3,6 +3,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 COPY shared/workflow/ ./shared/workflow/
 COPY workflow/get-image-matrix/main.go ./workflow/get-image-matrix/main.go
+COPY workflow/get-image-matrix/dependencies.go ./workflow/get-image-matrix/dependencies.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/get-image-matrix \
     && apk add --no-cache git=2.54.0-r0
 COPY shared/collect-binaries.sh /collect-binaries.sh

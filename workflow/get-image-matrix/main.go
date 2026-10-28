@@ -24,6 +24,7 @@ type job struct {
 	Runner    string `json:"runner"`
 	Rebuild   bool   `json:"rebuild"`
 	Reference string `json:"reference"`
+	Scan      bool   `json:"scan"`
 }
 type matrix struct {
 	Include []job `json:"include"`
@@ -70,45 +71,56 @@ func discover() ([]component, error) {
 	return result, nil
 }
 
-func selectImages(components []component, paths []string, full bool) matrix {
+func selectImages(components []component, paths []string, full bool) (matrix, error) {
 	r := matrix{Include: []job{}}
 	for _, c := range components {
+		dependencies, err := buildDependencies(c.directory)
+		if err != nil {
+			return r, err
+		}
 		selected, rebuild := full, full
+		scan := full
 		for _, p := range paths {
+			if p == "grype-review.json" || strings.HasPrefix(p, "shared/review/") {
+				selected, scan = true, true
+			}
+			if p == c.directory+"/Containerfile" || p == ".containerignore" || p == ".dockerignore" {
+				selected, rebuild = true, true
+				continue
+			}
+			affected, err := dependencies.affected(p)
+			if err != nil {
+				return r, err
+			}
+			if affected {
+				selected, rebuild = true, true
+				continue
+			}
 			ext := strings.ToLower(filepath.Ext(p))
 			if ext == ".md" || ext == ".markdown" {
 				continue
 			}
-			if strings.HasPrefix(p, ".github/workflows/") || p == "grype-review.json" {
+			if strings.HasPrefix(p, ".github/workflows/") || strings.HasPrefix(p, "scripts/") || strings.HasPrefix(p, "tasks/") || p == "taskfile.yml" {
 				selected = true
-			}
-			shared := p == "go.mod" || p == "go.sum" || p == ".containerignore" || p == ".dockerignore" || p == "taskfile.yml"
-			for _, prefix := range []string{"shared/", "scripts/", "tasks/"} {
-				shared = shared || strings.HasPrefix(p, prefix)
-			}
-			if shared {
-				selected, rebuild = true, true
 			}
 			if strings.HasPrefix(p, c.directory+"/") {
 				selected = true
-				name := strings.TrimPrefix(p, c.directory+"/")
-				if name == "Containerfile" || name == ".containerignore" || ext == ".go" || ext == ".mjs" || ext == ".cjs" || strings.HasPrefix(name, "src/") || strings.HasPrefix(name, "dependencies.") {
-					rebuild = true
-				}
 			}
 		}
 		if !selected {
 			continue
 		}
+		rebuild = rebuild || strings.HasSuffix(c.reference, ":unpublished")
+		scan = scan || rebuild
 		for _, arch := range []string{"amd64", "arm64"} {
 			runner := "ubuntu-24.04"
 			if arch == "arm64" {
 				runner += "-arm"
 			}
-			r.Include = append(r.Include, job{Image: c.image, Directory: c.directory, Arch: arch, Runner: runner, Rebuild: rebuild || strings.HasSuffix(c.reference, ":unpublished"), Reference: c.reference})
+			r.Include = append(r.Include, job{Image: c.image, Directory: c.directory, Arch: arch, Runner: runner, Rebuild: rebuild, Reference: c.reference, Scan: scan})
 		}
 	}
-	return r
+	return r, nil
 }
 
 func run() error {
@@ -189,7 +201,10 @@ func run() error {
 	}
 	m := matrix{Include: []job{}}
 	if mode == "development" || mode == "prepare" {
-		m = selectImages(components, paths, *full)
+		m, err = selectImages(components, paths, *full)
+		if err != nil {
+			return err
+		}
 	}
 	if mode == "prepare" && *reuse {
 		m.Include = []job{}
