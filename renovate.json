@@ -3,11 +3,11 @@
   "extends": ["config:recommended", "docker:pinDigests", "helpers:pinGitHubActionDigests"],
   "dependencyDashboard": true,
   "automerge": false,
-  "enabledManagers": ["dockerfile", "github-actions", "gomod", "custom.regex"],
+  "enabledManagers": ["dockerfile", "github-actions", "gomod", "npm", "custom.regex"],
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": ["/^(oci|check)/.*Containerfile$/", "/^shared/runtime/compile-tool\\.sh$/"],
+      "managerFilePatterns": ["/^(oci|check|lint|workflow|maintenance)/.*Containerfile$/", "/^shared/runtime/compile-tool\\.sh$/"],
       "matchStrings": ["(?<depName>(?:github\\.com|golang\\.org|google\\.golang\\.org|go\\.podman\\.io|go\\.opentelemetry\\.io)/[a-zA-Z0-9_./-]+)@(?<currentValue>v[0-9][a-zA-Z0-9.+-]*)"],
       "datasourceTemplate": "go"
     }

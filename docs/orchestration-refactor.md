@@ -57,10 +57,9 @@ The maintenance job contains no host command steps. The Go advisory-review
 implementation preserves the prior fail-closed evidence checks and `high` gate.
 
 Renovate is wired through `maintenance/update-dependencies` with the dedicated
-`RENOVATE_TOKEN` secret. Set the repository variable `RENOVATE_ENABLED=true` only
-after configuring that token and disabling the hosted Renovate App for this
-repository. The variable is currently unset and the secret is absent; bot updates
-therefore remain inactive. Release App credentials are not reused for Renovate.
+`RENOVATE_TOKEN` secret and runs directly in the maintenance job unless cancelled.
+Disable the hosted Renovate App for this repository to avoid duplicate execution.
+Release App credentials are not reused for Renovate.
 
 ## Build and test
 

@@ -108,9 +108,13 @@ Une seule base Grype actualisée est partagée entre les vingt scans ; elle n'es
 pas incluse dans les artefacts de rapports.
 Les politiques de revue de dépendances restent identiques à celles des builds.
 `renovate.json` configure les mises à jour des bases, actions et dépendances Go.
-Le runner conteneurisé utilise le secret dédié `RENOVATE_TOKEN` et s'active avec
-la variable de dépôt `RENOVATE_ENABLED=true`, après désactivation de l'App
-Renovate hébergée sur ce dépôt. L'automerge est désactivé.
+Le runner conteneurisé utilise le secret dédié `RENOVATE_TOKEN` et s'exécute dans
+le job `maintenance`. L'App Renovate hébergée doit être désactivée sur ce dépôt
+pour éviter les doublons. L'automerge est désactivé.
+Le lancement manuel avec `maintenance: true` utilise par défaut
+`renovate-dry-run: true` pour valider le token et la résolution des dépendances.
+Mettre cet input à `false` pour créer les branches et PR. Le lancement planifié
+du lundi à 05:23 UTC exécute les mises à jour réelles.
 
 La migration ponctuelle depuis les cinq images partagées est terminée. L'entrée
 `retire-shared-images` et les étapes de suppression ont été retirées du workflow.

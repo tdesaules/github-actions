@@ -10,6 +10,10 @@ on:
         description: Rescan published images and check documentation links without building
         type: boolean
         default: false
+      renovate-dry-run:
+        description: Resolve Renovate updates without creating branches or pull requests
+        type: boolean
+        default: true
       qualify-runner:
         description: Qualify published checks and the Buildah launcher on both hosted architectures
         type: boolean
@@ -1002,11 +1006,12 @@ jobs:
           files: ${{ steps.documents.outputs.lychee-files }}
           config: lychee.toml
       - name: Update dependencies with Renovate
-        if: ${{ !cancelled() && vars.RENOVATE_ENABLED == 'true' }}
+        if: '!cancelled()'
         uses: ./maintenance/update-dependencies
         with:
           repository: ${{ github.repository }}
           token: ${{ secrets.RENOVATE_TOKEN }}
+          dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.renovate-dry-run }}
       - name: Upload maintenance reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
