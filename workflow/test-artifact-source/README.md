@@ -11,7 +11,8 @@ HTTP redirects are rejected; TLS verification remains enabled.
 The independent scratch image runs a fixed Go executable. No host GitHub CLI or
 Python is needed. Published with `1.0.1`, it is called directly by `check` when
 an artifact source run is requested.
-# Retry-aware artifact selection
+
+## Retry-aware artifact selection
 
 The updated source accepts `release-plan` and returns immutable `artifact-ids`
 for every required image/architecture. It paginates the artifact API, accepts
