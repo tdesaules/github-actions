@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/tdesaules/github-actions/shared/candidate"
 	"github.com/tdesaules/github-actions/shared/catalog"
@@ -156,11 +157,15 @@ func run() (err error) {
 	arch := flag.String("architecture", os.Getenv("INPUT_ARCHITECTURE"), "native architecture")
 	revision := flag.String("revision", os.Getenv("INPUT_REVISION"), "optional expected build revision")
 	output := flag.String("output", os.Getenv("INPUT_OUTPUT"), "runtime test report")
+	archiveOutput := flag.String("archive-output", os.Getenv("INPUT_ARCHIVE-OUTPUT"), "optional retained native archive for a published-image scan")
 	flag.Parse()
 	if flag.NArg() != 0 || *image == "" || *output == "" || (*arch != "amd64" && *arch != "arm64") {
 		return fmt.Errorf("image, architecture and output are required")
 	}
 	if *archive != "" {
+		if *archiveOutput != "" {
+			return fmt.Errorf("archive-output is only valid for a published reference")
+		}
 		source, err := filepath.Abs(*archive)
 		if err != nil {
 			return err
@@ -171,6 +176,45 @@ func run() (err error) {
 		}
 		if source == target {
 			return fmt.Errorf("runtime report must not overwrite the candidate archive")
+		}
+	}
+	owner := "."
+	if value := os.Getenv("GITHUB_OUTPUT"); value != "" {
+		owner = value
+	}
+	info, err := os.Stat(owner)
+	if err != nil {
+		return err
+	}
+	stat := info.Sys().(*syscall.Stat_t)
+	for _, p := range []string{*output, *archiveOutput} {
+		if p == "" {
+			continue
+		}
+		parent := filepath.Dir(p)
+		if err = os.MkdirAll(parent, 0755); err != nil {
+			return err
+		}
+		if os.Getuid() == 0 {
+			if err = os.Chown(parent, int(stat.Uid), int(stat.Gid)); err != nil {
+				return err
+			}
+		}
+	}
+	if *archiveOutput != "" {
+		a, err := filepath.Abs(*archiveOutput)
+		if err != nil {
+			return err
+		}
+		b, err := filepath.Abs(*output)
+		if err != nil {
+			return err
+		}
+		if a == b {
+			return fmt.Errorf("scan archive and report must be distinct")
+		}
+		if _, err := os.Lstat(a); !os.IsNotExist(err) {
+			return fmt.Errorf("scan archive output must not already exist: %s", a)
 		}
 	}
 	results := []result{}
@@ -200,6 +244,15 @@ func run() (err error) {
 	root, err := candidate.Open(layout, filepath.Join(tmp, "root"), *image, *arch, *revision)
 	if err != nil {
 		return err
+	}
+	if *archiveOutput != "" {
+		target, err := filepath.Abs(*archiveOutput)
+		if err != nil {
+			return err
+		}
+		if err = catalog.Run("/usr/bin/skopeo", "copy", "--preserve-digests", "oci:"+layout+":candidate", "oci-archive:"+target); err != nil {
+			return err
+		}
 	}
 	return qualify(root, *image, &results)
 }
