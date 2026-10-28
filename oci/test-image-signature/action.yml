@@ -38,4 +38,5 @@ runs:
     - --output=${{ inputs.output }}
     - --registry=${{ inputs.registry }}
     - --registry-username=${{ inputs.registry-username }}
-    - --registry-password=${{ inputs.registry-password }}
+  env:
+    INPUT_REGISTRY-PASSWORD: ${{ inputs.registry-password }}
