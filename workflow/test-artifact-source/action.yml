@@ -1,6 +1,9 @@
 name: Test artifact source
 description: Require a successful catalogue run at the exact main revision before artifact reuse
 inputs:
+  release-plan:
+    description: Release plan defining the required image and architecture set
+    default: ''
   run-id:
     description: Source GitHub Actions run ID
     required: true
@@ -15,12 +18,15 @@ inputs:
     required: true
 outputs:
   artifact-pattern:
-    description: Artifact names restricted to the verified run and attempt
+    description: Legacy last-attempt pattern; use artifact-ids after publishing the updated action
+  artifact-ids:
+    description: Immutable artifact IDs covering the required native builds across successful retries
 runs:
   using: docker
   image: docker://ghcr.io/tdesaules/github-actions/workflow-test-artifact-source@sha256:ab3e6b13728a674a8e22f7207654bbc1fa5e7f5eb2df6426eacbbf93ef69af87
   env:
     INPUT_TOKEN: ${{ inputs.token }}
+    INPUT_RELEASE-PLAN: ${{ inputs.release-plan }}
   args:
     - --run-id=${{ inputs.run-id }}
     - --repository=${{ inputs.repository }}

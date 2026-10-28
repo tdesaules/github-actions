@@ -2,11 +2,16 @@ FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdab
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY shared/workflow/ ./shared/workflow/
-COPY workflow/test-artifact-source/main.go ./workflow/test-artifact-source/main.go
+COPY workflow/test-artifact-source/main.go workflow/test-artifact-source/artifacts.go ./workflow/test-artifact-source/
+COPY workflow/get-image-matrix/main.go workflow/get-image-matrix/dependencies.go ./workflow/get-image-matrix/
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/test-artifact-source \
+    && CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /matrix ./workflow/get-image-matrix \
     && mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
 
+FROM ghcr.io/tdesaules/github-actions/workflow-get-image-matrix@sha256:221d845a4d3c26bcd3a534b0800a4995f7f8acb60ba1097876dd214c4f241886 AS git
 FROM scratch AS final
+COPY --from=git / /
+COPY --from=build /matrix /matrix
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=build /runtime/ /
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
@@ -15,5 +20,6 @@ COPY --from=build /entrypoint /entrypoint
 # hadolint ignore=DL3002
 USER 0:0
 WORKDIR /github/workspace
+ENV PATH=/usr/bin HOME=/tmp
 ENTRYPOINT ["/entrypoint"]
 LABEL org.opencontainers.image.title="workflow-test-artifact-source" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

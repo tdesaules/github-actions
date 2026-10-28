@@ -3,7 +3,7 @@ package main
 import "testing"
 
 func TestExactSourceValidation(t *testing.T) {
-	good := sourceRun{"abc", "main", ".github/workflows/main.yml", "push", "success", 1}
+	good := sourceRun{"abc", "main", ".github/workflows/main.yml", "push", "success", 1, "completed"}
 	if err := validate(good, "abc"); err != nil {
 		t.Fatal(err)
 	}
