@@ -2,9 +2,9 @@
 
 Validates a source run using the GitHub API before archive reuse. Requires the
 exact requested revision, main branch, successful catalogue workflow and allowed
-event. Returns an artifact pattern restricted to the verified run and attempt.
+event. Returns immutable artifact IDs covering the required native build set.
 
-Inputs: `run-id`, `repository`, `revision`, `token`. CLI flags override `INPUT_*`
+Inputs: `run-id`, `repository`, `revision`, `release-plan`, `token`. CLI flags override `INPUT_*`
 values except the secret token, which is forwarded only through the environment.
 HTTP redirects are rejected; TLS verification remains enabled.
 
@@ -21,5 +21,5 @@ per key, and rejects incomplete, expired or ambiguous sets. The source run must
 remain completed and successful at the exact revision throughout selection.
 Publication still verifies archive hashes, source revision and qualification.
 
-Activate this interface only after publishing the updated image. The currently
-pinned image exposes the legacy `artifact-pattern` output.
+The image published with `1.3.0` exposes this interface. The workflow downloads
+the selected IDs and uses stable per-run artifact names for new qualifications.
