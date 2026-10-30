@@ -1,7 +1,8 @@
 # Reconstruction et analyse des dépendances
 
-Les cinq outils sont reconstruits depuis les versions amont indiquées dans leurs
-Containerfiles. `shared/runtime/compile-tool.sh` vérifie la somme du module source
+Les outils sont reconstruits depuis les versions amont indiquées dans leurs
+Containerfiles ou les scripts fixes `shared/runtime/compile-{skopeo,cosign,syft,grype}.sh`.
+`shared/runtime/compile-tool.sh` vérifie la somme du module source
 via Go, applique les versions correctives explicites et compile avec Go 1.27.2.
 Buildah utilise CGO et une liaison statique musl : son initialisation des
 namespaces dépend d'un constructeur C. Les autres outils sont compilés sans CGO.
@@ -10,6 +11,27 @@ Les images finales restent `scratch`.
 Les rapports conservent le SBOM SPDX, le SBOM Syft avec les symboles Go, les
 métadonnées de la base Grype et le résultat JSON complet. Le seuil bloquant reste
 `high`.
+
+## Blocage de publication du 30 octobre 2026
+
+Le run `41025389930` a terminé les builds, mais 44 variantes ont échoué au scan.
+La publication et le push atomique de release n'ont donc pas été exécutés.
+
+- `GHSA-mgcc-cww5-fp2q` affecte la validation des clés RSA JWK par go-jose v4
+  jusqu'à 4.1.5. Les compilations imposent désormais la version corrective 4.1.6.
+- Markdownlint embarquait Node 24.21.0, signalé par `CVE-2026-105482`,
+  `CVE-2026-105483`, `CVE-2026-106069` et `CVE-2026-111497`. Son runtime est
+  remplacé par Node 24.22.1 depuis un index officiel vérifié AMD64/ARM64.
+- Les helpers qui copiaient Skopeo, Cosign, Syft ou Grype depuis d'anciens digests
+  reconstruisent aussi ces exécutables. Copier un runtime publié puis seulement
+  reconstruire l'entrypoint Go conserverait la dépendance vulnérable. Les scripts
+  de compilation propres à chaque outil sont partagés avec les actions OCI ;
+  chaque action garde son image dédiée et son opération fixe.
+
+Les builds et scans locaux AMD64 de Markdownlint, Skopeo, Buildah, du registre,
+des fixtures de registre, des SBOMs du catalogue et du scanner revu passent au
+seuil `high`. Cette preuve locale ne remplace pas la qualification native des deux
+architectures sur GitHub. Aucune exclusion de ces avis n'est ajoutée.
 
 ## Revue ciblée de GO-2026-4887
 
