@@ -3,7 +3,7 @@
   "package": "github.com/docker/docker",
   "affected_package": "github.com/docker/docker/pkg/authorization",
   "reference": "https://github.com/moby/moby/commit/e89edb19ad7de0407a5d31e3111cb01aa10b5a38",
-  "reason": "The vulnerable daemon authorization package is not linked into this client tool. Revalidated against nonempty Go package symbol evidence for every scanned binary.",
+  "reason": "The vulnerable daemon authorization package is not linked into this client tool. Revalidated against nonempty Go package symbol evidence for every scanned binary. Missing, ambiguous or affected symbol evidence must fail closed on both rebuilt and published images.",
   "patched_npm": {
     "vulnerability": "GHSA-vfj7-8cjw-p6xm",
     "package": "braces",
