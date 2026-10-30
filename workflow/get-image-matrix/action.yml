@@ -32,7 +32,7 @@ outputs:
     description: Qualification version or release tag
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-image-matrix@sha256:f46093d994ab8a3754a2e5ef1a99e26507dd90c0d997fa068c2dbafdb4d9a642
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-image-matrix@sha256:7778d08c019188cf7f11cc3e1ce88730a0d77da087ba8d526e923306a731de8c
   args:
     - --files=${{ inputs.files }}
     - --full=${{ inputs.full }}

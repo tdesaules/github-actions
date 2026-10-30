@@ -18,7 +18,7 @@ outputs:
     description: Whether a new release was created
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-github-release@sha256:ca7b8294bb5c505f00386228c3780b6320cf9b5f7aaced66752fe42b40afc658
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-github-release@sha256:f18efcf8e136cce07964076cb8ce621a38ec068b8f7a822533f6652c8d60270b
   env:
     INPUT_TOKEN: ${{ inputs.token }}
   args:

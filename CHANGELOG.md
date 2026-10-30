@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.3.0
+
+- activate Docker-composed build and test jobs (a628cfe)
+
+- keep private signing config out of diagnostics (beddcec)
+
+- forward registry credentials through the environment (f2c4fe5)
+
+- derive rebuilds from build context dependencies (2ff203a)
+
+- retain native published archives for scan-only jobs (107db8d)
+
+- select complete immutable results across retries (890c0a4)
+
+- enable dedicated maintenance and complete manager coverage (3ed7b6d)
+
+- record prerequisite publication and activation checks (109174c)
+
+- update unavailable Alpine package pin (30e7560)
+
+- replace vulnerable Node runtime (c350a30)
+
+- rebuild inherited tools with patched go-jose (5ec1901)
+
+- track tool recipes and exclude release-owned images (e4c9e67)
+
+- record publication scan failures and remediation evidence (243c22c)
+
 ## 1.2.0
 
 - activate native release and maintenance actions (8a40c3b)

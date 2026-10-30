@@ -21,7 +21,7 @@ inputs:
     required: true
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-image-metadata@sha256:dca32d67aa76cab2fc1efb0680e416774487ad9c1b1d635c668859b8f7fa96c5
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-image-metadata@sha256:195630eb603bfb6a5bc596b4bc9f0fcd6633a3d2a7b2a3e7c98747090d733f35
   args:
     - --archive=${{ inputs.archive }}
     - --image=${{ inputs.image }}
