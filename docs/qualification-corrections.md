@@ -38,3 +38,28 @@ cases before calling the migration complete:
 
 Local unit tests and static workflow checks do not establish hosted execution of
 the activated scan-only and cross-attempt reuse paths.
+
+## Targeted qualification after activation
+
+The next source change clarifies the existing fail-closed policy justification
+without changing advisory IDs, hashes or severity, and binds artifact selection
+to the actual checkout revision. Local selection of this change produces 94 native
+test jobs: 92 scan-only variants and the two rebuilt artifact-source variants.
+
+After pushing this change:
+
+1. Confirm the 92 published variants run SBOM/review/Grype steps with no builds
+   and no publication metadata. Only artifact-source should upload qualified OCI
+   archives, one per architecture. Inspect retained JSON diagnostics.
+2. Record those two artifact IDs, rerun only one successful artifact-source test
+   job, and verify its stable artifact name receives a new ID while the other
+   architecture retains its original ID. Require the complete run to succeed.
+3. Prepare release on the exact same main revision using this source run ID.
+   Verify the validator selects both IDs, including the retained earlier result,
+   and publication uses the verified archives without rebuilding.
+4. Verify signatures, atomic references and the resulting tag-triggered release.
+
+The rebuilt validator was exercised locally: a mismatched checkout is rejected
+before API access; the matching checkout and actual historical release plan select
+94 distinct IDs from successful run `41038843468`. Unit cases also reject queued
+or in-progress source runs, incomplete/expired sets and ambiguous artifacts.

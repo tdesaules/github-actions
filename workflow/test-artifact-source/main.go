@@ -25,8 +25,8 @@ type sourceRun struct {
 	Status     string `json:"status"`
 }
 
-func validate(run sourceRun, revision string) error {
-	if run.Revision != revision || run.Branch != "main" || run.Path != ".github/workflows/main.yml" || (run.Event != "push" && run.Event != "workflow_dispatch") || run.Conclusion != "success" || run.Attempt < 1 {
+func validate(run sourceRun, revision, checkout string) error {
+	if checkout != revision || run.Revision != revision || run.Branch != "main" || run.Path != ".github/workflows/main.yml" || (run.Event != "push" && run.Event != "workflow_dispatch") || run.Status != "completed" || run.Conclusion != "success" || run.Attempt < 1 {
 		return fmt.Errorf("artifact source must be a successful catalogue run at this exact main commit")
 	}
 	return nil
@@ -46,6 +46,14 @@ func run() error {
 	token := os.Getenv("INPUT_TOKEN")
 	if token == "" {
 		return fmt.Errorf("token is required")
+	}
+	checkout, err := workflow.Git("rev-parse", "HEAD")
+	if err != nil {
+		return err
+	}
+	checkout = strings.TrimSpace(checkout)
+	if checkout != *revision {
+		return fmt.Errorf("artifact selection checkout must match the requested source revision")
 	}
 	client := &http.Client{Timeout: 60 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
 	endpoint := "https://api.github.com/repos/" + *repo + "/actions/runs/" + *id
@@ -70,11 +78,8 @@ func run() error {
 	if err := get(endpoint, &source); err != nil {
 		return err
 	}
-	if err := validate(source, *revision); err != nil {
+	if err := validate(source, *revision, checkout); err != nil {
 		return err
-	}
-	if source.Status != "completed" {
-		return fmt.Errorf("artifact source is still running")
 	}
 	cmd := exec.Command("/matrix", "--event=workflow_dispatch", "--ref=refs/heads/main", "--release-plan="+*plan)
 	cmd.Env = append(os.Environ(), "GITHUB_OUTPUT=")
