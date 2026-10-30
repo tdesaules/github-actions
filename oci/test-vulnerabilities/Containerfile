@@ -6,7 +6,7 @@ COPY oci/test-vulnerabilities/main.go ./oci/test-vulnerabilities/main.go
 RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /entrypoint ./oci/test-vulnerabilities
 
 FROM entrypoint AS upstream
-RUN sh shared/runtime/compile-tool.sh github.com/anchore/grype v0.120.1 h1:kaO5Vudd1jmjFNYJoOro7AIg10cjrKAy71ZaOFdX0js= grype golang.org/x/net@v0.60.0
+RUN sh shared/runtime/compile-grype.sh
 
 FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE

@@ -9,12 +9,15 @@ COPY workflow/publish-catalog-images/main.go ./workflow/publish-catalog-images/m
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/publish-catalog-images
 FROM ghcr.io/tdesaules/github-actions/workflow-get-image-matrix@sha256:221d845a4d3c26bcd3a534b0800a4995f7f8acb60ba1097876dd214c4f241886 AS git
 FROM ghcr.io/tdesaules/github-actions/oci-import-image@sha256:172b727c3989d17cec77a430a98c1211a254240f31d87747a911871cfde67322 AS registry
+FROM build AS patched-skopeo
+RUN sh shared/runtime/compile-skopeo.sh
 FROM scratch AS final
 COPY --from=git / /
 COPY --from=registry /usr/bin/skopeo /usr/bin/skopeo
 COPY --from=registry /etc/containers/ /etc/containers/
 COPY --from=registry /var/ /var/
 COPY --from=registry /run/ /run/
+COPY --from=patched-skopeo /tool /usr/bin/skopeo
 COPY --from=build /entrypoint /entrypoint
 ENV PATH=/usr/bin HOME=/tmp
 # Writes the publication journal in the runner workspace.

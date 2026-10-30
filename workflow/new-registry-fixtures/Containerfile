@@ -9,9 +9,15 @@ COPY workflow/new-registry-fixtures/main.go ./workflow/new-registry-fixtures/mai
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/new-registry-fixtures
 FROM ghcr.io/tdesaules/github-actions/oci-import-image@sha256:9158f97b4f7d5179b18682f840391dc66f821edc2ec135e227e3267f523dc5aa AS registry
 FROM ghcr.io/tdesaules/github-actions/oci-new-image-signature@sha256:583e9971b1dabaeaaf943562e394429139da229875bcfab672dea2ca87c3d9bc AS signer
+FROM build AS patched-skopeo
+RUN sh shared/runtime/compile-skopeo.sh
+FROM build AS patched-cosign
+RUN sh shared/runtime/compile-cosign.sh
 FROM scratch AS final
 COPY --from=registry / /
 COPY --from=signer /usr/bin/cosign /usr/bin/cosign
+COPY --from=patched-skopeo /tool /usr/bin/skopeo
+COPY --from=patched-cosign /tool /usr/bin/cosign
 COPY --from=build /entrypoint /entrypoint
 ENV PATH=/usr/bin HOME=/tmp
 # Writes fixtures and assigns private-key ownership to the runner UID.

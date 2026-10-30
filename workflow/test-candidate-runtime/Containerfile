@@ -10,8 +10,12 @@ COPY workflow/test-candidate-runtime/service.go ./workflow/test-candidate-runtim
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/test-candidate-runtime \
     && echo 'disposable-candidate-runtime' > /candidate-runtime-marker
 FROM ghcr.io/tdesaules/github-actions/oci-import-image@sha256:9158f97b4f7d5179b18682f840391dc66f821edc2ec135e227e3267f523dc5aa AS runtime
+FROM build AS patched-skopeo
+COPY shared/runtime/ ./shared/runtime/
+RUN sh shared/runtime/compile-skopeo.sh
 FROM scratch AS final
 COPY --from=runtime / /
+COPY --from=patched-skopeo /tool /usr/bin/skopeo
 COPY --from=build /entrypoint /entrypoint
 COPY --from=build /candidate-runtime-marker /.candidate-runtime
 ENV PATH=/usr/bin HOME=/tmp

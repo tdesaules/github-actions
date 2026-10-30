@@ -6,7 +6,7 @@ COPY oci/new-sbom/main.go ./oci/new-sbom/main.go
 RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /entrypoint ./oci/new-sbom
 
 FROM entrypoint AS upstream
-RUN sh shared/runtime/compile-tool.sh github.com/anchore/syft v1.54.1 h1:IdNS5Ha7WfatXHDL0qzjdf7DBVnfb8OI3FpSbltv0nc= syft golang.org/x/net@v0.60.0
+RUN sh shared/runtime/compile-syft.sh
 
 FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE

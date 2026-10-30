@@ -9,9 +9,12 @@ COPY workflow/new-catalog-signatures/main.go ./workflow/new-catalog-signatures/m
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/new-catalog-signatures
 FROM ghcr.io/tdesaules/github-actions/workflow-get-image-matrix@sha256:221d845a4d3c26bcd3a534b0800a4995f7f8acb60ba1097876dd214c4f241886 AS git
 FROM ghcr.io/tdesaules/github-actions/oci-new-image-signature@sha256:189e5b85f622b0d40d784a2ce739bbe6711dba4d4921abdd7d1240a2371b3882 AS signer
+FROM build AS patched-cosign
+RUN sh shared/runtime/compile-cosign.sh
 FROM scratch AS final
 COPY --from=git / /
 COPY --from=signer /usr/bin/cosign /usr/bin/cosign
+COPY --from=patched-cosign /tool /usr/bin/cosign
 COPY --from=build /entrypoint /entrypoint
 ENV PATH=/usr/bin HOME=/tmp
 # Registry credentials are ephemeral and outputs belong to the runner.

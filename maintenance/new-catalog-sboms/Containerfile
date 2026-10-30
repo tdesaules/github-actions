@@ -6,8 +6,12 @@ COPY shared/workflow/ ./shared/workflow/
 COPY maintenance/new-catalog-sboms/main.go ./maintenance/new-catalog-sboms/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./maintenance/new-catalog-sboms
 FROM ghcr.io/tdesaules/github-actions/oci-new-sbom@sha256:ee0f3d55551b4684fcf74066df72ee0d9655aecd50b6a9f5a2d74d58d863cbfc AS runtime
+FROM build AS patched-syft
+COPY shared/runtime/ ./shared/runtime/
+RUN sh shared/runtime/compile-syft.sh
 FROM scratch AS final
 COPY --from=runtime / /
+COPY --from=patched-syft /tool /usr/bin/syft
 COPY --from=build /entrypoint /entrypoint
 ENV PATH=/usr/bin HOME=/tmp
 # Writes reports into the runner workspace.

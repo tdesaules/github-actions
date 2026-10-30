@@ -10,6 +10,9 @@ RUN BUILDTAGS=containers_image_openpgp,exclude_graphdriver_btrfs,exclude_graphdr
 
 FROM ghcr.io/tdesaules/github-actions/oci-import-image@sha256:11f4439932710275ca5ffce92e71eef3680e09907c99c2eb0b83dfd32ebbdba1 AS runtime
 
+FROM build AS patched-skopeo
+COPY shared/runtime/ ./shared/runtime/
+RUN sh shared/runtime/compile-skopeo.sh
 FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=runtime /etc/ /etc/
@@ -17,6 +20,7 @@ COPY --from=tool /runtime/ /
 COPY --from=runtime /var/ /var/
 COPY --from=runtime /run/ /run/
 COPY --from=tool /tool /usr/bin/skopeo
+COPY --from=patched-skopeo /tool /usr/bin/skopeo
 COPY --from=build /entrypoint /entrypoint
 ENV PATH=/usr/bin HOME=/tmp
 # GitHub owns the output file mounted into this action.

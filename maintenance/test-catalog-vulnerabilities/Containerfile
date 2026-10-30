@@ -7,8 +7,12 @@ COPY shared/workflow/ ./shared/workflow/
 COPY maintenance/test-catalog-vulnerabilities/main.go ./maintenance/test-catalog-vulnerabilities/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./maintenance/test-catalog-vulnerabilities
 FROM ghcr.io/tdesaules/github-actions/oci-test-vulnerabilities@sha256:22c73b1ac3c57a61820442b4947e6ab42de6c524cc6fb1e074948b128dd91745 AS runtime
+FROM build AS patched-grype
+COPY shared/runtime/ ./shared/runtime/
+RUN sh shared/runtime/compile-grype.sh
 FROM scratch AS final
 COPY --from=runtime / /
+COPY --from=patched-grype /tool /usr/bin/grype
 COPY --from=build /entrypoint /entrypoint
 ENV PATH=/usr/bin HOME=/tmp
 # Writes reports and the database into the runner workspace.

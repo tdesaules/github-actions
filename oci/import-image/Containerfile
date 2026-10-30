@@ -6,7 +6,7 @@ COPY oci/import-image/main.go ./oci/import-image/main.go
 RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /entrypoint ./oci/import-image
 
 FROM entrypoint AS tool
-RUN BUILDTAGS=containers_image_openpgp,exclude_graphdriver_btrfs,exclude_graphdriver_devicemapper sh shared/runtime/compile-tool.sh github.com/containers/skopeo v1.22.3 h1:r85TJYmaMhSgmtuPWxrsPQgaWL/+Q3y/cLLGE/DXjlc= skopeo golang.org/x/net@v0.60.0 golang.org/x/crypto@v0.56.0 golang.org/x/text@v0.41.0 google.golang.org/grpc@v1.83.2 go.opentelemetry.io/otel@v1.41.0 github.com/opencontainers/selinux@v1.13.0 github.com/sigstore/fulcio@v1.8.6
+RUN sh shared/runtime/compile-skopeo.sh
 
 FROM ghcr.io/tdesaules/github-actions/oci-import-image@sha256:11f4439932710275ca5ffce92e71eef3680e09907c99c2eb0b83dfd32ebbdba1 AS runtime
 
