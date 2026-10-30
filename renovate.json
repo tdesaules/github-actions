@@ -3,11 +3,19 @@
   "extends": ["config:recommended", "docker:pinDigests", "helpers:pinGitHubActionDigests"],
   "dependencyDashboard": true,
   "automerge": false,
+  "packageRules": [
+    {
+      "description": "Catalogue-owned digest-only images are updated by verified publication, not upstream version discovery",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["ghcr.io/tdesaules/github-actions/**"],
+      "enabled": false
+    }
+  ],
   "enabledManagers": ["dockerfile", "github-actions", "gomod", "npm", "custom.regex"],
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": ["/^(oci|check|lint|workflow|maintenance)/.*Containerfile$/", "/^shared/runtime/compile-tool\\.sh$/"],
+      "managerFilePatterns": ["/^(oci|check|lint|workflow|maintenance)/.*Containerfile$/", "/^shared/runtime/compile-[a-z]+\\.sh$/"],
       "matchStrings": ["(?<depName>(?:github\\.com|golang\\.org|google\\.golang\\.org|go\\.podman\\.io|go\\.opentelemetry\\.io)/[a-zA-Z0-9_./-]+)@(?<currentValue>v[0-9][a-zA-Z0-9.+-]*)"],
       "datasourceTemplate": "go"
     }
