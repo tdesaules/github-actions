@@ -39,7 +39,7 @@ func execute(args []string) error {
 	if *dryRun {
 		env = append(env, "RENOVATE_DRY_RUN=full")
 	}
-	for _, value := range []string{"RENOVATE_PLATFORM=github", "RENOVATE_AUTODISCOVER=false", "RENOVATE_BINARY_SOURCE=global", "RENOVATE_BASE_DIR=/tmp/renovate", "RENOVATE_ONBOARDING=false", "RENOVATE_REQUIRE_CONFIG=required"} {
+	for _, value := range []string{"RENOVATE_PLATFORM=github", "RENOVATE_AUTODISCOVER=false", "RENOVATE_BINARY_SOURCE=global", "RENOVATE_BASE_DIR=/tmp/renovate", "RENOVATE_ONBOARDING=false", "RENOVATE_REQUIRE_CONFIG=required", "RENOVATE_CONFIG_FILE=/etc/renovate/tool-sources.json", `RENOVATE_ALLOWED_COMMANDS=["^/usr/local/bin/update-tool-checksums$"]`} {
 		key, _, _ := strings.Cut(value, "=")
 		filtered := env[:0]
 		for _, old := range env {

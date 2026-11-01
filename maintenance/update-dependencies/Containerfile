@@ -2,7 +2,9 @@ FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY maintenance/update-dependencies/main.go ./maintenance/update-dependencies/main.go
-RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./maintenance/update-dependencies
+COPY maintenance/update-dependencies/checksums/main.go ./maintenance/update-dependencies/checksums/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./maintenance/update-dependencies \
+    && CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /update-tool-checksums ./maintenance/update-dependencies/checksums
 
 FROM docker.io/library/node:24-alpine@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85 AS dependencies
 WORKDIR /deps
@@ -29,6 +31,8 @@ COPY --from=tool /usr/lib/git-core/ /usr/lib/git-core/
 # Go is a runtime dependency of Renovate's gomod artifact updates.
 COPY --from=build /usr/local/go/ /usr/local/go/
 COPY --from=build /entrypoint /entrypoint
+COPY --from=build /update-tool-checksums /usr/local/bin/update-tool-checksums
+COPY renovate-tool-sources.json /etc/renovate/tool-sources.json
 ENV PATH=/usr/local/go/bin:/usr/bin:/bin HOME=/tmp GOCACHE=/tmp/go-cache GOPATH=/tmp/go SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt CGO_ENABLED=0
 USER 65532:65532
 WORKDIR /tmp

@@ -21,3 +21,14 @@ the SBOM. Missing or modified evidence keeps the vulnerability blocking.
 `--repository` and `--dry-run` override `INPUT_REPOSITORY` and `INPUT_DRY-RUN`.
 The image is pinned by digest in tag `0.3.0`; maintenance integration is pending. Disable hosted
 Renovate App execution before activating this runner to avoid duplicate updates.
+
+## Go tool source upgrades
+
+The runner loads the bundled global `renovate-tool-sources.json` configuration
+alongside the repository configuration. It discovers `compile-tool.sh module
+version h1:checksum` source pins and runs the fixed
+`/usr/local/bin/update-tool-checksums` post-upgrade task to update their Go sums.
+Only this command is allowed; public module downloads retain checksum-database
+verification. A failed lookup prevents checksum writes. The helper is bundled
+with the matching configuration so older published images do not activate an
+unsupported post-upgrade hook.
