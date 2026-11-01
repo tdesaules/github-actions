@@ -1,11 +1,11 @@
-FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS build
+FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY shared/workflow/ ./shared/workflow/
 COPY workflow/start-test-registry/main.go ./workflow/start-test-registry/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/start-test-registry \
     && mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
-FROM docker.io/library/golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS registry
+FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS registry
 COPY shared/runtime/compile-tool.sh /compile-tool.sh
 RUN sh /compile-tool.sh github.com/distribution/distribution/v3 v3.1.2 h1:/Bv2YIqqSR00HiO49FT93hovy6r9IlrzwUDsJjCN5qg= registry golang.org/x/net@v0.60.0 google.golang.org/grpc@v1.83.2 github.com/cyphar/filepath-securejoin@v0.7.0
 FROM scratch AS final
