@@ -30,20 +30,26 @@ Les rapports locaux sont conservés sous `/tmp/opencode/final-review-structure.j
 `/tmp/opencode/final-review-ghcr.json` et `/tmp/opencode/final-review-lints.log`.
 Ces chemins sont des preuves de travail locales, pas des assets de release.
 
-## Points encore ouverts
+## Corrections implémentées après la revue
+
+Les corrections ci-dessous sont testées localement. Leur activation dépend de la
+qualification native et de la publication des images modifiées ; les anciens
+digests ne deviennent pas corrigés par la seule modification des sources.
 
 ### Jeton OIDC dans les arguments du processus Cosign
 
-`shared/publication/signature.go:50` et `shared/runtime/main.go:369` transmettent
+Au moment de la revue, `shared/publication/signature.go` et `shared/runtime/main.go` transmettaient
 le jeton obtenu par le wrapper à Cosign avec `--identity-token`. Les cinq inputs
 publics de mot de passe de registre sont bien transmis par environnement, mais
-le contrat « secrets hors argv » n'est donc pas encore respecté jusqu'au processus
+le contrat « secrets hors argv » n'était donc pas respecté jusqu'au processus
 enfant du signataire. Aucune fuite effective n'a été constatée pendant cette revue.
 
-Correction à qualifier : utiliser un mécanisme de transfert hors argv pris en
-charge par la version de Cosign épinglée, avec nettoyage des données temporaires
-et tests prouvant l'absence du jeton dans les arguments et les diagnostics.
-Requalifier ensuite la signature OIDC réelle avant publication des signataires.
+La correction utilise le support de fichier de `--identity-token` dans Cosign
+3.1.3 : fichier `0600`, répertoire temporaire `0700` hors workspace, suppression
+après succès ou échec. Les deux chemins de signature partagent ce mécanisme.
+Les tests contrôlent le contenu reçu par le signataire, les permissions,
+l'absence du jeton dans les arguments enregistrés et le nettoyage après échec.
+La signature OIDC réelle doit encore être requalifiée avec les images corrigées.
 
 ### Versions sources amont non extraites par le manager Renovate
 
@@ -54,9 +60,22 @@ confirme que ces quatre versions ne sont pas extraites par cette expression.
 Les dépendances correctives au format `module@version`, les bases, actions,
 modules du dépôt et dépendances npm sont bien dans le périmètre configuré.
 
-Compléter l'extraction des versions sources et leur mise à jour couplée avec la
-somme Go, puis vérifier le résultat dans un dry-run authentifié. Ne pas supprimer
-la vérification de somme pour permettre une mise à jour automatique de version.
+`renovate-tool-sources.json` complète maintenant l'extraction. Cette configuration
+globale est embarquée avec le runner corrigé, afin de ne pas activer un hook absent
+des anciennes images. L'extraction locale par Renovate détecte huit déclarations
+sources, dont les quatre outils signalés, Buildah, Actionlint et Distribution.
+
+Un hook fixe `/usr/local/bin/update-tool-checksums` recalcule les sommes après la
+mise à jour des versions, avec `go mod download` et la vérification sum.golang.org
+imposée. Seule cette commande est autorisée. Il valide l'identité du module, sa
+version et le format h1, et résout toutes les sommes avant de modifier les recettes.
+La configuration de dépôt conserve les gestionnaires existants. La vérification
+de somme du build est conservée ; aucun checksum Git n'est substitué à la somme Go.
+
+Tests locaux : configuration et extraction Renovate réelles, mise à jour d'une
+somme h1 volontairement périmée dans une fixture conteneurisée, rejet de sommes ou
+identités invalides et de l'indisponibilité du service. Un dry-run authentifié puis
+une PR de mise à jour source doivent encore valider le hook dans le runner publié.
 
 ## Documentation rectifiée
 
