@@ -8,7 +8,7 @@ import (
 )
 
 func TestSignatureStages(t *testing.T) {
-	for _, scenario := range []string{"new", "reused", "unpublished", "verification-fails"} {
+	for _, scenario := range []string{"new", "reused", "unpublished", "verification-fails", "signing-fails"} {
 		t.Run(scenario, func(t *testing.T) {
 			directory, _ := fixture(t)
 			if err := Prepare(directory, "fixture", filepath.Join(directory, "release-plan.json")); err != nil {
@@ -32,6 +32,10 @@ func TestSignatureStages(t *testing.T) {
 			tools := t.TempDir()
 			log := filepath.Join(tools, "calls")
 			script := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$SIGNATURE_TEST_LOG\"\n"
+			script += "if [ \"$1\" = sign ]; then [ \"$(cat \"$4\")\" = fixture-identity ] || exit 42; fi\n"
+			if scenario == "signing-fails" {
+				script += "exit 1\n"
+			}
 			if scenario == "verification-fails" {
 				script += "if [ \"$1\" = verify ]; then exit 1; fi\n"
 			}
@@ -45,6 +49,24 @@ func TestSignatureStages(t *testing.T) {
 			requestOIDCToken = func() (string, error) { return "fixture-identity", nil }
 			t.Cleanup(func() { requestOIDCToken = old })
 			err = Sign(directory)
+			calls, _ := os.ReadFile(log)
+			if strings.Contains(string(calls), "fixture-identity") {
+				t.Fatal("token leaked into argv")
+			}
+			for _, line := range strings.Split(strings.TrimSpace(string(calls)), "\n") {
+				fields := strings.Fields(line)
+				if len(fields) > 3 && fields[0] == "sign" {
+					if _, statErr := os.Stat(fields[3]); !os.IsNotExist(statErr) {
+						t.Fatal("token retained after signing")
+					}
+				}
+			}
+			if scenario == "signing-fails" {
+				if err == nil {
+					t.Fatal("signing failure ignored")
+				}
+				return
+			}
 			if scenario == "unpublished" {
 				if err == nil {
 					t.Fatal("unpublished image signed")

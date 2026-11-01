@@ -47,7 +47,13 @@ func Sign(directory string) error {
 			if err != nil {
 				return err
 			}
-			if err = catalog.Run("cosign", "sign", "--yes", "--identity-token", token, reference); err != nil {
+			path, cleanup, err := action.IdentityTokenFile(token)
+			if err != nil {
+				return err
+			}
+			err = catalog.Run("cosign", "sign", "--yes", "--identity-token", path, reference)
+			cleanup()
+			if err != nil {
 				return err
 			}
 		}

@@ -366,7 +366,12 @@ func signature(op string) error {
 			if err != nil {
 				return err
 			}
-			args = append(args, "--identity-token", token)
+			path, cleanup, err := IdentityTokenFile(token)
+			if err != nil {
+				return err
+			}
+			defer cleanup()
+			args = append(args, "--identity-token", path)
 		}
 		if err = run(append(args, ref)...); err != nil {
 			return err
