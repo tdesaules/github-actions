@@ -45,7 +45,8 @@ des images publiées `39123757139` ont réussi.
 Les extensions Markdown, liens et validation des métadonnées d'actions sont
 qualifiées sur les deux architectures dans le run `39138914416`. Leurs images
 signées sont publiées par le run `39144169525` et épinglées dans le tag `0.3.0`.
-La migration vers le workflow composé d'actions reste
-[en cours](orchestration-refactor.md).
+La migration vers les six jobs composés d'actions est activée. La qualification
+native et les parcours de publication sont décrits dans les
+[preuves de qualification](qualification-corrections.md).
 
 Les contrôles BitBake/Yocto, C, patches et templates LXC restent hors de ce lot.

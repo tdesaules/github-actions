@@ -119,4 +119,6 @@ nécessite d'accepter l'exception à l'exigence Docker native.
 
 Cette campagne qualifie la construction Buildah, pas le catalogue entier :
 l'assemblage d'index avec ce profil, les autres actions natives, les scans et
-la publication OIDC/GHCR restent à qualifier dans le pipeline complet.
+la publication OIDC/GHCR n'étaient pas couverts par ces essais de profils.
+Ils ont depuis été exercés dans les campagnes du catalogue jusqu'à `1.3.1` ;
+voir les [preuves de qualification](qualification-corrections.md).

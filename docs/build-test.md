@@ -20,6 +20,18 @@ Après les contrôles et les scans, le checksum est revérifié avant de produir
 `metadata.json` avec `tested: true`. Seuls les artefacts `oci-*` issus de cette
 qualification sont destinés à la publication.
 
+Les artefacts qualifiés portent le nom stable
+`oci-<image>-<architecture>-<run>`, avec remplacement explicite lors d'une relance.
+Le validateur de reprise sélectionne les IDs immuables de l'ensemble attendu,
+y compris les résultats compatibles conservés de tentatives précédentes. Les
+archives et métadonnées sont revérifiées avant publication.
+
+Une modification de politique Grype active `scan` sans imposer `rebuild`. Le test
+retient alors une archive native `scan.oci.tar` du digest publié pour produire les
+SBOMs, la revue et le scan au même seuil `high`. Les diagnostics sont conservés,
+mais aucun nouveau marqueur de qualification ni artefact OCI de publication n'est
+produit pour ces variantes.
+
 Une modification de métadonnées seule teste le digest déjà publié, sans build.
 Les matrices vides ignorent les deux phases. Chaque matrice reste native
 AMD64/ARM64, avec `fail-fast: false` et `max-parallel: 4`. La release exige le

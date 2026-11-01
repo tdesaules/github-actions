@@ -19,8 +19,13 @@
 
 Les campagnes locales isolées ne sont pas présentées comme des interruptions
 réelles de GHCR ni comme une révocation du token App en cours de publication.
-La vérification hébergée de réutilisation après modification ciblée reste à
-effectuer une fois le premier lot `check` publié.
+La réutilisation hébergée après modification ciblée est validée : le run
+`41104746535` a reconstruit uniquement les deux variantes du validateur d'artefacts,
+puis une relance ciblée AMD64 a conservé le résultat ARM64 de première tentative.
+La préparation `41332828685` a téléchargé les deux IDs attendus et publié les
+archives exactes sans rebuild. Le run du tag `41333295085` a vérifié les signatures
+et publié la release `1.3.1`. Les IDs sont conservés dans les
+[preuves de qualification](qualification-corrections.md).
 
 ## Reprise opérationnelle
 

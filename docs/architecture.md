@@ -2,32 +2,40 @@
 
 ## Images minimales
 
-Toutes les étapes finales utilisent `FROM scratch`. Le wrapper Go est statique.
-Les cinq outils sont reconstruits depuis leurs sources amont épinglées. Buildah et
-Skopeo sont accompagnés de leurs bibliothèques dynamiques réellement résolues,
-des certificats et configurations nécessaires. Buildah embarque aussi crun,
-netavark et aardvark-dns. Aucun compilateur ni shell n'est copié dans l'image finale.
+Chaque opération possède son action, son exécutable Go et son image multistage
+terminée par `FROM scratch`. Les outils OCI sont reconstruits depuis leurs sources
+amont épinglées. Les certificats, configurations, bibliothèques et auxiliaires
+nécessaires sont copiés explicitement. Buildah utilise une liaison statique musl
+avec CGO. Les actions de tests Go/Python et Renovate embarquent les compilateurs,
+interpréteurs ou shells nécessaires à leur fonction ; `scratch` ne signifie pas
+absence de runtime. Les linters sont sous `lint/`, les suites sous `check/`.
 
 Les labels titre/source/licence sont présents. Les versions outil sont celles
 des Containerfiles ; elles ne sont pas les versions du catalogue ou des images
 d'intégration. Le bootstrap utilise `0.0.0-bootstrap`, le développement
-`0.0.0-sha-<sha>` (avec suffixes run/tentative pour les tags locaux uniques).
+`0.0.0-sha-<sha>-<run>`. La version candidate ne change pas entre les tentatives
+d'un même run, afin de permettre la reprise partielle.
 
 ## Découverte et changements
 
-`scripts/ci.py` découvre les actions depuis leurs métadonnées et les propriétaires
-d'images depuis les Containerfiles. Il n'y a ni dossier config ni manifeste central.
+Les actions Go `workflow/get-changed-files` et `workflow/get-image-matrix` pilotent
+la sélection hébergée depuis les fichiers, métadonnées et dépendances COPY/ADD ou
+montages bind du contexte. Il n'y a pas de manifeste central du catalogue. Les
+scripts Python restent des outils locaux et des régressions historiques ; leur
+ancienne sélection ne constitue pas le contrat du sélecteur Go actif.
 
 - Branche existante : `before` → `after`.
-- Nouvelle branche : ancêtre commun avec `origin/main` ; sélection complète si
-  aucun historique exploitable n'existe ou si la branche est le premier main.
+- Révision `before` absente ou nulle : sélection complète.
 - Renommage : ancien et nouveau chemin, représentés comme suppression/ajout.
 - Composant supprimé : absent de la découverte, donc pas de build ; la validation
   refuse cependant une image encore référencée sans propriétaire.
 - Changement d'action : test avec l'image épinglée, sans build.
-- Code partagé : sélection conservatrice de toutes les images et actions.
+- Code partagé et LICENSE : sélection des images qui les consomment dans leurs
+  recettes. Les sources variables non résolues provoquent un repli conservateur.
+- Politique Grype : scans des digests publiés indépendamment des reconstructions.
 - Documentation seule : matrice vide.
-- Préparation : sélection complète ; maintenance sans diff.
+- Préparation : sélection depuis la release précédente ; sélection complète pour
+  une première release. Maintenance sans diff.
 
 Avant la première publication, un changement d'action seul ne peut pas tirer une
 image épinglée inexistante : effectuer une qualification bootstrap complète.
@@ -49,6 +57,6 @@ et architecture, jamais un output matriciel partagé.
    GitHub n'accepte pas un chemin `uses:` calculé à partir de la matrice.
 6. Qualifier les deux architectures avant publication.
 
-Pour les futurs contrôles `check`, chaque opération possédera sa propre image et
-son exécutable ciblé. Les formats BitBake, Yocto, C, patches et templates LXC ne
+Les contrôles `check` possèdent chacun leur image et leur exécutable ciblé.
+Les formats BitBake, Yocto, C, patches et templates LXC ne
 sont pas annoncés comme lintés par le socle OCI.

@@ -3,7 +3,8 @@
 Les outils sont reconstruits depuis les versions amont indiquées dans leurs
 Containerfiles ou les scripts fixes `shared/runtime/compile-{skopeo,cosign,syft,grype}.sh`.
 `shared/runtime/compile-tool.sh` vérifie la somme du module source
-via Go, applique les versions correctives explicites et compile avec Go 1.27.2.
+via Go, applique les versions correctives explicites et utilise le compilateur
+Go épinglé par digest dans chaque Containerfile.
 Buildah utilise CGO et une liaison statique musl : son initialisation des
 namespaces dépend d'un constructeur C. Les autres outils sont compilés sans CGO.
 Les images finales restent `scratch`.
