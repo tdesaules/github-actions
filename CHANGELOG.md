@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.1
+
+- activate published scan-only and retry-aware action interfaces (6f0bd9c)
+
+- clarify fail-closed evidence for published image scans (903e293)
+
+- bind reuse selection to the actual checkout (ac8070b)
+
 ## 1.3.0
 
 - activate Docker-composed build and test jobs (a628cfe)
