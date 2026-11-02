@@ -3,6 +3,7 @@
   "extends": ["config:recommended", "docker:pinDigests", "helpers:pinGitHubActionDigests"],
   "dependencyDashboard": true,
   "automerge": false,
+  "platformCommit": "disabled",
   "packageRules": [
     {
       "description": "Catalogue-owned digest-only images are updated by verified publication, not upstream version discovery",
