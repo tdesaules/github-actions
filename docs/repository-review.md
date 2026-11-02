@@ -78,19 +78,20 @@ de somme du build est conservée ; aucun checksum Git n'est substitué à la som
 Tests locaux : configuration et extraction Renovate réelles, mise à jour d'une
 somme h1 volontairement périmée dans une fixture conteneurisée, rejet de sommes ou
 identités invalides et de l'indisponibilité du service. Le dry-run authentifié du
-runner publié est validé par `41407460725` ; une PR de mise à jour source doit
-encore confirmer l'écriture des checksums par le hook hébergé.
+runner publié est validé par `41407460725`. L'écriture des checksums par le hook
+hébergé est désormais validée par les PR #6/#7, décrites ci-dessous.
 
 L'exécution réelle `41408917330` a créé les PR #4/#5 pour des dépendances au format
 `module@version`, sans exercer le hook des sources. La tentative `41409848683`
 s'est arrêtée avec `repository-changed` malgré un statut Actions vert. Une branche
-Actionlint a été créée avec la version seule et un checksum périmé : elle n'est
-pas une preuve de mise à jour correcte et ne doit pas être intégrée en l'état.
+Actionlint avait été créée avec la version seule et un checksum périmé. Cet état
+invalide a depuis été remplacé par la régénération correcte de la PR #6.
 
 Le diagnostic en dry-run authentifié confirme l'exécution du hook et deux entrées
 pour le même chemin dans la préparation du commit (manager puis artefact corrigé).
 Le dépôt désactive désormais `platformCommit` pour utiliser les commits Git du
-runner. L'effet de ce changement doit être confirmé par une nouvelle PR hébergée.
+runner. Ce changement seul n'avait pas résolu le problème d'environnement décrit
+ci-dessous ; les PR finales valident l'ensemble corrigé.
 
 Ce diagnostic a aussi reproduit `spawn npm ENOENT` pour les lockfiles npm. Le
 runtime npm 12.2.1 est ajouté depuis un lockfile dédié, avec Undici 6.29.1 remplaçant
@@ -115,6 +116,24 @@ non inscriptible passe après correction ; les tests vérifient aussi le nettoya
 des caches sur réponse valide ou invalide. Les erreurs d'écriture des statuts
 GitHub et les résultats des hooks sont remontés explicitement dans les logs
 Renovate pour éviter qu'un nouvel arrêt générique ne masque sa cause.
+
+### Validation finale hébergée
+
+Le run `41443035104` a qualifié le runner corrigé en AMD64/ARM64. La préparation
+`41444214574` a réutilisé ses archives exactes et publié `1.4.2`. Les runs main
+`41445016189` et tag `41445016266` sont verts ; la GitHub Release est publiée.
+
+La maintenance `41445096638` a réussi les SBOMs, scans, liens et l'exécution réelle
+de Renovate. Ses logs montrent le hook exécuté pour Actionlint et Cosign, les PR
+numéros 6 et 7 créées et `result: done`, `exitCode: 0`. Les diffs mettent à jour ensemble
+la version et la somme h1, confirmée indépendamment par `go mod download` :
+
+- Actionlint `v1.7.12` : `h1:vQ4GeJN86C0QH+gTUQcs8McmK62OLT3kmakPMtEWYnY=`.
+- Cosign `v3.1.4` : `h1:d3UHS8oJebMf6XUhPtWv9weU1ZYRyXq9HJ7QPccmqvY=`.
+
+Les deux écarts de cette revue sont donc corrigés et exercés en conditions réelles.
+Cela valide le fonctionnement du bot, pas la compatibilité de chaque mise à jour
+proposée : les PR de dépendances conservent leur propre qualification avant fusion.
 
 ## Documentation rectifiée
 

@@ -89,15 +89,22 @@ signing implementation. Keep that distinction when reporting OIDC validation.
 Tag run `41407237512` verified signatures and published GitHub Release `1.4.0`;
 main run `41407237711` succeeded. Maintenance `41407460725` passed catalogue SBOMs,
 refreshed Grype scans, links and the new runner's authenticated Renovate dry-run
-(167 dependencies detected). A real source-upgrade PR is still needed to establish
-the bundled checksum hook's hosted write behavior.
+(167 dependencies detected). This dry-run did not establish the bundled checksum
+hook's hosted write behavior; that was validated later with `1.4.2` below.
 
 Preparation `41420324041` reused the two Renovate archives from `41419110496`,
 signed them using the private-token signer published in `1.4.0`, and pushed tag
 `1.4.1`. Tag run `41421033026` and main run `41421032426` succeeded. This provides
 real OIDC signing evidence for the token-file implementation.
 
-Renovate's source-checksum PR path is still pending: maintenance `41421256070`
-completed successfully at the Actions level but Renovate aborted with
-`repository-changed`. See the [review findings](repository-review.md) for the
-reproduced sanitized-environment problem and its local correction.
+Maintenance `41421256070` completed successfully at the Actions level but Renovate
+aborted with `repository-changed`. The sanitized-environment problem was corrected
+and qualified by `41443035104`. Preparation `41444214574` reused its two qualified
+archives and published `1.4.2`, with successful main/tag runs `41445016189` and
+`41445016266`.
+
+Maintenance `41445096638` then passed all checks and created source-upgrade PRs #6
+(Actionlint) and #7 (Cosign), updating both versions and verified h1 checksums.
+The logs record successful post-upgrade tasks and `result: done`, `exitCode: 0`.
+This completes the hosted source-checksum hook validation; see the
+[review findings](repository-review.md) for exact sums and historical failures.
