@@ -32,7 +32,7 @@ func TestSignatureStages(t *testing.T) {
 			tools := t.TempDir()
 			log := filepath.Join(tools, "calls")
 			script := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$SIGNATURE_TEST_LOG\"\n"
-			script += "if [ \"$1\" = sign ]; then [ \"$(cat \"$4\")\" = fixture-identity ] || exit 42; fi\n"
+			script += "if [ \"$1\" = sign ]; then token=; IFS= read -r token < \"$4\" || :; [ \"$token\" = fixture-identity ] || exit 42; fi\n"
 			if scenario == "signing-fails" {
 				script += "exit 1\n"
 			}
