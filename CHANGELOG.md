@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.4.0
+
+- update docker.io/library/golang docker tag to v1.27.3 (da3c02d)
+
+- update node.js to 8a32c8c (026f67b)
+
+- record catalogue review and verified qualification evidence (ab1ecd3)
+
+- keep OIDC identity tokens out of process arguments (50362a2)
+
+- update Go tool source pins with verified checksums (eb5b664)
+
+- record fixes and remaining hosted validation for audit findings (48ed06e)
+
+- read identity fixtures without external cat (3c892b9)
+
 ## 1.3.1
 
 - activate published scan-only and retry-aware action interfaces (6f0bd9c)

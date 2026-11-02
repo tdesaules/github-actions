@@ -26,7 +26,7 @@ outputs:
     description: Whether the archive matches its expected receipt
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-build-artifact@sha256:3b1f9d357c6f9ba154056af3a4afe62a3a4b3fc27edc1cc4ddcad9507be82641
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-build-artifact@sha256:dee144e7330fbdc7ebc3c3e4dc7ccdffe4b3f740778ddfaa379964f7f41237ce
   args:
     - --archive=${{ inputs.archive }}
     - --receipt=${{ inputs.receipt }}
