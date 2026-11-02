@@ -9,5 +9,13 @@ Inputs: `before`, `after` (default `HEAD`), `full` (default `false`). Requires a
 checkout with the compared history. Explicit flags override `INPUT_*` values.
 The action invokes no linters, tests, Python or operation dispatcher.
 
+The updated source handles rewritten branches: if a full 40-character `before`
+commit ID is absent locally, it attempts a bounded, noninteractive fetch of that
+exact commit from `origin`. If recovery fails, it emits `full=true`, so all tracked
+checks and images are selected rather than silently omitting work. The checkout
+HEAD and branch are not moved. Invalid symbolic revisions remain errors.
+This behavior becomes active after qualification/publication and the image-pin
+update; rerunning an older action digest cannot exercise the source correction.
+
 Its independent scratch image contains Git and a fixed Go executable. Published
 with `1.0.1`, it is called directly by `check` before checks and matrix selection.

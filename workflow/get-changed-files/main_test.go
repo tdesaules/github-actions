@@ -2,10 +2,72 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
+
+func TestForcePushBaseRecovery(t *testing.T) {
+	root := t.TempDir()
+	git := func(directory string, args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", directory}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=Fixture", "GIT_AUTHOR_EMAIL=fixture@example.invalid", "GIT_COMMITTER_NAME=Fixture", "GIT_COMMITTER_EMAIL=fixture@example.invalid")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	remote := filepath.Join(root, "remote")
+	if err := os.Mkdir(remote, 0755); err != nil {
+		t.Fatal(err)
+	}
+	git(remote, "init", "-b", "main")
+	if err := os.WriteFile(filepath.Join(remote, "old name.md"), []byte("old\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	git(remote, "add", ".")
+	git(remote, "commit", "-m", "old branch")
+	before := git(remote, "rev-parse", "HEAD")
+	git(remote, "checkout", "--orphan", "replacement")
+	git(remote, "rm", "-rf", ".")
+	if err := os.WriteFile(filepath.Join(remote, "new name.md"), []byte("new\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	git(remote, "add", ".")
+	git(remote, "commit", "-m", "rewritten branch")
+	git(remote, "branch", "-D", "main")
+	git(remote, "branch", "-m", "main")
+	checkout := filepath.Join(root, "checkout")
+	git(root, "clone", "--depth=1", "file://"+remote, checkout)
+	t.Chdir(checkout)
+	probe := exec.Command("git", "cat-file", "-e", before)
+	if probe.Run() == nil {
+		t.Fatal("fixture already has unreachable old commit")
+	}
+	head := git(checkout, "rev-parse", "HEAD")
+	paths, full, err := changedPaths(before, head, false)
+	if err != nil || full || !reflect.DeepEqual(paths, []string{"new name.md", "old name.md"}) {
+		t.Fatalf("recovered diff: %v %t %v", paths, full, err)
+	}
+	if git(checkout, "rev-parse", "HEAD") != head {
+		t.Fatal("fetch moved checkout")
+	}
+	git(checkout, "remote", "set-url", "origin", filepath.Join(root, "unavailable"))
+	if _, full, err := changedPaths(before, head, false); err != nil || full {
+		t.Fatal("existing base unnecessarily fetched", err)
+	}
+	paths, full, err = changedPaths(strings.Repeat("1", 40), head, false)
+	if err != nil || !full || len(paths) != 0 {
+		t.Fatalf("missing base must select all: %v %t %v", paths, full, err)
+	}
+	if _, _, err := changedPaths("--upload-pack=invalid", head, false); err == nil {
+		t.Fatal("invalid fetch refspec accepted")
+	}
+}
 
 func TestDiffClassification(t *testing.T) {
 	t.Chdir(t.TempDir())

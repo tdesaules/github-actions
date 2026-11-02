@@ -1,14 +1,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/tdesaules/github-actions/shared/workflow"
 )
@@ -106,6 +109,41 @@ func checks(paths []string, full bool) map[string]bool {
 	return r
 }
 
+// changedPaths preserves an exact diff when a force-push's previous commit can
+// still be fetched. If it has disappeared, full selection cannot omit work.
+func changedPaths(before, head string, full bool) ([]string, bool, error) {
+	if full || before == "" || strings.Trim(before, "0") == "" {
+		return []string{}, true, nil
+	}
+	base, err := workflow.Git("rev-parse", "--verify", "--end-of-options", before+"^{commit}")
+	if err != nil {
+		// Only event commit IDs may be used as remote fetch arguments. Invalid
+		// symbolic revisions remain errors instead of becoming remote refspecs.
+		if !regexp.MustCompile(`^[a-fA-F0-9]{40}$`).MatchString(before) {
+			return nil, false, fmt.Errorf("invalid or unavailable base revision")
+		}
+		root, err := os.Getwd()
+		if err != nil {
+			return nil, false, err
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, "git", "-c", "safe.directory="+root, "fetch", "--no-tags", "--no-recurse-submodules", "--depth=1", "origin", before)
+		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+		cmd.Stdout, cmd.Stderr = os.Stderr, os.Stderr
+		if err := cmd.Run(); err != nil {
+			fmt.Fprintln(os.Stderr, "Previous commit unavailable; selecting all tracked checks and images")
+			return []string{}, true, nil
+		}
+		base, err = workflow.Git("rev-parse", "--verify", "--end-of-options", before+"^{commit}")
+		if err != nil {
+			return nil, false, err
+		}
+	}
+	paths, err := workflow.Paths(strings.TrimSpace(base), head)
+	return paths, false, err
+}
+
 func run() error {
 	before := flag.String("before", os.Getenv("INPUT_BEFORE"), "base commit")
 	after := flag.String("after", workflow.Default("INPUT_AFTER", "HEAD"), "head commit")
@@ -119,18 +157,11 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	paths := []string{}
-	*full = *full || *before == "" || strings.Trim(*before, "0") == ""
-	if !*full {
-		base, err := workflow.Git("rev-parse", "--verify", "--end-of-options", *before+"^{commit}")
-		if err != nil {
-			return err
-		}
-		paths, err = workflow.Paths(strings.TrimSpace(base), strings.TrimSpace(head))
-		if err != nil {
-			return err
-		}
+	paths, selectAll, err := changedPaths(*before, strings.TrimSpace(head), *full)
+	if err != nil {
+		return err
 	}
+	*full = selectAll
 	tracked, err := workflow.Git("ls-files", "-z")
 	if err != nil {
 		return err
