@@ -80,6 +80,24 @@ identités invalides et de l'indisponibilité du service. Le dry-run authentifi�
 runner publié est validé par `41407460725` ; une PR de mise à jour source doit
 encore confirmer l'écriture des checksums par le hook hébergé.
 
+L'exécution réelle `41408917330` a créé les PR #4/#5 pour des dépendances au format
+`module@version`, sans exercer le hook des sources. La tentative `41409848683`
+s'est arrêtée avec `repository-changed` malgré un statut Actions vert. Une branche
+Actionlint a été créée avec la version seule et un checksum périmé : elle n'est
+pas une preuve de mise à jour correcte et ne doit pas être intégrée en l'état.
+
+Le diagnostic en dry-run authentifié confirme l'exécution du hook et deux entrées
+pour le même chemin dans la préparation du commit (manager puis artefact corrigé).
+Le dépôt désactive désormais `platformCommit` pour utiliser les commits Git du
+runner. L'effet de ce changement doit être confirmé par une nouvelle PR hébergée.
+
+Ce diagnostic a aussi reproduit `spawn npm ENOENT` pour les lockfiles npm. Le
+runtime npm 12.2.1 est ajouté depuis un lockfile dédié, avec Undici 6.29.1 remplaçant
+sa copie embarquée vulnérable. Le candidat reconstruit produit un lockfile avec
+ses intégrités et passe le scan Grype complet au seuil `high`, sans exclusion
+supplémentaire. L'ancien npm fourni par la base Node et npm 12.2.1 non corrigé
+avaient été rejetés par ce même scan avant la correction.
+
 ## Documentation rectifiée
 
 La documentation d'architecture désignait encore le sélecteur Python comme

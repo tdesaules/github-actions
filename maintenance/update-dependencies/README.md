@@ -32,3 +32,9 @@ Only this command is allowed; public module downloads retain checksum-database
 verification. A failed lookup prevents checksum writes. The helper is bundled
 with the matching configuration so older published images do not activate an
 unsupported post-upgrade hook.
+
+The repository uses `platformCommit: disabled` so Renovate commits the final
+working-tree files through Git, including post-upgrade edits of a package file
+already updated by a manager. The runner also bundles npm from an exact lockfile
+for npm artifact updates. Its bundled Undici is replaced with the locked compatible
+6.x fix; the actual package identity and checksum verification are retained.
