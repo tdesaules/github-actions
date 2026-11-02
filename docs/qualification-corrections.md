@@ -67,6 +67,27 @@ runs failed at scanning older images, not at the Renovate step.
 
 After publication of the fixes, maintenance run `41053499055` succeeded: SBOMs for
 both architectures, refreshed Grype scans, link checks and authenticated Renovate
-dry-run. The repository owner subsequently merged the Node and Go PRs. Their
-combined source revision requires a fresh full qualification before publication;
-the Node merge cancelled the preceding Go-only push run.
+dry-run. The repository owner subsequently merged the Node and Go PRs. The Node
+merge cancelled the preceding Go-only push run, so a separate full qualification
+was required rather than reuse of the Node-only result.
+
+## Full qualification with Go 1.27.3 and audit corrections
+
+Preparation `41352590229` passed 94 builds and tests but refused its final push
+because main advanced. This exercised the stale-source protection; it did not
+produce a new release tag.
+
+Run `41396008309` at source `3c892b9` subsequently passed all 94 native builds
+and tests, published the exact archives, signed and verified their digests, and
+atomically pushed commit `7a02e29` and tag `1.4.0`. This includes the private-token
+signer and the Renovate source-checksum helper. Those images are now pinned.
+
+Preparation used the signers pinned in its source checkout, so successful release
+signing does not by itself establish execution of the newly published private-token
+signing implementation. Keep that distinction when reporting OIDC validation.
+
+Tag run `41407237512` verified signatures and published GitHub Release `1.4.0`;
+main run `41407237711` succeeded. Maintenance `41407460725` passed catalogue SBOMs,
+refreshed Grype scans, links and the new runner's authenticated Renovate dry-run
+(167 dependencies detected). A real source-upgrade PR is still needed to establish
+the bundled checksum hook's hosted write behavior.

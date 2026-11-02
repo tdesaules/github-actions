@@ -32,9 +32,10 @@ Ces chemins sont des preuves de travail locales, pas des assets de release.
 
 ## Corrections implémentées après la revue
 
-Les corrections ci-dessous sont testées localement. Leur activation dépend de la
-qualification native et de la publication des images modifiées ; les anciens
-digests ne deviennent pas corrigés par la seule modification des sources.
+Les corrections ci-dessous ont passé les tests locaux et la qualification native
+du run `41396008309`. Leurs images sont publiées et épinglées dans `1.4.0`.
+Les validations OIDC et du hook Renovate réel doivent être distinguées de ces
+tests de construction, de runtime et de scans.
 
 ### Jeton OIDC dans les arguments du processus Cosign
 
@@ -49,7 +50,8 @@ La correction utilise le support de fichier de `--identity-token` dans Cosign
 après succès ou échec. Les deux chemins de signature partagent ce mécanisme.
 Les tests contrôlent le contenu reçu par le signataire, les permissions,
 l'absence du jeton dans les arguments enregistrés et le nettoyage après échec.
-La signature OIDC réelle doit encore être requalifiée avec les images corrigées.
+La signature OIDC réelle doit encore être requalifiée avec les images corrigées :
+la préparation de `1.4.0` utilisait les signataires précédemment épinglés.
 
 ### Versions sources amont non extraites par le manager Renovate
 
@@ -74,8 +76,9 @@ de somme du build est conservée ; aucun checksum Git n'est substitué à la som
 
 Tests locaux : configuration et extraction Renovate réelles, mise à jour d'une
 somme h1 volontairement périmée dans une fixture conteneurisée, rejet de sommes ou
-identités invalides et de l'indisponibilité du service. Un dry-run authentifié puis
-une PR de mise à jour source doivent encore valider le hook dans le runner publié.
+identités invalides et de l'indisponibilité du service. Le dry-run authentifié du
+runner publié est validé par `41407460725` ; une PR de mise à jour source doit
+encore confirmer l'écriture des checksums par le hook hébergé.
 
 ## Documentation rectifiée
 
@@ -89,6 +92,9 @@ plus les validations acquises en `1.3.1` comme des travaux futurs.
 
 Le run Node `41352321746` a réussi sur les deux architectures. Il n'a qualifié
 que l'image Renovate ; le run du merge Go précédent avait été annulé par ce push.
-La préparation complète `41352590229` a été lancée sur `80bffbb`, sans réutiliser
-ce lot partiel. Son résultat, celui du tag et la maintenance sur les nouveaux
-pins doivent être constatés avant de déclarer ces mises à jour publiées et validées.
+La préparation complète `41352590229` sur `80bffbb` a passé les 94 builds et tests,
+mais refusé le push final parce que main avait avancé. La campagne `41396008309`
+sur `3c892b9` a ensuite qualifié et publié le lot complet jusqu'au tag `1.4.0`.
+Le tag `41407237512`, main `41407237711` et la maintenance `41407460725` sont
+réussis ; la GitHub Release `1.4.0` est publiée. Les détails sont conservés dans
+les [preuves de qualification](qualification-corrections.md).
