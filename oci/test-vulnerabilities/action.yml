@@ -18,7 +18,7 @@ outputs:
     description: Report path, including on threshold failure
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/oci-test-vulnerabilities@sha256:c67ef2cc3e1159e6ff4d5b1bd87da68613ff9c90adf991eef150e1f48b46e8f4
+  image: docker://ghcr.io/tdesaules/github-actions/oci-test-vulnerabilities@sha256:872003f548d3569b9e27ac0031dd3b38db3917058c513ec1a3aa224da0a30f2b
   args:
     - --sbom=${{ inputs.sbom }}
     - --fail-on=${{ inputs.fail-on }}

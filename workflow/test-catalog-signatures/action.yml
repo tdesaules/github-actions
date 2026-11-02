@@ -18,7 +18,7 @@ inputs:
     default: ''
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-catalog-signatures@sha256:912513ce4765c81161f2c7248cd9aa12edd58c587a04492028d59711c4a0124b
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-catalog-signatures@sha256:4eaff3246dfb56ab50bd42f89a1e90f6959ef53d9fc262b41392e2ea5ca8c6b1
   env:
     INPUT_REGISTRY-USERNAME: ${{ inputs.registry-username }}
     INPUT_REGISTRY-PASSWORD: ${{ inputs.registry-password }}

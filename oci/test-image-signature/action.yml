@@ -28,7 +28,7 @@ outputs:
     description: Verification report path
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/oci-test-image-signature@sha256:b72d564449a54ad2805af0bb6b6499fd9ae591ff017f46fc207867c5fa981f2e
+  image: docker://ghcr.io/tdesaules/github-actions/oci-test-image-signature@sha256:1143280c113f541d0a8d1b160702dc9705266a3d3c9b8c4406ac4d33f1412070
   args:
     - --image=${{ inputs.image }}
     - --identity=${{ inputs.identity }}

@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.4.3
+
+- close audit findings with verified hosted checksum updates (b148271)
+
+- update module github.com/go-jose/go-jose/v4 to v4.1.7 (f21dab2)
+
+- update module github.com/moby/go-archive to v0.3.3 (b959344)
+
+- update module github.com/rhysd/actionlint to v1.7.12 (e28d244)
+
+- update module github.com/sigstore/cosign/v3 to v3.1.4 (76daf04)
+
+- update node.js to v24.22.2 (093b2ff)
+
+- update quay.io/buildah/stable docker tag to v1.43.5 (e5ad9c9)
+
+- recover missing base commits after force pushes (6e0a99b)
+
 ## 1.4.2
 
 - isolate checksum downloads from runner HOME (1a38996)
