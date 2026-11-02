@@ -10,6 +10,11 @@ FROM docker.io/library/node:24-alpine@sha256:8a32c8cf649a49915a66e81e7a609223c70
 WORKDIR /deps
 COPY maintenance/update-dependencies/dependencies.undici/package.json maintenance/update-dependencies/dependencies.undici/package-lock.json ./
 RUN npm ci --ignore-scripts --omit=dev --no-audit --no-fund
+WORKDIR /npm-runtime
+COPY maintenance/update-dependencies/dependencies.npm/package.json maintenance/update-dependencies/dependencies.npm/package-lock.json ./
+COPY maintenance/update-dependencies/update-npm.cjs /update-npm.cjs
+RUN npm ci --ignore-scripts --omit=dev --no-audit --no-fund \
+    && node /update-npm.cjs
 
 FROM ghcr.io/renovatebot/renovate:44.181.6@sha256:aa5593807ecc64295edba8085d75f36f27c82b47e3baf77061108ff6e2f2024b AS tool
 # Runtime assembly needs to create /runtime in this intermediate stage.
@@ -21,19 +26,24 @@ COPY --from=dependencies /deps/node_modules/ /usr/local/renovate/undici-fixed/no
 COPY maintenance/update-dependencies/update-undici.cjs /update-undici.cjs
 RUN /usr/local/renovate/node /patch-braces.cjs \
     && /usr/local/renovate/node /update-undici.cjs \
-    && sh /collect-binaries.sh /usr/local/renovate/node /usr/bin/git /bin/sh /usr/bin/bash /usr/bin/env /usr/lib/git-core/git-remote-http
+    && sh /collect-binaries.sh /usr/local/renovate/node /usr/bin/git /bin/sh /usr/bin/bash /usr/bin/env /usr/lib/git-core/git-remote-http \
+    && mkdir -p /runtime/usr/local/bin \
+    && ln -s /usr/local/renovate/node /runtime/usr/local/bin/node \
+    && ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /runtime/usr/local/bin/npm \
+    && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /runtime/usr/local/bin/npx
 
 FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=tool /runtime/ /
 COPY --from=tool /usr/local/renovate/ /usr/local/renovate/
 COPY --from=tool /usr/lib/git-core/ /usr/lib/git-core/
+COPY --from=dependencies /npm-runtime/node_modules/npm/ /usr/local/lib/node_modules/npm/
 # Go is a runtime dependency of Renovate's gomod artifact updates.
 COPY --from=build /usr/local/go/ /usr/local/go/
 COPY --from=build /entrypoint /entrypoint
 COPY --from=build /update-tool-checksums /usr/local/bin/update-tool-checksums
 COPY renovate-tool-sources.json /etc/renovate/tool-sources.json
-ENV PATH=/usr/local/go/bin:/usr/bin:/bin HOME=/tmp GOCACHE=/tmp/go-cache GOPATH=/tmp/go SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt CGO_ENABLED=0
+ENV PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp GOCACHE=/tmp/go-cache GOPATH=/tmp/go SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt CGO_ENABLED=0
 USER 65532:65532
 WORKDIR /tmp
 ENTRYPOINT ["/entrypoint"]

@@ -1,0 +1,9 @@
+{
+  "name": "renovate-npm-runtime",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "npm": "12.2.1",
+    "undici": "6.29.1"
+  }
+}
