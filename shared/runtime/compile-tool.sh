@@ -35,7 +35,7 @@ for requirement in "$@"; do
   go mod edit "-require=$requirement"
 done
 # Bound RSA JWK validation work (GHSA-mgcc-cww5-fp2q) in tools that link go-jose.
-go mod edit -require=github.com/go-jose/go-jose/v4@v4.1.6
+go mod edit -require=github.com/go-jose/go-jose/v4@v4.1.7
 if [ "$command" = buildah ] || [ "$command" = skopeo ] || [ "$command" = cosign ]; then
   go mod edit -require=google.golang.org/grpc@v1.83.2
 fi
