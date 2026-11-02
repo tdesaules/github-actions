@@ -91,3 +91,13 @@ main run `41407237711` succeeded. Maintenance `41407460725` passed catalogue SBO
 refreshed Grype scans, links and the new runner's authenticated Renovate dry-run
 (167 dependencies detected). A real source-upgrade PR is still needed to establish
 the bundled checksum hook's hosted write behavior.
+
+Preparation `41420324041` reused the two Renovate archives from `41419110496`,
+signed them using the private-token signer published in `1.4.0`, and pushed tag
+`1.4.1`. Tag run `41421033026` and main run `41421032426` succeeded. This provides
+real OIDC signing evidence for the token-file implementation.
+
+Renovate's source-checksum PR path is still pending: maintenance `41421256070`
+completed successfully at the Actions level but Renovate aborted with
+`repository-changed`. See the [review findings](repository-review.md) for the
+reproduced sanitized-environment problem and its local correction.

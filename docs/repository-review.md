@@ -50,8 +50,9 @@ La correction utilise le support de fichier de `--identity-token` dans Cosign
 après succès ou échec. Les deux chemins de signature partagent ce mécanisme.
 Les tests contrôlent le contenu reçu par le signataire, les permissions,
 l'absence du jeton dans les arguments enregistrés et le nettoyage après échec.
-La signature OIDC réelle doit encore être requalifiée avec les images corrigées :
-la préparation de `1.4.0` utilisait les signataires précédemment épinglés.
+La préparation de `1.4.0` utilisait les signataires précédemment épinglés.
+La préparation `41420324041` de `1.4.1` a depuis exercé avec succès le signataire
+corrigé en OIDC réel, puis vérifié ses signatures.
 
 ### Versions sources amont non extraites par le manager Renovate
 
@@ -97,6 +98,23 @@ sa copie embarquée vulnérable. Le candidat reconstruit produit un lockfile ave
 ses intégrités et passe le scan Grype complet au seuil `high`, sans exclusion
 supplémentaire. L'ancien npm fourni par la base Node et npm 12.2.1 non corrigé
 avaient été rejetés par ce même scan avant la correction.
+
+La release `1.4.1` a publié ce runtime npm. Sa préparation `41420324041` a aussi
+exercé avec succès le nouveau signataire OIDC par fichier. Les runs du tag
+`41421033026` et de main `41421032426` ont réussi.
+
+La maintenance `41421256070` est verte au niveau Actions, mais Renovate a encore
+terminé avec `repository-changed`. Le passage aux commits Git n'a donc pas suffi.
+Un diagnostic instrumenté confirme que le helper calcule la bonne somme lorsque
+son environnement est inscriptible. En revanche, l'environnement filtré du hook
+retire GOPATH/GOCACHE : avec un HOME non inscriptible, l'ancien helper échoue.
+
+La correction crée des caches Go temporaires privés, indépendants de HOME, et
+exécute les téléchargements hors checkout. Le même test conteneurisé avec HOME
+non inscriptible passe après correction ; les tests vérifient aussi le nettoyage
+des caches sur réponse valide ou invalide. Les erreurs d'écriture des statuts
+GitHub et les résultats des hooks sont remontés explicitement dans les logs
+Renovate pour éviter qu'un nouvel arrêt générique ne masque sa cause.
 
 ## Documentation rectifiée
 
