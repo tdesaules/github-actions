@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.1
+
+- record full 1.4.0 qualification and maintenance results (867ea9d)
+
+- commit post-upgrade artifacts through Git (7b47473)
+
+- include patched npm for lockfile updates (be164cc)
+
+- record hosted Renovate artifact findings and fixes (6a39c45)
+
 ## 1.4.0
 
 - update docker.io/library/golang docker tag to v1.27.3 (da3c02d)
