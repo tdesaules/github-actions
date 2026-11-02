@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.2
+
+- isolate checksum downloads from runner HOME (1a38996)
+
+- expose hook results and branch status failures (8c382dd)
+
+- record OIDC proof and remaining checksum runtime validation (55d5d38)
+
 ## 1.4.1
 
 - record full 1.4.0 qualification and maintenance results (867ea9d)
