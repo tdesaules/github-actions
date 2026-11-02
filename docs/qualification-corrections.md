@@ -108,3 +108,21 @@ Maintenance `41445096638` then passed all checks and created source-upgrade PRs 
 The logs record successful post-upgrade tasks and `result: done`, `exitCode: 0`.
 This completes the hosted source-checksum hook validation; see the
 [review findings](repository-review.md) for exact sums and historical failures.
+
+## Merged dependency updates and rewritten branch recovery
+
+Commit `6e0a99b` adds exact-base recovery after a force-push, with conservative
+full selection if the old commit is no longer available. Real Git regression
+fixtures cover recovery, unavailable history and preservation of checkout refs;
+the full Go suite passed in the pinned minimal test image.
+
+Preparation `41499028222` qualified 58 native variants (29 changed images) from
+the merged dependency updates and this correction. Its first release attempt
+stopped on a Rekor HTTP 409 conflict. Only release was rerun: attempt 2 reused the
+qualified archives, completed signing/verification and atomically pushed commit
+`b48bf14` and tag `1.4.3`, without rebuilding.
+
+Tag run `41516974687` published GitHub Release `1.4.3`; main run `41516974910`
+succeeded. Maintenance `41517143308` passed both-architecture SBOM generation,
+refreshed Grype scans, link checks and authenticated Renovate dry-run. The published
+changed-files action now includes the force-push recovery implementation.

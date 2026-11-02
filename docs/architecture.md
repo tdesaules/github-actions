@@ -26,6 +26,8 @@ ancienne sélection ne constitue pas le contrat du sélecteur Go actif.
 
 - Branche existante : `before` → `after`.
 - Révision `before` absente ou nulle : sélection complète.
+- Commit `before` manquant après force-push : tentative de récupération du SHA
+  exact avec délai borné ; sélection complète si l'ancien commit est inaccessible.
 - Renommage : ancien et nouveau chemin, représentés comme suppression/ajout.
 - Composant supprimé : absent de la découverte, donc pas de build ; la validation
   refuse cependant une image encore référencée sans propriétaire.
