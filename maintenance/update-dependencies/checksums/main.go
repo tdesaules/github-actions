@@ -15,10 +15,19 @@ var source = regexp.MustCompile(`(compile-tool\.sh\s+)((?:github\.com|golang\.or
 var checksum = regexp.MustCompile(`^h1:[A-Za-z0-9+/]{43}=$`)
 
 func download(module, version string) (string, error) {
+	cache, err := os.MkdirTemp("", "tool-checksum-cache-")
+	if err != nil {
+		return "", err
+	}
+	defer os.RemoveAll(cache)
 	cmd := exec.Command("go", "mod", "download", "-json", module+"@"+version)
+	// Renovate sanitizes child environments, dropping image-level Go cache
+	// variables. GitHub's injected HOME may be unwritable for the action UID.
+	// Work outside the checkout so downloads cannot modify its go.sum either.
+	cmd.Dir = cache
 	// Do not inherit repository-local proxies, exclusions or workspace settings.
 	env := []string{}
-	settings := map[string]string{"GOSUMDB": "sum.golang.org", "GOPROXY": "https://proxy.golang.org", "GONOSUMDB": "", "GONOPROXY": "", "GOPRIVATE": "", "GOWORK": "off", "GOFLAGS": "", "GOTOOLCHAIN": "local"}
+	settings := map[string]string{"GOSUMDB": "sum.golang.org", "GOPROXY": "https://proxy.golang.org", "GONOSUMDB": "", "GONOPROXY": "", "GOPRIVATE": "", "GOWORK": "off", "GOFLAGS": "", "GOTOOLCHAIN": "local", "GOPATH": filepath.Join(cache, "go"), "GOMODCACHE": filepath.Join(cache, "modules"), "GOCACHE": filepath.Join(cache, "build")}
 	for _, entry := range os.Environ() {
 		key, _, _ := strings.Cut(entry, "=")
 		if _, replace := settings[key]; !replace {

@@ -32,12 +32,19 @@ func TestVersionAndChecksumUpdate(t *testing.T) {
 }
 
 func TestDownloadRejectsWrongModuleAndForcesVerification(t *testing.T) {
+	t.Setenv("HOME", "/nonexistent-checksum-home")
+	t.Setenv("GOPATH", "")
+	t.Setenv("GOCACHE", "")
 	t.Setenv("GOSUMDB", "off")
 	t.Setenv("GOPRIVATE", "*")
 	dir := t.TempDir()
+	cacheRecord := filepath.Join(dir, "cache-path")
+	t.Setenv("CHECKSUM_CACHE_RECORD", cacheRecord)
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	for _, module := range []string{"github.com/example/tool", "github.com/other/tool"} {
 		script := "#!/bin/sh\n[ \"$GOSUMDB\" = sum.golang.org ] && [ -z \"$GOPRIVATE\" ] && [ \"$GOWORK\" = off ] || exit 9\n" +
+			"[ \"$GOPATH\" = \"$PWD/go\" ] && [ \"$GOMODCACHE\" = \"$PWD/modules\" ] && [ \"$GOCACHE\" = \"$PWD/build\" ] || exit 7\n" +
+			"printf '%s' \"$PWD\" > \"$CHECKSUM_CACHE_RECORD\"\n" +
 			"[ \"$1 $2 $3 $4\" = 'mod download -json github.com/example/tool@v1.2.4' ] || exit 8\n" +
 			"printf '%s' '{\"Path\":\"" + module + "\",\"Version\":\"v1.2.4\",\"Sum\":\"h1:" + strings.Repeat("A", 43) + "=\"}'\n"
 		if err := os.WriteFile(filepath.Join(dir, "go"), []byte(script), 0755); err != nil {
@@ -46,6 +53,13 @@ func TestDownloadRejectsWrongModuleAndForcesVerification(t *testing.T) {
 		_, err := download("github.com/example/tool", "v1.2.4")
 		if (err != nil) != (module != "github.com/example/tool") {
 			t.Fatalf("%s: %v", module, err)
+		}
+		cache, err := os.ReadFile(cacheRecord)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := os.Stat(string(cache)); !os.IsNotExist(err) {
+			t.Fatal("download cache retained")
 		}
 	}
 }
