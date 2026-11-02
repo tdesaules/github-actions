@@ -4,6 +4,16 @@
   "dependencyDashboard": true,
   "automerge": false,
   "platformCommit": "disabled",
+  "logLevelRemap": [
+    {
+      "matchMessage": "/Caught error setting branch status - aborting/",
+      "newLogLevel": "warn"
+    },
+    {
+      "matchMessage": "/Executed post-upgrade task/",
+      "newLogLevel": "info"
+    }
+  ],
   "packageRules": [
     {
       "description": "Catalogue-owned digest-only images are updated by verified publication, not upstream version discovery",
