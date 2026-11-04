@@ -1,0 +1,88 @@
+Backport the descriptor-lifetime portion of upstream commit
+286dd3ff41526b582ef48830de239dffbaa61f90 to util-linux 2.41.6.
+The stable release already includes O_CLOEXEC; close the authority-bearing
+descriptor immediately after migration as well (CVE-2026-78408).
+Include the file-resolution declarations in the stable idmap hook and use
+the Linux UAPI value for RESOLVE_NO_SYMLINKS in the fallback definition.
+
+--- a/sys-utils/nsenter.c
++++ b/sys-utils/nsenter.c
+@@ -379,13 +379,15 @@
+ static void open_cgroup_procs(void)
+ {
+ 	char *buf = NULL, *path = NULL, *p;
+-	int cgroup_fd = 0;
++	int cgroup_fd = -1;
+ 	char fdpath[PATH_MAX];
+ 
+ 	open_target_fd(&cgroup_fd, "cgroup", optarg);
+ 
+ 	if (read_all_alloc(cgroup_fd, &buf) < 1)
+ 		err(EXIT_FAILURE, _("failed to get cgroup path"));
++
++	close(cgroup_fd);
+ 
+ 	p = strtok(buf, "\n");
+ 	if (p)
+@@ -816,8 +818,11 @@
+ 	}
+ 
+ 	// Join into the target cgroup
+-	if (cgroup_procs_fd >= 0)
++	if (cgroup_procs_fd >= 0) {
+ 		join_into_cgroup();
++		close(cgroup_procs_fd);
++		cgroup_procs_fd = -1;
++	}
+ 
+ 	if (uid_gid_fd >= 0) {
+ 		struct stat st;
+--- a/libmount/src/hook_idmap.c
++++ b/libmount/src/hook_idmap.c
+@@ -23,6 +23,7 @@
+ 
+ #include "strutils.h"
+ #include "all-io.h"
++#include "fileutils.h"
+ #include "namespace.h"
+ 
+ #include "mountP.h"
+--- a/include/fileutils.h
++++ b/include/fileutils.h
+@@ -69,7 +69,7 @@
+ 			     mode_t mode, unsigned long long resolve);
+ 
+ #ifndef RESOLVE_NO_SYMLINKS
+-# define RESOLVE_NO_SYMLINKS	0x02
++# define RESOLVE_NO_SYMLINKS	0x04
+ #endif
+ #ifndef RESOLVE_BENEATH
+ # define RESOLVE_BENEATH	0x08
+--- a/tests/ts/misc/setarch
++++ b/tests/ts/misc/setarch
+@@ -19,6 +19,11 @@
+ ts_init "$*"
+ 
+ ts_check_test_command "$TS_CMD_SETARCH"
++case $(python3 /test-util-linux-sandbox.py personality) in
++restricted) ts_skip "kernel denies personality changes" ;;
++available) ;;
++*) ts_failed "personality prerequisite probe failed" ;;
++esac
+ ts_skip_docker
+ 
+ ARCH=$(uname -m)
+--- a/tests/ts/lsfd/mkfds-inotify
++++ b/tests/ts/lsfd/mkfds-inotify
+@@ -24,6 +24,11 @@
+ . "$TS_TOPDIR"/functions.sh
+ ts_init "$*"
+ 
++case $(python3 /test-util-linux-sandbox.py inotify) in
++restricted) ts_skip "kernel denies inotify watch on /proc" ;;
++available) ;;
++*) ts_failed "inotify prerequisite probe failed" ;;
++esac
+ ts_check_test_command "$TS_CMD_LSFD"
+ ts_check_test_command "$TS_CMD_FINDMNT"
+ ts_check_prog "stat"

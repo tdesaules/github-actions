@@ -42,6 +42,19 @@ if [ -n "${LOCAL_SECURITY_PATCH:-}" ]; then
     echo "$LOCAL_SECURITY_PATCH_SHA256  debian/patches/pantavisor-bounds.patch" | sha256sum -c -
     printf '\npantavisor-bounds.patch\n' >> debian/patches/series
 fi
+for applied_patch in ${ALREADY_APPLIED_PATCHES:-}; do
+    # A newer upstream stable tarball may already contain a packaging patch.
+    # Prove that exact correction is present before removing its series entry.
+    patch --dry-run --reverse --fuzz=0 -p1 < "debian/patches/$applied_patch"
+    python3 - "$applied_patch" <<'PY'
+from pathlib import Path
+import sys
+p = Path('debian/patches/series')
+lines = p.read_text().splitlines()
+assert lines.count(sys.argv[1]) == 1
+p.write_text('\n'.join(line for line in lines if line != sys.argv[1]) + '\n')
+PY
+done
 dpkg-source --before-build .
 chown -R 30000:30000 /backport-source
 HOME=/tmp DEB_BUILD_OPTIONS='parallel=2' setpriv --reuid=30000 --regid=30000 --clear-groups dpkg-buildpackage -B -us -uc

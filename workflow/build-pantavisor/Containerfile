@@ -204,6 +204,30 @@ RUN export DEB_BUILD_PROFILES=nodoc; \
 FROM tools-base AS perl-modules-build
 COPY workflow/build-pantavisor/build-perl-modules.py /build-perl-modules.py
 RUN python3 /build-perl-modules.py
+FROM basic-library-build AS util-linux-build
+# Build the stable security release with Trixie's packaging and native tests.
+# hadolint ignore=DL3008
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    asciidoctor bc bison dh-exec dh-package-notes dh-sequence-installsysusers \
+    dh-sequence-zz-debputy-rrr flex libaudit-dev libcap-ng-dev libcrypt-dev \
+    libcryptsetup-dev libncurses-dev libpam0g-dev libreadline-dev libselinux1-dev \
+    libsqlite3-dev libsystemd-dev libudev-dev netbase po-debconf po4a socat \
+    systemd systemd-dev zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+COPY workflow/build-pantavisor/util-linux-cgroup.patch /util-linux-cgroup.patch
+COPY workflow/build-pantavisor/test-util-linux-sandbox.py /test-util-linux-sandbox.py
+RUN BACKPORT_SUFFIX=+pantavisor1 \
+    ALREADY_APPLIED_PATCHES='upstream/loopdev-use-openat2-RESOLVE_NO_SYMLINKS-for-backing-file.patch upstream/libmount-restrict-source-path-canonicalization-for-non-ro.patch' \
+    LOCAL_SECURITY_PATCH=/util-linux-cgroup.patch \
+    LOCAL_SECURITY_PATCH_SHA256=ec260c3fe82a0385a1ce7afe2c1c592d57729f134a22f1447af5ec28c69e529d \
+    sh /build-debian-library.sh \
+    https://mirrors.edge.kernel.org/pub/linux/utils/util-linux/v2.41/util-linux-2.41.6.tar.xz \
+    e596083744e746be7d2823b62b43f4418dd7bf56303b4dc09e6fe8112fe3d7ed \
+    https://deb.debian.org/debian/pool/main/u/util-linux/util-linux_2.41.5-0+deb13u1.debian.tar.xz \
+    5b327ccd22f0f4ed28a389870aa51d04ecedb8693e52a1d122850f2b3188cbf6 \
+    libblkid1 liblastlog2-2 libmount1 libsmartcols1 libuuid1 util-linux
+COPY workflow/build-pantavisor/test-util-linux-paths.py /test-util-linux-paths.py
+RUN python3 /test-util-linux-paths.py
 FROM basic-library-build AS wget-build
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -239,6 +263,7 @@ COPY --from=krb5-build /packages/ /packages/
 COPY --from=gnupg-build /packages/ /packages/
 COPY --from=perl-modules-build /packages/ /packages/
 COPY --from=wget-build /packages/ /packages/
+COPY --from=util-linux-build /packages/ /packages/
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends /packages/*.deb \
     libnghttp3-9=1.15.0-1~bpo13+1 \
     libngtcp2-16=1.22.1-1~bpo13+1 \
