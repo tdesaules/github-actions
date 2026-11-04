@@ -57,11 +57,21 @@ loads successfully. These checks do not turn the remaining scan failure into
 a successful qualification.
 
 The final image builds on AMD64 and on ARM64 under local emulation. KAS 5.5
-and Git LFS 3.8.1 execute on both variants. The ARM64 security rescan and hosted
-qualification of this refresh have not been run. The cold Core experiment uses
-the unmodified KAS 5.5 Trixie base, before the additional package updates and
-Git LFS replacement; its result must not be attributed to the final image.
+and Git LFS 3.8.1 execute on both variants. The final ARM64 scan reports 47
+critical and 308 high matches (355 matches, 145 distinct advisory identifiers),
+down from 666 initially. No blocking Go-module matches remain on ARM64 either.
+Its reports are in `.build/kas-remediation-v2/arm64/`. Hosted qualification of
+this refresh has not been run.
 
-Trixie is outside the validated host list of the pinned Yocto sources. A container
-build and `kas --version` do not qualify a full producer build. These experiments
-do not authorize catalogue publication or consumer activation.
+The intermediate Trixie image completed a cold Core build in 2540 seconds.
+The final corrected image then completed a separate cold Core build in 2461
+seconds, with `cold: true` and `success: true` recorded in
+`.build/kas-remediation-v2/core-cold/source/artifacts/ci/build-report.json`.
+Packaging, component integrity verification, OCI assembly and ARM64 smoke tests
+for Bash 5.3.20, kubectl 1.36.4, k0sctl 0.33.1 and k9s 0.51.0 passed on its outputs.
+This is local AMD64-hosted construction of ARM64 Core, not an ARM64-hosted Yocto
+build, a k0s/System build or a hosted GitHub producer qualification.
+
+Trixie is outside the validated host list of the pinned Yocto sources, despite
+the successful local Core build. The remaining vulnerability failures still
+prevent catalogue publication and consumer activation.
