@@ -75,3 +75,44 @@ build, a k0s/System build or a hosted GitHub producer qualification.
 Trixie is outside the validated host list of the pinned Yocto sources, despite
 the successful local Core build. The remaining vulnerability failures still
 prevent catalogue publication and consumer activation.
+
+## File ownership correction and remaining priorities
+
+The trimmed runtime originally retained `/var/lib/dpkg/status` but omitted the
+selected packages' `.list` and `.md5sums` files. Consequently, Syft could not link
+some upstream binary/Python identities to their owning Debian packages. The
+collector now retains those upstream ownership/checksum records too.
+
+The AMD64 comparison in `.build/kas-ownership/` shows:
+
+- 10,925 common files with recorded digests have identical contents before and
+  after the metadata correction; no executable or library was changed.
+- Syft emits 20 `ownership-by-file-overlap` relationships.
+- Grype's normal distro ownership handling removes generic blocking matches for
+  OpenSSL, gzip and GitPython, with no new ignore configuration.
+- The blocking result is now 31 critical and 270 high matches, representing 76
+  distinct advisory IDs. This is still a failed scan. These new counts have not
+  yet been verified on ARM64 or GitHub.
+
+The Debian tracker confirms, for example, that OpenSSL CVE-2026-75803 is fixed
+in `3.5.7-1~deb13u2` and gzip CVE-2026-41992 in `1.13-1+deb13u1`, both covered by
+the installed versions. Ownership records allow the scanner to use those distro
+versions instead of only upstream version strings.
+
+The next actual remediation priorities are:
+
+| Dependency | Remaining distinct advisories per package | Approach |
+| --- | ---: | --- |
+| curl / both libcurl variants | 31 | Backport upstream fixes or rebuild newer libcurl; preserve both TLS backend variants and check Git/KAS downloads |
+| libxml2 | 8 | Backport relevant fixes; a newer major library requires ABI checks for its existing consumers |
+| Python 3.13 | 5 | Apply upstream security patches or update within 3.13, then verify KAS and BitBake |
+| Expat | 4 | Backport parser fixes, including the Python integration requirements |
+| SQLite | 3 | Backport upstream fixes and test its Python consumer |
+| Wget | 3 | Upstream patches exist even though the distro report has no fixed package version; rebuild and test downloads |
+| glibc / GCC | 3 / 2 | Targeted backports and toolchain validation; avoid mixing unstable binary packages into the stable runtime |
+
+The counts above overlap across binary packages and are not additive. Other
+remaining components include gawk, ACL, Kerberos, SASL, GnuPG, ncurses, Perl,
+util-linux and zlib. Tracker status `open`/`no-dsa` is not evidence of
+non-applicability. Updating package metadata resolves the scanner's ownership
+problem, not these remaining upstream vulnerabilities.

@@ -111,6 +111,14 @@ for stanza in Path('/var/lib/dpkg/status').read_text().split('\n\n'):
         status.append(stanza)
 (runtime / 'var/lib/dpkg').mkdir(parents=True, exist_ok=True)
 (runtime / 'var/lib/dpkg/status').write_text('\n\n'.join(status) + '\n')
+# Preserve file ownership and upstream checksums as well as package versions.
+# SBOM tools need these to associate binaries/Python modules with Debian's
+# backported packages instead of treating them as independent upstream installs.
+for source in Path('/var/lib/dpkg/info').iterdir():
+    if source.suffix in ('.list', '.md5sums'):
+        package = source.name.rsplit('.', 1)[0].split(':', 1)[0]
+        if package in selected:
+            copy(source)
 # Yocto's uninative loader is not Debian's multiarch loader. Its native tools
 # also need the minimal root's cache to find host libraries such as libgomp.
 subprocess.run(['ldconfig', '-r', str(runtime)], check=True)
