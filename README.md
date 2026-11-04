@@ -1,12 +1,18 @@
-# GitHub Docker actions — socle OCI
+# GitHub Docker actions
 
-Neuf actions **Docker natives** (`runs.using: docker`) et une action Buildah
-utilisant un lanceur composite avec le profil Docker qualifié sur les runners
-hébergés. Aucun socket moteur monté dans les conteneurs, aucune installation de
+Actions **Docker natives** (`runs.using: docker`) pour les contrôles, le lint,
+les opérations OCI et les cycles de release. L'action Buildah utilise un lanceur
+composite avec le profil Docker qualifié sur les runners hébergés.
+Aucun socket moteur monté dans les conteneurs, aucune installation de
 Buildah/Skopeo/Syft/Grype/Cosign sur le runner consommateur. Le lanceur Buildah
 utilise Docker et Python 3, présents sur les runners Ubuntu GitHub.
 
 ## État du premier lot
+
+La [migration Pantavisor](docs/pantavisor-migration.md) ajoute les actions KAS,
+composants, QEMU et releases indépendantes. Le
+[guide de push et d'activation](docs/pantavisor-push-guide.md) distingue les
+changements locaux, la qualification hébergée et les références publiées.
 
 Ce lot implémente les dix opérations OCI, dix images finales `scratch`, le
 bootstrap local, les tests et le workflow de qualification/publication bootstrap.
@@ -49,7 +55,7 @@ du programme. Un argument vide explicite remplace aussi la variable d'environnem
 ## Structure
 
 ```text
-.github/workflows/main.yml  # check, lint, build, release, maintenance
+.github/workflows/main.yml  # check, lint, build, test, release, maintenance
 oci/<verbe-nom>/action.yml  # interface publique de chaque action
 oci/<verbe-nom>/Containerfile + main.go # image et exécutable spécialisés
 shared/runtime/            # utilitaires Go, tests, collecte des dépendances

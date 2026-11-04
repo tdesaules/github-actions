@@ -1,7 +1,12 @@
 # Migration des consommateurs Pantavisor
 
-Aucun fichier de `pantavisor-system`, `pantavisor-core` ou `pantavisor-k0s` n'est
-modifié par cette livraison.
+Les workflows de `pantavisor-system`, `pantavisor-core` et `pantavisor-k0s`
+ne consomment pas encore les nouvelles actions candidates. Leurs configurations
+KAS pour runners hébergés sont préparées séparément des builds locaux.
+
+La préparation de leur migration complète est suivie dans
+[l'état de la migration Pantavisor](pantavisor-migration.md), avec les actions
+candidates, les vérifications locales et les prérequis d'activation.
 
 La migration vers les [images spécialisées](action-images.md) est qualifiée.
 Le tag historique `0.0.0-bootstrap` dépend des cinq anciens packages désormais
