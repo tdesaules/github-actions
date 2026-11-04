@@ -116,3 +116,32 @@ remaining components include gawk, ACL, Kerberos, SASL, GnuPG, ncurses, Perl,
 util-linux and zlib. Tracker status `open`/`no-dsa` is not evidence of
 non-applicability. Updating package metadata resolves the scanner's ownership
 problem, not these remaining upstream vulnerabilities.
+
+## curl source backport
+
+`build-curl.sh` builds the curl 8.23.0 upstream tarball with the Debian 8.23.0-1
+packaging, both pinned by SHA-256. It uses Trixie build dependencies and official
+backports for nghttp3/ngtcp2, not sid binary packages. Its locally built packages
+are identified as `8.23.0-1~pantavisor1`. Debian's GnuTLS compatibility patch
+preserves the symbols required by the existing Git binary. HTTP/3 remains enabled.
+
+The AMD64 and locally emulated ARM64 fixtures pass both backend version checks, HTTPS redirects, rejection
+of untrusted certificates and hostname mismatches, Git HTTPS cloning through
+GnuTLS, and KAS checkout of an exact commit through the same local TLS server.
+The fixture CA is trusted only inside disposable test containers. Logs and scans
+are under `.build/kas-curl/`. This is not another full cold Yocto qualification.
+The curl-update scan was run on AMD64 only; ARM64's final rescan and the hosted
+qualification of this backport remain to be performed.
+
+The raw Grype result does **not** decrease: it reports 39 critical and 293 high
+matches, including the same 31 curl CVEs against all four Debian binary packages
+(the new GnuTLS package plus its transitional compatibility package increase the
+match count). The Trixie feed marks these CVEs open with no upper affected-version
+bound, even for the newly built 8.23.0 source version. The corresponding Debian
+sid records resolve all 31 at source versions up to 8.23.0-1; the comparison is
+recorded in `.build/kas-curl/advisory-comparison.json`.
+
+No blanket curl exclusion or distro override is applied. The raw scan still
+fails. A narrowly scoped, evidence-verified review of this source backport is
+needed before the scanner can distinguish it from the affected Trixie packages.
+Other components' findings remain independent of this curl update.

@@ -15,7 +15,7 @@ RUN go mod init github.com/tdesaules/git-lfs-build \
     && go mod edit -require=golang.org/x/crypto@v0.56.0 -require=golang.org/x/net@v0.60.0 \
     && CGO_ENABLED=0 go build -mod=mod -trimpath -ldflags='-s -w' -o /git-lfs github.com/git-lfs/git-lfs/v3 \
     && cp /go/pkg/mod/github.com/git-lfs/git-lfs/v3@v3.8.1/LICENSE.md /LICENSE.md
-FROM ghcr.io/siemens/kas/kas:5.5-debian-trixie@sha256:4b210b0be3c887875973c4f4c35470b4ecf3edd2346c9de1bdd33feae5b86e94 AS tools
+FROM ghcr.io/siemens/kas/kas:5.5-debian-trixie@sha256:4b210b0be3c887875973c4f4c35470b4ecf3edd2346c9de1bdd33feae5b86e94 AS tools-base
 # Collect root-owned tool files in this intermediate stage only.
 # hadolint ignore=DL3002
 USER 0:0
@@ -44,6 +44,32 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     xz-utils=5.8.1-1+deb13u2 \
     && rm -rf /var/lib/apt/lists/* \
     && localedef -i en_US -f UTF-8 en_US.UTF-8
+RUN echo 'deb https://deb.debian.org/debian trixie-backports main' > /etc/apt/sources.list.d/pantavisor-backports.list
+FROM tools-base AS curl-build
+# Build-only headers and Debian packaging tools come from signed Trixie repos.
+# Pin the backports that provide curl's HTTP/3 APIs; do not enable sid binaries.
+# hadolint ignore=DL3008
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    autoconf automake debhelper dpkg-dev groff-base libbrotli-dev libgnutls28-dev \
+    libidn2-dev libkrb5-dev libldap2-dev libnghttp2-dev \
+    libnghttp3-9=1.15.0-1~bpo13+1 \
+    libnghttp3-dev=1.15.0-1~bpo13+1 \
+    libngtcp2-16=1.22.1-1~bpo13+1 \
+    libngtcp2-crypto-gnutls8=1.22.1-1~bpo13+1 \
+    libngtcp2-crypto-gnutls-dev=1.22.1-1~bpo13+1 \
+    libngtcp2-crypto-ossl-dev=1.22.1-1~bpo13+1 \
+    libngtcp2-dev=1.22.1-1~bpo13+1 \
+    libpsl-dev librtmp-dev libssh2-1-dev libssl-dev libtool libzstd-dev zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+COPY workflow/build-pantavisor/build-curl.sh /build-curl.sh
+RUN sh /build-curl.sh
+FROM tools-base AS tools
+COPY --from=curl-build /packages/ /packages/
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends /packages/*.deb \
+    libnghttp3-9=1.15.0-1~bpo13+1 \
+    libngtcp2-16=1.22.1-1~bpo13+1 \
+    libngtcp2-crypto-gnutls8=1.22.1-1~bpo13+1 \
+    && rm -rf /packages /var/lib/apt/lists/*
 COPY workflow/build-pantavisor/collect-runtime.py /collect-runtime.py
 # Expand the loop variable in the inner chroot shell, not the build shell.
 # hadolint ignore=SC2016

@@ -13,6 +13,15 @@ Update its source version and checksum together. The collector resolves virtual
 package providers and follows the selected Python interpreter's library version.
 The UTF-8 locale is regenerated after the libc/locales updates.
 
+curl 8.23.0 is rebuilt from checksum-pinned upstream and Debian packaging sources
+against Trixie. Both OpenSSL and GnuTLS variants retain Debian's symbol versions;
+HTTP/3 dependencies are pinned to official Trixie backports. The resulting local
+Debian packages retain their real source version and file ownership. No unstable
+binary repository is enabled. `scripts/test-pantavisor-curl.py` exercises HTTPS,
+certificate and hostname rejection, the Git GnuTLS ABI and KAS repository checkout.
+The Debian package build uses `nocheck`; these focused integration tests do not
+claim that the full upstream curl test suite has run.
+
 The security refresh is not a clean-scan claim. Debian stable still has open
 advisories, including GCC's
 [CVE-2026-102010](https://security-tracker.debian.org/tracker/CVE-2026-102010).
