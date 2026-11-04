@@ -7,6 +7,53 @@
   "verified_debian_backports": [
     {
       "namespace": "debian:distro:debian:13", "codename": "trixie",
+      "version": "2.41.5-0+deb13u1+pantavisor1",
+      "packages": ["util-linux", "libblkid1", "liblastlog2-2", "libmount1", "libsmartcols1", "libuuid1"],
+      "reason": "Built from stable util-linux 2.41.6 with Trixie packaging: upstream fixes failed-helper hooks and restricted source resolution. The local patch completes nsenter descriptor closure, includes fileutils.h in the idmap hook and corrects RESOLVE_NO_SYMLINKS to Linux UAPI 0x04 (patch SHA-256 ec260c3fe82a0385a1ce7afe2c1c592d57729f134a22f1447af5ec28c69e529d). The 78409 detached-subdirectory fast path was introduced in 2.42 and is absent from this stable source. Package tests and direct final/intermediate symlink rejection checks pass; kernel-denied inotify/personality prerequisites are explicitly reported as skipped. Match every native payload below before reviewing these four source-package advisories.",
+      "source_sha256": {
+        "https://mirrors.edge.kernel.org/pub/linux/utils/util-linux/v2.41/util-linux-2.41.6.tar.xz": "e596083744e746be7d2823b62b43f4418dd7bf56303b4dc09e6fe8112fe3d7ed",
+        "https://deb.debian.org/debian/pool/main/u/util-linux/util-linux_2.41.5-0+deb13u1.debian.tar.xz": "5b327ccd22f0f4ed28a389870aa51d04ecedb8693e52a1d122850f2b3188cbf6",
+        "https://github.com/util-linux/util-linux/commit/286dd3ff41526b582ef48830de239dffbaa61f90.patch": "bd5b45db9dbfb340622250e92a9f35dbfd9a3574045c4e89e3d034e2391f7697",
+        "https://github.com/tdesaules/github-actions/blob/e5be91139e467ebeb502e3f26511f27c0b8c7013/workflow/build-pantavisor/util-linux-cgroup.patch": "ec260c3fe82a0385a1ce7afe2c1c592d57729f134a22f1447af5ec28c69e529d"
+      },
+      "variants": {"amd64": {
+        "/usr/bin/nsenter": "be6a99cd92fcae16a797560b71b2ddfec34e1663f93515e719d6ee14ca62234b",
+        "/usr/bin/setpriv": "2617427c324a640d653f418a82dd1347752846982b4088f45c2e0abe5452124c",
+        "/usr/lib/x86_64-linux-gnu/libblkid.so.1.1.0": "3c9f7c0d41d707c95f41e2657bfaea7e67f6320e1f91aa78f97eb332f60a2ec3",
+        "/usr/lib/x86_64-linux-gnu/liblastlog2.so.2.0.0": "1e1c192697d033ea42d109eba639774bd0f0bd1a263825c0903f619c59a84822",
+        "/usr/lib/x86_64-linux-gnu/libmount.so.1.1.0": "b9be21b1504ac66af8de7b8c821f90955984a96a9f1bfb505ed79ec3eefadf70",
+        "/usr/lib/x86_64-linux-gnu/libsmartcols.so.1.1.0": "dbd493e110c9e7bb126ac06ceedf0aafc6e2ac56eb28c45f701641b39f3b0ac4",
+        "/usr/lib/x86_64-linux-gnu/libuuid.so.1.3.0": "cf7a59e79dcc0c1bd2356007e0942d264cbce32a26dbb3920c74060337044669"
+      }},
+      "advisories": {
+        "CVE-2026-76642": "https://security-tracker.debian.org/tracker/CVE-2026-76642",
+        "CVE-2026-78408": "https://security-tracker.debian.org/tracker/CVE-2026-78408",
+        "CVE-2026-78409": "https://github.com/util-linux/util-linux/security/advisories/GHSA-8f2p-47x3-43mv",
+        "CVE-2026-78410": "https://security-tracker.debian.org/tracker/CVE-2026-78410"
+      }
+    },
+    {
+      "namespace": "debian:distro:debian:13", "codename": "trixie",
+      "version": "1.25.0-2+pantavisor1", "packages": ["wget"],
+      "reason": "The pinned upstream patch corrects the filename boundary; the local patch bounds the Metalink reverse scan and checks HTML quote allocation arithmetic. The source builder runs the package tests and ASan/UBSan bounds regressions. Native executable hashes are verified against the same-run archives from 41892997468 at 08522d32554d34f88a40351f8c110ff9a1d0a5f6. Only these three patched advisories are reviewed.",
+      "source_sha256": {
+        "https://deb.debian.org/debian/pool/main/w/wget/wget_1.25.0.orig.tar.gz": "766e48423e79359ea31e41db9e5c289675947a7fcf2efdcedb726ac9d0da3784",
+        "https://deb.debian.org/debian/pool/main/w/wget/wget_1.25.0-2.debian.tar.xz": "45d4411e892d12af710ddff536d2daf430031387e336153f5f996cf536487b90",
+        "https://gitlab.com/gnuwget/wget/-/commit/c2640fe5171c59f87c58dc9fcb195b2d18b010ee.patch": "1cf705d8020435be06fe8daca1ab3dfa8cd2bc93937b613dfb1c49d56135878e",
+        "https://github.com/tdesaules/github-actions/blob/08522d32554d34f88a40351f8c110ff9a1d0a5f6/workflow/build-pantavisor/wget-bounds.patch": "245918fddf2563093654a4080691334f69b49696ebf5390a01d471054dcaea8d"
+      },
+      "variants": {
+        "amd64": {"/usr/bin/wget": "092fb43df346cd8260d761fc2b2691e112c64b69399515ed6880703787a36304"},
+        "arm64": {"/usr/bin/wget": "c29b09611f9dccab94b5d82840b76e7112095729d4c667c2a9e7143c705102ce"}
+      },
+      "advisories": {
+        "CVE-2026-58469": "https://security-tracker.debian.org/tracker/CVE-2026-58469",
+        "CVE-2026-58471": "https://security-tracker.debian.org/tracker/CVE-2026-58471",
+        "CVE-2026-58472": "https://security-tracker.debian.org/tracker/CVE-2026-58472"
+      }
+    },
+    {
+      "namespace": "debian:distro:debian:13", "codename": "trixie",
       "version": "5.40.1-6+deb13u1+pantavisor1", "packages": ["perl-modules-5.40"],
       "reason": "Replace the vulnerable core modules in place with checksum-pinned Archive::Tar 3.14 and podlators 6.1.1. Their upstream tests pass. Require all reviewed module files, not a vendor copy shadowing unchanged core code.",
       "source_sha256": {
@@ -43,6 +90,14 @@
         "/usr/share/perl/5.40.1/Pod/Text/Color.pm": "609352455ecfa9e88f507c61f731540395785732379c303852f5cc73af24556c",
         "/usr/share/perl/5.40.1/Pod/Text/Overstrike.pm": "bb631c286a81dbcd5fa70ad575cd7cc92d8881b54969faaedb8e833f51ff9fa1",
         "/usr/share/perl/5.40.1/Pod/Text/Termcap.pm": "c3a3ea18be40009138ffeabd7bdcddb8f59c1dcc86ea4a9fe6bc334ba9b11ea0"
+      }, "arm64": {
+        "/usr/share/perl/5.40.1/Archive/Tar.pm": "8ff1ba00c4674781106b342e46b429a473b3b0f54930159e69d8593df426b213",
+        "/usr/share/perl/5.40.1/Archive/Tar/Constant.pm": "4d75de300fc9338b2abac07a1c77e8a3098a96bc55988f5b792832412c7a9ba2",
+        "/usr/share/perl/5.40.1/Archive/Tar/File.pm": "933a9277b866110dc475a371573aa5522e2bd73cffcbd71007d1d8f6c3b95bf0",
+        "/usr/share/perl/5.40.1/Pod/Text.pm": "05fc68c964c1d2b6eeb579668abb207a8da2b791eab1fcd71ad1a837a9cf97a5",
+        "/usr/share/perl/5.40.1/Pod/Text/Color.pm": "609352455ecfa9e88f507c61f731540395785732379c303852f5cc73af24556c",
+        "/usr/share/perl/5.40.1/Pod/Text/Overstrike.pm": "bb631c286a81dbcd5fa70ad575cd7cc92d8881b54969faaedb8e833f51ff9fa1",
+        "/usr/share/perl/5.40.1/Pod/Text/Termcap.pm": "c3a3ea18be40009138ffeabd7bdcddb8f59c1dcc86ea4a9fe6bc334ba9b11ea0"
       }},
       "advisories": {
         "CVE-2026-9538": "https://security-tracker.debian.org/tracker/CVE-2026-9538",
@@ -57,7 +112,7 @@
         "https://deb.debian.org/debian/pool/main/a/acl/acl_2.4.0.orig.tar.xz": "e661131456d2708a01c614a0f400e11d7d1bfaeb6f3e74b75bb980b72f0161a3",
         "https://deb.debian.org/debian/pool/main/a/acl/acl_2.4.0-1.debian.tar.xz": "65931c2fb3e821bda67f8d8d72d77e99ac61502748dcdf38b6805fe89339085e"
       },
-      "variants": {"amd64": {"/usr/lib/x86_64-linux-gnu/libacl.so.1.2.2400": "32d112de5fb4ec3124c7a4b859b738b45e4c4a9db3b3115f167625f082909dd1"}},
+      "variants": {"amd64": {"/usr/lib/x86_64-linux-gnu/libacl.so.1.2.2400": "32d112de5fb4ec3124c7a4b859b738b45e4c4a9db3b3115f167625f082909dd1"}, "arm64": {"/usr/lib/aarch64-linux-gnu/libacl.so.1.2.2400": "e46a89ca4d07deb5e465eb4ad021f6f2658cd651a3f9b021408ea4cbe32a048a"}},
       "advisories": {
         "CVE-2026-54369": "https://security-tracker.debian.org/tracker/CVE-2026-54369",
         "CVE-2026-54370": "https://security-tracker.debian.org/tracker/CVE-2026-54370"
@@ -71,7 +126,7 @@
         "https://deb.debian.org/debian/pool/main/z/zlib/zlib_1.3.dfsg+really1.3.2.orig.tar.gz": "7b6903eb019983987b7112eccf90f1703f1c6c0e0cede36564bf611d19ca579d",
         "https://deb.debian.org/debian/pool/main/z/zlib/zlib_1.3.dfsg+really1.3.2-4.debian.tar.xz": "ee9db06d87b2d810b9edd8485b8b39433b18eb30d93f9e1d40fe8dbd40eda7a1"
       },
-      "variants": {"amd64": {"/usr/lib/x86_64-linux-gnu/libz.so.1.3.2": "f20a2c4a5877e447bd9e66b6c57d4a7343244d48a29f854a9b3c6739d8e86026"}},
+      "variants": {"amd64": {"/usr/lib/x86_64-linux-gnu/libz.so.1.3.2": "f20a2c4a5877e447bd9e66b6c57d4a7343244d48a29f854a9b3c6739d8e86026"}, "arm64": {"/usr/lib/aarch64-linux-gnu/libz.so.1.3.2": "d7cbc5d60cf8505223490e707c668a8bb66c684b2392f9a355e4dfba8e59c79e"}},
       "advisories": {"CVE-2026-85091": "https://security-tracker.debian.org/tracker/CVE-2026-85091"}
     },
     {
@@ -85,6 +140,9 @@
       "variants": {"amd64": {
         "/usr/lib/x86_64-linux-gnu/libncursesw.so.6.6": "0d6e4d9eb5e2ffbf34cfe9378d08b91a5f7322c1a12d98d75ef48f91346712a0",
         "/usr/lib/x86_64-linux-gnu/libtinfo.so.6.6": "956d361ecb6ed7961787b2a43c1d9c99067a5ea308408822ab69a7ca474ff244"
+      }, "arm64": {
+        "/usr/lib/aarch64-linux-gnu/libncursesw.so.6.6": "b721f76713f31b702b7a1f390a20a0b1b2de60a41bcfeb28e7d30b4f7de4fd1f",
+        "/usr/lib/aarch64-linux-gnu/libtinfo.so.6.6": "2feab89974df5f397be5171d6439c58f542fdf36e57ef805ee7f2ab01ab1a34b"
       }},
       "advisories": {"CVE-2025-69720": "https://security-tracker.debian.org/tracker/CVE-2025-69720"}
     },
@@ -99,6 +157,9 @@
       "variants": {"amd64": {
         "/usr/lib/x86_64-linux-gnu/libsasl2.so.2.0.25": "f915d8cd6cb9e2ba4f69a9a5c9df3f7a355bf3fdef793be75408705bb513599b",
         "/usr/lib/x86_64-linux-gnu/sasl2/libsasldb.so.2.0.25": "58ecbb6b49dfa9452023a47c615aa43973fe91734a08b46210308aa86be736ea"
+      }, "arm64": {
+        "/usr/lib/aarch64-linux-gnu/libsasl2.so.2.0.25": "1a2de1625713c116d1dc593881474364dc38a4da14c2a8325813b9f0aaf47cb5",
+        "/usr/lib/aarch64-linux-gnu/sasl2/libsasldb.so.2.0.25": "8ae17444754aa21c6097e5ccb8b0780a1cc73fe4a9f6312ec2042e4232f8c6b3"
       }},
       "advisories": {"CVE-2026-107161": "https://security-tracker.debian.org/tracker/CVE-2026-107161"}
     },
@@ -110,7 +171,7 @@
         "https://deb.debian.org/debian/pool/main/s/sqlite3/sqlite3_3.54.1.orig.tar.xz": "faeff7682200b3dd58c8f0f229892a7271c73c1fdabc86e7315eb31eb7cb6e83",
         "https://deb.debian.org/debian/pool/main/s/sqlite3/sqlite3_3.54.1-1.debian.tar.xz": "3f05602b0f4e1441b88f92e9afb2980e148659842565b1f1e27012988433a1d9"
       },
-      "variants": {"amd64": {"/usr/lib/x86_64-linux-gnu/libsqlite3.so.3.54.1": "f3efdeb6d18f5168d14511e0aec614f7b84e8daf1c319a77089d58e50d4ff317"}},
+      "variants": {"amd64": {"/usr/lib/x86_64-linux-gnu/libsqlite3.so.3.54.1": "f3efdeb6d18f5168d14511e0aec614f7b84e8daf1c319a77089d58e50d4ff317"}, "arm64": {"/usr/lib/aarch64-linux-gnu/libsqlite3.so.3.54.1": "e57e33137a25f5e7e03999fc8c1728700c636a4a0404defcc2a09d1e955b7ac6"}},
       "advisories": {
         "CVE-2026-119373": "https://security-tracker.debian.org/tracker/CVE-2026-119373",
         "CVE-2026-119374": "https://security-tracker.debian.org/tracker/CVE-2026-119374",
@@ -125,7 +186,7 @@
         "https://deb.debian.org/debian/pool/main/e/expat/expat_2.10.0.orig.tar.gz": "b3644a12f62d7762b62c444f69d169ba0234f13138d0240244bca64cbe35286f",
         "https://deb.debian.org/debian/pool/main/e/expat/expat_2.10.0-1.debian.tar.xz": "9be65c3ff79ca0508590970422de0a55f117bb7134a0274dd1ed3261f85631dc"
       },
-      "variants": {"amd64": {"/usr/lib/x86_64-linux-gnu/libexpat.so.1.13.1": "ea70422c742350d082d9b6f4cbc0cfd94d9ec68a3a1ee26fd320a2d9814a92df"}},
+      "variants": {"amd64": {"/usr/lib/x86_64-linux-gnu/libexpat.so.1.13.1": "ea70422c742350d082d9b6f4cbc0cfd94d9ec68a3a1ee26fd320a2d9814a92df"}, "arm64": {"/usr/lib/aarch64-linux-gnu/libexpat.so.1.13.1": "412785950405602c14248340928f1b088244007ba842e691d3b2425ca391998a"}},
       "advisories": {
         "CVE-2026-113351": "https://security-tracker.debian.org/tracker/CVE-2026-113351",
         "CVE-2026-115506": "https://security-tracker.debian.org/tracker/CVE-2026-115506",
@@ -148,6 +209,11 @@
         "/usr/lib/x86_64-linux-gnu/libgssapi_krb5.so.2.2": "c290f761873ebeac539911010526e1c5db86218bfcb29672760da46841741de0",
         "/usr/lib/x86_64-linux-gnu/libk5crypto.so.3.1": "c4c3221d0350f882cee0430b58d5fb289a5776c684d3156964864c8a9719dff1",
         "/usr/lib/x86_64-linux-gnu/libkrb5support.so.0.1": "f559f051ee5d39f151a57d79f2cde475c484030098b0c73f9f7035b421b187c4"
+      }, "arm64": {
+        "/usr/lib/aarch64-linux-gnu/libkrb5.so.3.3": "37fc817bc8d0d0c650f11653753caee0f0f2cfc55e69f428daf3bf3cb1f12fd6",
+        "/usr/lib/aarch64-linux-gnu/libgssapi_krb5.so.2.2": "967b9c108b49481f6cc1358d675a6c1b16754254c84c421c43a5814010e2a215",
+        "/usr/lib/aarch64-linux-gnu/libk5crypto.so.3.1": "950c7c9c2da1d5ebaae583a6c4da6b9b41bbbee6a4a8f848a868c0e106fe9335",
+        "/usr/lib/aarch64-linux-gnu/libkrb5support.so.0.1": "265157c5541d3cc73f5bb5cf43e8a58e996a25211d716a9ab2ba65b1a787633a"
       }},
       "advisories": {"CVE-2026-107778": "https://security-tracker.debian.org/tracker/CVE-2026-107778"}
     },
@@ -166,6 +232,12 @@
         "/usr/bin/gpg-agent": "d965d0e7753ccbdd380c90d0ca1d861ae01496b143fa67733704367a9014bd8f",
         "/usr/bin/gpgconf": "71a09d68289fafb96204a6a76df51c1078fcabc0ee231f12388936440eaf0d1a",
         "/usr/bin/gpgsm": "a7adaa409c76320f75fc51850f19451cbac9e53f2965737d2947c8b7f60dc0e9"
+      }, "arm64": {
+        "/usr/bin/dirmngr": "988b2e3f54297529cd18aff3614d4bcb97b8ff2bd1f7bbd2f797b1d142c02ba1",
+        "/usr/bin/gpg": "779ede2e6c1d812cee88c64dc5739f6e1c3d82bf81173e401a1383d23143b413",
+        "/usr/bin/gpg-agent": "084248d0c158781c45e91092de3d3bb41da49b46554408ff0580bce7c2f0af9f",
+        "/usr/bin/gpgconf": "29f77af871563385ee409bcfbc098b7f83d360870ba076431b2d4386e032f0fd",
+        "/usr/bin/gpgsm": "ecd3bbc2d62f3f0ce4865f5cc92c670c22cb202448c05275aad95ee8ff111346"
       }},
       "advisories": {"CVE-2026-24882": "https://security-tracker.debian.org/tracker/CVE-2026-24882"}
     },
@@ -181,6 +253,9 @@
       "variants": {
         "amd64": {
           "/usr/bin/gawk": "00c6dfdb17edf9a1ec01daa74a18754fedbbb471514245799db643ebe5451281"
+        },
+        "arm64": {
+          "/usr/bin/gawk": "06bae9780fc5431e6f0967dc2c1baf252c3c0c44c723ef0af2b3721bbabd028c"
         }
       },
       "advisories": {
@@ -203,6 +278,9 @@
       "variants": {
         "amd64": {
           "/usr/lib/x86_64-linux-gnu/libxml2.so.16.1.4": "864ef9e4965dd14113c2f91d5d633314ded9de9f113f4e376bab4ad812c99574"
+        },
+        "arm64": {
+          "/usr/lib/aarch64-linux-gnu/libxml2.so.16.1.4": "82f0b30d7709f619f98a262d8255391a739ee65ce2f3d6f871d68e49fa036045"
         }
       },
       "advisories": {
@@ -234,6 +312,14 @@
           "/usr/lib/python3.13/ssl.py": "3ea103be59b47ad58cb53b249e5b74d00c87b54b20650e208e3b4b9ca533e9e8",
           "/usr/lib/python3.13/tarfile.py": "8bc6e7db24614aee7f6d35748349182c92de27c86a39dfcf66452a3689d864a4",
           "/usr/lib/x86_64-linux-gnu/libexpat.so.1.13.1": "ea70422c742350d082d9b6f4cbc0cfd94d9ec68a3a1ee26fd320a2d9814a92df"
+        },
+        "arm64": {
+          "/usr/bin/python3.13": "b407d5a6cba890d2270f9ab7b7bbb319c9d02ab43ebe91cc720e3d259559daed",
+          "/usr/lib/python3.13/html/parser.py": "4274e9112adf3fa57c7f9afa7c9b5c631456b18b7403cc627cc5027d02cdd2ae",
+          "/usr/lib/python3.13/lib-dynload/_ssl.cpython-313-aarch64-linux-gnu.so": "7ae0d5f9c23965a0fde61f8ec7b654515c8f6731985cd127ed0937bde7960da0",
+          "/usr/lib/python3.13/ssl.py": "3ea103be59b47ad58cb53b249e5b74d00c87b54b20650e208e3b4b9ca533e9e8",
+          "/usr/lib/python3.13/tarfile.py": "8bc6e7db24614aee7f6d35748349182c92de27c86a39dfcf66452a3689d864a4",
+          "/usr/lib/aarch64-linux-gnu/libexpat.so.1.13.1": "412785950405602c14248340928f1b088244007ba842e691d3b2425ca391998a"
         }
       },
       "advisories": {
