@@ -23,4 +23,11 @@ for stanza in Path('/var/lib/dpkg/status').read_text().split('\n\n'):
             shutil.copyfile(license_file, destination)
 (runtime / 'var/lib/dpkg').mkdir(parents=True, exist_ok=True)
 (runtime / 'var/lib/dpkg/status').write_text('\n\n'.join(stanzas) + '\n')
+# Preserve ownership so binary catalogers recognize distribution backports.
+info = runtime / 'var/lib/dpkg/info'
+info.mkdir(parents=True, exist_ok=True)
+for source in Path('/var/lib/dpkg/info').iterdir():
+    package = source.name.rsplit('.', 1)[0].split(':')[0]
+    if package in packages and source.suffix in ('.list', '.md5sums'):
+        shutil.copyfile(source, info / source.name)
 shutil.copyfile('/etc/os-release', runtime / 'etc/os-release')
