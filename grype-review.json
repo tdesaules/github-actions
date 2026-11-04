@@ -6,6 +6,245 @@
   "reason": "The vulnerable daemon authorization package is not linked into this client tool. Revalidated against nonempty Go package symbol evidence for every scanned binary. Missing, ambiguous or affected symbol evidence must fail closed on both rebuilt and published images.",
   "verified_debian_backports": [
     {
+      "namespace": "debian:distro:debian:13", "codename": "trixie",
+      "version": "5.40.1-6+deb13u1+pantavisor1", "packages": ["perl-modules-5.40"],
+      "reason": "Replace the vulnerable core modules in place with checksum-pinned Archive::Tar 3.14 and podlators 6.1.1. Their upstream tests pass. Require all reviewed module files, not a vendor copy shadowing unchanged core code.",
+      "source_sha256": {
+        "https://cpan.metacpan.org/authors/id/B/BI/BINGOS/Archive-Tar-3.14.tar.gz": "177ce0506124afbe3ef95836761fb0799c941b87b79bac489bddc6cda860d904",
+        "https://cpan.metacpan.org/authors/id/R/RR/RRA/podlators-v6.1.1.tar.gz": "709a7dc4a2259683eb2f89e085ec70cf743710d950510e489ec6ddca3eb80c68"
+      },
+      "variants": {"all": {
+        "/usr/share/perl/5.40.1/Archive/Tar.pm": "8ff1ba00c4674781106b342e46b429a473b3b0f54930159e69d8593df426b213",
+        "/usr/share/perl/5.40.1/Archive/Tar/Constant.pm": "4d75de300fc9338b2abac07a1c77e8a3098a96bc55988f5b792832412c7a9ba2",
+        "/usr/share/perl/5.40.1/Archive/Tar/File.pm": "933a9277b866110dc475a371573aa5522e2bd73cffcbd71007d1d8f6c3b95bf0",
+        "/usr/share/perl/5.40.1/Pod/Text.pm": "05fc68c964c1d2b6eeb579668abb207a8da2b791eab1fcd71ad1a837a9cf97a5",
+        "/usr/share/perl/5.40.1/Pod/Text/Color.pm": "609352455ecfa9e88f507c61f731540395785732379c303852f5cc73af24556c",
+        "/usr/share/perl/5.40.1/Pod/Text/Overstrike.pm": "bb631c286a81dbcd5fa70ad575cd7cc92d8881b54969faaedb8e833f51ff9fa1",
+        "/usr/share/perl/5.40.1/Pod/Text/Termcap.pm": "c3a3ea18be40009138ffeabd7bdcddb8f59c1dcc86ea4a9fe6bc334ba9b11ea0"
+      }},
+      "advisories": {
+        "CVE-2026-9538": "https://security-tracker.debian.org/tracker/CVE-2026-9538",
+        "CVE-2026-82560": "https://security-tracker.debian.org/tracker/CVE-2026-82560"
+      }
+    },
+    {
+      "namespace": "debian:distro:debian:13", "codename": "trixie",
+      "version": "5.40.1-6+deb13u1", "packages": ["perl", "perl-base", "libperl5.40"],
+      "reason": "These two Perl source-package advisories affect bundled pure-Perl modules, not interpreter C code. The unchanged native packages are reviewed only when every affected core module file matches the in-place Archive::Tar 3.14/podlators 6.1.1 replacement. No other Perl advisory is covered.",
+      "source_sha256": {
+        "https://cpan.metacpan.org/authors/id/B/BI/BINGOS/Archive-Tar-3.14.tar.gz": "177ce0506124afbe3ef95836761fb0799c941b87b79bac489bddc6cda860d904",
+        "https://cpan.metacpan.org/authors/id/R/RR/RRA/podlators-v6.1.1.tar.gz": "709a7dc4a2259683eb2f89e085ec70cf743710d950510e489ec6ddca3eb80c68"
+      },
+      "variants": {"amd64": {
+        "/usr/share/perl/5.40.1/Archive/Tar.pm": "8ff1ba00c4674781106b342e46b429a473b3b0f54930159e69d8593df426b213",
+        "/usr/share/perl/5.40.1/Archive/Tar/Constant.pm": "4d75de300fc9338b2abac07a1c77e8a3098a96bc55988f5b792832412c7a9ba2",
+        "/usr/share/perl/5.40.1/Archive/Tar/File.pm": "933a9277b866110dc475a371573aa5522e2bd73cffcbd71007d1d8f6c3b95bf0",
+        "/usr/share/perl/5.40.1/Pod/Text.pm": "05fc68c964c1d2b6eeb579668abb207a8da2b791eab1fcd71ad1a837a9cf97a5",
+        "/usr/share/perl/5.40.1/Pod/Text/Color.pm": "609352455ecfa9e88f507c61f731540395785732379c303852f5cc73af24556c",
+        "/usr/share/perl/5.40.1/Pod/Text/Overstrike.pm": "bb631c286a81dbcd5fa70ad575cd7cc92d8881b54969faaedb8e833f51ff9fa1",
+        "/usr/share/perl/5.40.1/Pod/Text/Termcap.pm": "c3a3ea18be40009138ffeabd7bdcddb8f59c1dcc86ea4a9fe6bc334ba9b11ea0"
+      }},
+      "advisories": {
+        "CVE-2026-9538": "https://security-tracker.debian.org/tracker/CVE-2026-9538",
+        "CVE-2026-82560": "https://security-tracker.debian.org/tracker/CVE-2026-82560"
+      }
+    },
+    {
+      "namespace": "debian:distro:debian:13", "codename": "trixie",
+      "version": "2.4.0-1~pantavisor1", "packages": ["libacl1"],
+      "reason": "ACL 2.4.0 contains these upstream fixes; accept only the reviewed native library and exact local package version.",
+      "source_sha256": {
+        "https://deb.debian.org/debian/pool/main/a/acl/acl_2.4.0.orig.tar.xz": "e661131456d2708a01c614a0f400e11d7d1bfaeb6f3e74b75bb980b72f0161a3",
+        "https://deb.debian.org/debian/pool/main/a/acl/acl_2.4.0-1.debian.tar.xz": "65931c2fb3e821bda67f8d8d72d77e99ac61502748dcdf38b6805fe89339085e"
+      },
+      "variants": {"amd64": {"/usr/lib/x86_64-linux-gnu/libacl.so.1.2.2400": "32d112de5fb4ec3124c7a4b859b738b45e4c4a9db3b3115f167625f082909dd1"}},
+      "advisories": {
+        "CVE-2026-54369": "https://security-tracker.debian.org/tracker/CVE-2026-54369",
+        "CVE-2026-54370": "https://security-tracker.debian.org/tracker/CVE-2026-54370"
+      }
+    },
+    {
+      "namespace": "debian:distro:debian:13", "codename": "trixie",
+      "version": "1:1.3.dfsg+really1.3.2-4~pantavisor1", "packages": ["zlib1g"],
+      "reason": "The pinned Debian zlib 1.3.2 source revision contains the fix; require exact native bytes rather than relying on the Trixie unbounded source-package record.",
+      "source_sha256": {
+        "https://deb.debian.org/debian/pool/main/z/zlib/zlib_1.3.dfsg+really1.3.2.orig.tar.gz": "7b6903eb019983987b7112eccf90f1703f1c6c0e0cede36564bf611d19ca579d",
+        "https://deb.debian.org/debian/pool/main/z/zlib/zlib_1.3.dfsg+really1.3.2-4.debian.tar.xz": "ee9db06d87b2d810b9edd8485b8b39433b18eb30d93f9e1d40fe8dbd40eda7a1"
+      },
+      "variants": {"amd64": {"/usr/lib/x86_64-linux-gnu/libz.so.1.3.2": "f20a2c4a5877e447bd9e66b6c57d4a7343244d48a29f854a9b3c6739d8e86026"}},
+      "advisories": {"CVE-2026-85091": "https://security-tracker.debian.org/tracker/CVE-2026-85091"}
+    },
+    {
+      "namespace": "debian:distro:debian:13", "codename": "trixie",
+      "version": "6.6+20260608-2~pantavisor1", "packages": ["libncursesw6", "libtinfo6"],
+      "reason": "The reviewed ncurses source contains the fix. Both native libraries and exact package versions must match.",
+      "source_sha256": {
+        "https://deb.debian.org/debian/pool/main/n/ncurses/ncurses_6.6+20260608.orig.tar.gz": "3b91eb714ba61b9ebfcfe09cf8e7c1c45cf2e8a6282f5887fb942db514ae93bd",
+        "https://deb.debian.org/debian/pool/main/n/ncurses/ncurses_6.6+20260608-2.debian.tar.xz": "52a49c453121bd90d21edef53903beac9d9d8229e0ef4f49d3b0252e49932f4c"
+      },
+      "variants": {"amd64": {
+        "/usr/lib/x86_64-linux-gnu/libncursesw.so.6.6": "0d6e4d9eb5e2ffbf34cfe9378d08b91a5f7322c1a12d98d75ef48f91346712a0",
+        "/usr/lib/x86_64-linux-gnu/libtinfo.so.6.6": "956d361ecb6ed7961787b2a43c1d9c99067a5ea308408822ab69a7ca474ff244"
+      }},
+      "advisories": {"CVE-2025-69720": "https://security-tracker.debian.org/tracker/CVE-2025-69720"}
+    },
+    {
+      "namespace": "debian:distro:debian:13", "codename": "trixie",
+      "version": "2.1.28+dfsg1-12~pantavisor1", "packages": ["libsasl2-2", "libsasl2-modules-db"],
+      "reason": "The pinned Debian SASL packaging includes the security correction. Verify both core and DB module payloads.",
+      "source_sha256": {
+        "https://deb.debian.org/debian/pool/main/c/cyrus-sasl2/cyrus-sasl2_2.1.28+dfsg1.orig.tar.xz": "e796a5d85d1a85e1b433d43504e467f9075c7ebc0b45730a3996cf11b1deada4",
+        "https://deb.debian.org/debian/pool/main/c/cyrus-sasl2/cyrus-sasl2_2.1.28+dfsg1-12.debian.tar.xz": "5aef55aa41fad421aed3fa1cf1f79ecb9db82534220c6211d64383ae5f39e20f"
+      },
+      "variants": {"amd64": {
+        "/usr/lib/x86_64-linux-gnu/libsasl2.so.2.0.25": "f915d8cd6cb9e2ba4f69a9a5c9df3f7a355bf3fdef793be75408705bb513599b",
+        "/usr/lib/x86_64-linux-gnu/sasl2/libsasldb.so.2.0.25": "58ecbb6b49dfa9452023a47c615aa43973fe91734a08b46210308aa86be736ea"
+      }},
+      "advisories": {"CVE-2026-107161": "https://security-tracker.debian.org/tracker/CVE-2026-107161"}
+    },
+    {
+      "namespace": "debian:distro:debian:13", "codename": "trixie",
+      "version": "3.54.1-1~pantavisor1", "packages": ["libsqlite3-0"],
+      "reason": "SQLite 3.54.1 fixes these issues; the reviewed native library passed 979204 upstream tests in the source builder.",
+      "source_sha256": {
+        "https://deb.debian.org/debian/pool/main/s/sqlite3/sqlite3_3.54.1.orig.tar.xz": "faeff7682200b3dd58c8f0f229892a7271c73c1fdabc86e7315eb31eb7cb6e83",
+        "https://deb.debian.org/debian/pool/main/s/sqlite3/sqlite3_3.54.1-1.debian.tar.xz": "3f05602b0f4e1441b88f92e9afb2980e148659842565b1f1e27012988433a1d9"
+      },
+      "variants": {"amd64": {"/usr/lib/x86_64-linux-gnu/libsqlite3.so.3.54.1": "f3efdeb6d18f5168d14511e0aec614f7b84e8daf1c319a77089d58e50d4ff317"}},
+      "advisories": {
+        "CVE-2026-119373": "https://security-tracker.debian.org/tracker/CVE-2026-119373",
+        "CVE-2026-119374": "https://security-tracker.debian.org/tracker/CVE-2026-119374",
+        "CVE-2026-119379": "https://security-tracker.debian.org/tracker/CVE-2026-119379"
+      }
+    },
+    {
+      "namespace": "debian:distro:debian:13", "codename": "trixie",
+      "version": "2.10.0-1~pantavisor1", "packages": ["libexpat1"],
+      "reason": "Expat 2.10.0 contains these fixes. Require the reviewed native library hash and exact local package version.",
+      "source_sha256": {
+        "https://deb.debian.org/debian/pool/main/e/expat/expat_2.10.0.orig.tar.gz": "b3644a12f62d7762b62c444f69d169ba0234f13138d0240244bca64cbe35286f",
+        "https://deb.debian.org/debian/pool/main/e/expat/expat_2.10.0-1.debian.tar.xz": "9be65c3ff79ca0508590970422de0a55f117bb7134a0274dd1ed3261f85631dc"
+      },
+      "variants": {"amd64": {"/usr/lib/x86_64-linux-gnu/libexpat.so.1.13.1": "ea70422c742350d082d9b6f4cbc0cfd94d9ec68a3a1ee26fd320a2d9814a92df"}},
+      "advisories": {
+        "CVE-2026-113351": "https://security-tracker.debian.org/tracker/CVE-2026-113351",
+        "CVE-2026-115506": "https://security-tracker.debian.org/tracker/CVE-2026-115506",
+        "CVE-2026-117610": "https://security-tracker.debian.org/tracker/CVE-2026-117610",
+        "CVE-2026-118370": "https://security-tracker.debian.org/tracker/CVE-2026-118370"
+      }
+    },
+    {
+      "namespace": "debian:distro:debian:13", "codename": "trixie",
+      "version": "1.21.3-5+deb13u1+pantavisor1",
+      "packages": ["libkrb5-3", "libgssapi-krb5-2", "libk5crypto3", "libkrb5support0"],
+      "reason": "The pinned upstream fix checks the KRB-CRED ticket-info boundary before dereferencing it. All native Kerberos payloads must match the reviewed patched build.",
+      "source_sha256": {
+        "https://deb.debian.org/debian/pool/main/k/krb5/krb5_1.21.3.orig.tar.gz": "b7a4cd5ead67fb08b980b21abd150ff7217e85ea320c9ed0c6dadd304840ad35",
+        "https://deb.debian.org/debian/pool/main/k/krb5/krb5_1.21.3-5+deb13u1.debian.tar.xz": "02b873b239fbe7ddf016dfe44deba4130673f4606c18c93da0622e2bc8500fb4",
+        "https://github.com/krb5/krb5/commit/48afa9abb89ab2176bb20624d87d010b9984fc08.patch": "955de54b130bc76b07d4d6ca8117eda441cbfc0daa83d93c6d05d776889bc5d0"
+      },
+      "variants": {"amd64": {
+        "/usr/lib/x86_64-linux-gnu/libkrb5.so.3.3": "8a0d4e73e81c3e7f6e88e145fb2d149f2ab1b97ab768e1655b394426b51764d2",
+        "/usr/lib/x86_64-linux-gnu/libgssapi_krb5.so.2.2": "c290f761873ebeac539911010526e1c5db86218bfcb29672760da46841741de0",
+        "/usr/lib/x86_64-linux-gnu/libk5crypto.so.3.1": "c4c3221d0350f882cee0430b58d5fb289a5776c684d3156964864c8a9719dff1",
+        "/usr/lib/x86_64-linux-gnu/libkrb5support.so.0.1": "f559f051ee5d39f151a57d79f2cde475c484030098b0c73f9f7035b421b187c4"
+      }},
+      "advisories": {"CVE-2026-107778": "https://security-tracker.debian.org/tracker/CVE-2026-107778"}
+    },
+    {
+      "namespace": "debian:distro:debian:13", "codename": "trixie",
+      "version": "2.4.9-8~pantavisor1",
+      "packages": ["gnupg", "gnupg-l10n", "gpg", "gpg-agent", "gpgconf", "gpgsm", "dirmngr"],
+      "reason": "The pinned GnuPG source includes the fix. Match all native executables and exact companion package versions; signing, verification and tampered-message rejection pass in the assembled runtime.",
+      "source_sha256": {
+        "https://deb.debian.org/debian/pool/main/g/gnupg2/gnupg2_2.4.9.orig.tar.bz2": "dd17ab2e9a04fd79d39d853f599cbc852062ddb9ab52a4ddeb4176fd8b302964",
+        "https://deb.debian.org/debian/pool/main/g/gnupg2/gnupg2_2.4.9-8.debian.tar.xz": "69e954dc52f1a674bf567aa40064e24ca230210394975a6cddf98742e2a6f882"
+      },
+      "variants": {"amd64": {
+        "/usr/bin/dirmngr": "f71722175098119d43ed7a51dd57334dc54e62ee10b7ed7886638732add69e9a",
+        "/usr/bin/gpg": "243cc0662b1af81104bdfc870bba4a5b113213750383661bfbf25fbb1ec77aaa",
+        "/usr/bin/gpg-agent": "d965d0e7753ccbdd380c90d0ca1d861ae01496b143fa67733704367a9014bd8f",
+        "/usr/bin/gpgconf": "71a09d68289fafb96204a6a76df51c1078fcabc0ee231f12388936440eaf0d1a",
+        "/usr/bin/gpgsm": "a7adaa409c76320f75fc51850f19451cbac9e53f2965737d2947c8b7f60dc0e9"
+      }},
+      "advisories": {"CVE-2026-24882": "https://security-tracker.debian.org/tracker/CVE-2026-24882"}
+    },
+    {
+      "namespace": "debian:distro:debian:13",
+      "codename": "trixie",
+      "version": "1:5.4.1-0~pantavisor1",
+      "packages": ["gawk"],
+      "reason": "GNU gawk 5.4.1 includes the four upstream fixes documented in its ChangeLog. The release signature was verified using the GNU keyring (D1967C63788713177D861ED7DF597815937EC0D2). Require exact native executable bytes; the enabled upstream tests pass non-root. PMA is disabled for sandbox compatibility, not as an advisory exclusion.",
+      "source_sha256": {
+        "https://ftp.gnu.org/gnu/gawk/gawk-5.4.1.tar.xz": "07f6f7342b7febe4313fc2c2542ad93d64fe20ad8717200109f105a826f5fd37"
+      },
+      "variants": {
+        "amd64": {
+          "/usr/bin/gawk": "00c6dfdb17edf9a1ec01daa74a18754fedbbb471514245799db643ebe5451281"
+        }
+      },
+      "advisories": {
+        "CVE-2026-40467": "https://security-tracker.debian.org/tracker/CVE-2026-40467",
+        "CVE-2026-40468": "https://security-tracker.debian.org/tracker/CVE-2026-40468",
+        "CVE-2026-40469": "https://security-tracker.debian.org/tracker/CVE-2026-40469",
+        "CVE-2026-40553": "https://security-tracker.debian.org/tracker/CVE-2026-40553"
+      }
+    },
+    {
+      "namespace": "debian:distro:debian:13",
+      "codename": "trixie",
+      "version": "2.15.4+dfsg-1~pantavisor1",
+      "packages": ["libxml2-16"],
+      "reason": "The checksum-pinned Debian libxml2 2.15.4 source contains the upstream fixes. Match the exact local package and native shared library before reviewing the unbounded Trixie source-package findings. The Perl consumer is rebuilt for the new ABI and its 2577 tests pass on AMD64; the old library is absent from the runtime.",
+      "source_sha256": {
+        "https://deb.debian.org/debian/pool/main/libx/libxml2/libxml2_2.15.4+dfsg.orig.tar.xz": "5868d20db42ee21e4881bc53050c7fa226286a277cb3d0543f76b81f7571e934",
+        "https://deb.debian.org/debian/pool/main/libx/libxml2/libxml2_2.15.4+dfsg-1.debian.tar.xz": "a125823450895c0785596a6fce26931ab0a369c82da4d6cfa6bbdac782ed9010"
+      },
+      "variants": {
+        "amd64": {
+          "/usr/lib/x86_64-linux-gnu/libxml2.so.16.1.4": "864ef9e4965dd14113c2f91d5d633314ded9de9f113f4e376bab4ad812c99574"
+        }
+      },
+      "advisories": {
+        "CVE-2026-6653": "https://security-tracker.debian.org/tracker/CVE-2026-6653",
+        "CVE-2026-74860": "https://security-tracker.debian.org/tracker/CVE-2026-74860",
+        "CVE-2026-86138": "https://security-tracker.debian.org/tracker/CVE-2026-86138",
+        "CVE-2026-86139": "https://security-tracker.debian.org/tracker/CVE-2026-86139",
+        "CVE-2026-86140": "https://security-tracker.debian.org/tracker/CVE-2026-86140",
+        "CVE-2026-86142": "https://security-tracker.debian.org/tracker/CVE-2026-86142",
+        "CVE-2026-86143": "https://security-tracker.debian.org/tracker/CVE-2026-86143",
+        "CVE-2026-86144": "https://security-tracker.debian.org/tracker/CVE-2026-86144"
+      }
+    },
+    {
+      "namespace": "debian:distro:debian:13",
+      "codename": "trixie",
+      "version": "3.13.18-1~pantavisor1",
+      "packages": ["python3.13", "python3.13-minimal", "libpython3.13-minimal", "libpython3.13-stdlib"],
+      "reason": "The checksum-pinned Python 3.13.18 Debian source includes these fixes. Match the exact interpreter (including built-in XML modules), SSL extension, corrected Python modules and Expat 2.10 payload before reviewing Trixie's unbounded findings. Missing-hostname rejection is regression-tested; other packages and advisories remain blocking.",
+      "source_sha256": {
+        "https://deb.debian.org/debian/pool/main/p/python3.13/python3.13_3.13.18.orig.tar.xz": "abb0102e6d4ae027509bcb82327d9dd85515b44a3ba8ad538cfc5e9847029f68",
+        "https://deb.debian.org/debian/pool/main/p/python3.13/python3.13_3.13.18-1.debian.tar.xz": "8f12d82b3cedd95970133622a48a3c3309a3ce8560e5c026d3438d3aecc8ef8b"
+      },
+      "variants": {
+        "amd64": {
+          "/usr/bin/python3.13": "3225aeade2ade20732d89cd246b8abddfdd3906454b57803e28360d79bcd3628",
+          "/usr/lib/python3.13/html/parser.py": "4274e9112adf3fa57c7f9afa7c9b5c631456b18b7403cc627cc5027d02cdd2ae",
+          "/usr/lib/python3.13/lib-dynload/_ssl.cpython-313-x86_64-linux-gnu.so": "1f147989ece614953bdd610830789847a4f807ebf9b9f39563b2198aa3579f71",
+          "/usr/lib/python3.13/ssl.py": "3ea103be59b47ad58cb53b249e5b74d00c87b54b20650e208e3b4b9ca533e9e8",
+          "/usr/lib/python3.13/tarfile.py": "8bc6e7db24614aee7f6d35748349182c92de27c86a39dfcf66452a3689d864a4",
+          "/usr/lib/x86_64-linux-gnu/libexpat.so.1.13.1": "ea70422c742350d082d9b6f4cbc0cfd94d9ec68a3a1ee26fd320a2d9814a92df"
+        }
+      },
+      "advisories": {
+        "CVE-2026-7210": "https://security-tracker.debian.org/tracker/CVE-2026-7210",
+        "CVE-2026-15308": "https://security-tracker.debian.org/tracker/CVE-2026-15308",
+        "CVE-2026-19445": "https://security-tracker.debian.org/tracker/CVE-2026-19445",
+        "CVE-2026-19553": "https://security-tracker.debian.org/tracker/CVE-2026-19553",
+        "CVE-2026-82049": "https://security-tracker.debian.org/tracker/CVE-2026-82049"
+      }
+    },
+    {
       "namespace": "debian:distro:debian:13",
       "codename": "trixie",
       "version": "8.23.0-1~pantavisor1",

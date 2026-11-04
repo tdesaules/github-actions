@@ -1,5 +1,48 @@
 # KAS runtime security refresh
 
+## Latest local state
+
+The most recent completed integrated AMD64 scan, before the final Wget package
+is added, has **no critical matches and 143 high matches across 12 distinct
+advisories** after evidence-verified reviews. Remaining groups are glibc (3),
+GCC/libstdc++ (2), util-linux (4), and Wget (3). The CI gate is not cleared.
+
+The staged source refresh includes Python, XML/Perl, gawk, SQLite, Expat, ACL,
+zlib, ncurses, SASL, Kerberos, GnuPG, and two Perl core-module fixes. Relevant
+evidence is retained in `.build/kas-python/`, `.build/kas-xml/`,
+`.build/kas-gawk/`, `.build/kas-sqlite/`, `.build/kas-expat/`,
+`.build/kas-small-libraries/`, `.build/kas-auth-libraries/`, `.build/kas-perl/`,
+`.build/kas-integrated/`, and `.build/kas-wget/`.
+
+- Core built cold with Python 3.13.18 in 2802.542 seconds; that experiment does
+  not include every later support-library update.
+- The rebuilt XML Perl binding passed 2577 upstream tests. Its runtime parses
+  Texinfo's XML output, and the legacy libxml2 ABI is absent from the closure.
+- SQLite's upstream suite completed 979204 tests with zero errors under the
+  non-root build identity.
+- gawk 5.4.1 passed its enabled upstream tests with PMA disabled for the action
+  sandbox; the `awk` alternative and substitution behavior were checked.
+- HTTPS redirects, certificate/hostname rejection, Git's GnuTLS clone path and
+  KAS checkout pass in the assembled runtime.
+- The Python missing-hostname TLS regression rejects the formerly accepted
+  configuration. SQLite, Expat, zlib, XML, CPAN module versions and the GnuPG
+  Python binding load correctly in the assembled runtime.
+- The Python-only ARM64 image also builds under emulation and passes its version,
+  extension ABI, missing-hostname TLS, HTTPS, Git and KAS checkout checks. This
+  does not qualify the later complete dependency set on ARM64.
+- GnuPG signing, verification and rejection of a modified message pass with an
+  ephemeral key in a disposable container.
+- Wget's source package build and bounds regressions pass on AMD64. Its final
+  image integration, architecture-specific evidence and review remain to be
+  qualified; no Wget exception has been added to the policy.
+
+The updated reviewer must be published separately from
+`feat/verified-backport-review`, then consumed by its actual image digest.
+Current migration workflows still call the older published reviewer. Most new
+native backport policies currently contain AMD64 evidence only, so they cannot
+silently waive unverified ARM64 payloads. The following sections retain the
+earlier measurements and explain the progression.
+
 ## Hosted failure and remediation
 
 Run [41797577398](https://github.com/tdesaules/github-actions/actions/runs/41797577398)
