@@ -1,0 +1,73 @@
+Bound the Metalink reverse scan (CVE-2026-58469) and HTML quote allocation
+(CVE-2026-58472), preserving complete entity lengths and whitespace semantics.
+The extracted functions are exercised under ASan/UBSan by test-wget-bounds.py.
+
+--- a/src/metalink.c
++++ b/src/metalink.c
+@@ -1062,7 +1062,7 @@
+   /* If we are at the end of the string, search the first legit
+      character going backward.  */
+   if (*end == '\0')
+-    while ((c = *(end - 1)) && (c == '\n' || c == '\r' || c == '\t' || c == ' '))
++    while (end > beg && (c = *(end - 1)) && (c == '\n' || c == '\r' || c == '\t' || c == ' '))
+       end--;
+ 
+   len = end - beg;
+--- a/src/convert.c
++++ b/src/convert.c
+@@ -36,6 +36,7 @@
+ #include <unistd.h>
+ #include <errno.h>
+ #include <assert.h>
++#include <stdint.h>
+ #include "convert.h"
+ #include "url.h"
+ #include "recur.h"
+@@ -1173,26 +1174,36 @@
+    SP  -> `&#32;'
+ 
+    No other entities are recognized or replaced.  */
++static size_t
++checked_quote_add (size_t size, size_t extra)
++{
++  if (extra > SIZE_MAX - size)
++    abort ();
++  return size + extra;
++}
++
+ char *
+ html_quote_string (const char *s)
+ {
+   const char *b = s;
+   char *p, *res;
+-  int i;
+-
+-  /* Pass through the string, and count the new size.  */
+-  for (i = 0; *s; s++, i++)
+-    {
++  size_t i = 0;
++
++  /* Count complete encodings, including their leading ampersands. */
++  for (; *s; s++)
++    {
++      size_t extra = 1;
+       if (*s == '&')
+-        i += 4;                 /* `amp;' */
++        extra = 5;
+       else if (*s == '<' || *s == '>')
+-        i += 3;                 /* `lt;' and `gt;' */
++        extra = 4;
+       else if (*s == '\"')
+-        i += 5;                 /* `quot;' */
++        extra = 6;
+       else if (*s == ' ')
+-        i += 4;                 /* #32; */
+-    }
+-  res = xmalloc (i + 1);
++        extra = 5;
++      i = checked_quote_add (i, extra);
++    }
++  res = xmalloc (checked_quote_add (i, 1));
+   s = b;
+   for (p = res; *s; s++)
+     {

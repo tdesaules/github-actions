@@ -13,6 +13,23 @@ Update its source version and checksum together. The collector resolves virtual
 package providers and follows the selected Python interpreter's library version.
 The UTF-8 locale is regenerated after the libc/locales updates.
 
+Additional source backports preserve Debian package ownership and retain only
+the runtime dependency closure: Python 3.13.18, libxml2 2.15.4 with its rebuilt
+Perl binding, gawk 5.4.1, SQLite 3.54.1, Expat 2.10.0, ACL, zlib, ncurses,
+SASL, Kerberos and GnuPG. The two affected Perl core modules are replaced in
+place using pinned CPAN releases without changing the interpreter ABI. GnuPG's
+matching meta/localization packages are included to retain `python3-gnupg`.
+
+The gawk persistent-memory allocator (PMA) is disabled because its process
+personality changes are unavailable in the Docker sandbox. Its enabled upstream
+tests run as a non-root user. SQLite's permission-sensitive tests also run
+non-root. Wget receives bounded-size fixes and a pinned upstream filename
+conversion fix, with source-level bounds regressions in its build stage.
+
+See [the remediation evidence](../../docs/pantavisor-kas-remediation.md) for
+local test coverage and the remaining publication gates. Native ARM64 hosted
+qualification is required; AMD64 results do not establish ARM64 qualification.
+
 curl 8.23.0 is rebuilt from checksum-pinned upstream and Debian packaging sources
 against Trixie. Both OpenSSL and GnuTLS variants retain Debian's symbol versions;
 HTTP/3 dependencies are pinned to official Trixie backports. The resulting local
