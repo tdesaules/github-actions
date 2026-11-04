@@ -114,7 +114,8 @@ jobs:
         uses: ./workflow/get-image-matrix
         with:
           files: ${{ steps.sources.outputs.files }}
-          full: ${{ steps.sources.outputs.full }}
+          # Bootstrap the source reviewer until its digest is published and pinned.
+          full: true
           event: ${{ github.event_name }}
           ref: ${{ github.ref }}
           release-plan: ${{ steps.plan.outcome == 'success' && '.build/publication/release-plan.json' || '' }}
@@ -262,7 +263,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     services:
       candidate-registry:
-        image: ${{ (matrix.rebuild || matrix.image == 'workflow-import-candidate-image') && needs.check.outputs.test-registry-image || '' }}
+        image: ${{ (matrix.rebuild || matrix.scan || matrix.image == 'workflow-import-candidate-image') && needs.check.outputs.test-registry-image || '' }}
         ports:
           - 5000/tcp
       test-registry:
@@ -1034,9 +1035,49 @@ jobs:
           source: oci-archive:.build/${{ matrix.image }}/${{ matrix.arch }}/${{ matrix.rebuild && 'image' || 'scan' }}.oci.tar
           format: syft-json
           output: .build/${{ matrix.image }}/${{ matrix.arch }}/sbom.syft.json
+      - name: Download source reviewer archive
+        if: matrix.rebuild || matrix.scan
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: build-workflow-new-vulnerability-review-${{ matrix.arch }}-${{ github.run_id }}
+          path: .build/reviewer/${{ matrix.arch }}
+      - name: Verify source reviewer archive
+        if: matrix.rebuild || matrix.scan
+        uses: ./workflow/test-build-artifact
+        with:
+          archive: .build/reviewer/${{ matrix.arch }}/image.oci.tar
+          receipt: .build/reviewer/${{ matrix.arch }}/build.json
+          image: workflow-new-vulnerability-review
+          architecture: ${{ matrix.arch }}
+          revision: ${{ github.sha }}
+          version: ${{ env.VERSION }}
+      - name: Qualify source reviewer runtime
+        if: matrix.rebuild || matrix.scan
+        uses: ./workflow/test-candidate-runtime
+        with:
+          archive: .build/reviewer/${{ matrix.arch }}/image.oci.tar
+          image: workflow-new-vulnerability-review
+          architecture: ${{ matrix.arch }}
+          revision: ${{ github.sha }}
+          output: .build/reviewer/${{ matrix.arch }}/runtime-tests.json
+      - name: Transfer source reviewer to private registry
+        if: matrix.rebuild || matrix.scan
+        id: reviewer
+        uses: ./workflow/import-candidate-image
+        with:
+          archive: .build/reviewer/${{ matrix.arch }}/image.oci.tar
+          repository: workflow-new-vulnerability-review
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Prepare source reviewer action
+        if: matrix.rebuild || matrix.scan
+        uses: ./workflow/new-candidate-action
+        with:
+          directory: workflow/new-vulnerability-review
+          image: ${{ steps.reviewer.outputs.image }}
+          destination: .candidate-actions/workflow/new-vulnerability-review
       - name: Derive evidence-backed vulnerability review
         if: matrix.rebuild || matrix.scan
-        uses: ./workflow/new-vulnerability-review
+        uses: ./.candidate-actions/workflow/new-vulnerability-review
         with:
           sbom: .build/${{ matrix.image }}/${{ matrix.arch }}/sbom.syft.json
           output: .build/${{ matrix.image }}/${{ matrix.arch }}/grype-reviewed.json
@@ -1088,6 +1129,7 @@ jobs:
           path: |
             .build/${{ matrix.image }}/${{ matrix.arch }}/*.json
             .build/fixtures/*.json
+            .build/reviewer/${{ matrix.arch }}/*.json
             !.build/fixtures/signing.json
             .build/fixtures/registry-cert.pem
           if-no-files-found: warn

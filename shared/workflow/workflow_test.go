@@ -129,7 +129,26 @@ func TestBuildAndQualificationAreSeparate(t *testing.T) {
 	steps := document.Jobs["test"].Steps
 	fixtures, runtime, scan, qualified := -1, -1, -1, -1
 	checks := []int{}
+	reviewerChecks, reviewerRuntime, reviewerTransfer, reviewerPrepare, reviewerUse := -1, -1, -1, -1, -1
 	for i, step := range steps {
+		with, _ := step["with"].(map[string]any)
+		if archive, _ := with["archive"].(string); strings.HasPrefix(archive, ".build/reviewer/") {
+			switch step["uses"] {
+			case "./workflow/test-build-artifact":
+				reviewerChecks = i
+			case "./workflow/test-candidate-runtime":
+				reviewerRuntime = i
+			case "./workflow/import-candidate-image":
+				reviewerTransfer = i
+			}
+			continue
+		}
+		if step["name"] == "Prepare source reviewer action" {
+			reviewerPrepare = i
+		}
+		if step["name"] == "Derive evidence-backed vulnerability review" {
+			reviewerUse = i
+		}
 		switch step["uses"] {
 		case "./workflow/new-test-fixtures":
 			fixtures = i
@@ -152,6 +171,9 @@ func TestBuildAndQualificationAreSeparate(t *testing.T) {
 	}
 	if scan <= runtime || len(checks) != 2 || checks[0] >= runtime || checks[1] <= scan || qualified <= checks[1] {
 		t.Fatal("archive integrity must bracket tests and scans before qualification")
+	}
+	if reviewerChecks < 0 || reviewerRuntime <= reviewerChecks || reviewerTransfer <= reviewerRuntime || reviewerPrepare <= reviewerTransfer || reviewerUse <= reviewerPrepare || scan <= reviewerUse {
+		t.Fatal("source reviewer must be verified and runtime-qualified before preparation and scanning")
 	}
 	for _, step := range steps[qualified+1:] {
 		uses, _ := step["uses"].(string)
