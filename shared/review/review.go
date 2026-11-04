@@ -17,7 +17,8 @@ type Artifact struct {
 	Type      string     `json:"type"`
 	Locations []Location `json:"locations"`
 	Metadata  struct {
-		Symbols map[string][]string `json:"symbols"`
+		Symbols      map[string][]string `json:"symbols"`
+		Architecture string              `json:"architecture"`
 	} `json:"metadata"`
 }
 type File struct {
@@ -27,14 +28,19 @@ type File struct {
 type SBOM struct {
 	Artifacts []Artifact `json:"artifacts"`
 	Files     []File     `json:"files"`
+	Distro    struct {
+		ID       string `json:"id"`
+		Codename string `json:"versionCodename"`
+	} `json:"distro"`
 }
 type Policy struct {
-	Vulnerability string `json:"vulnerability"`
-	Package       string `json:"package"`
-	Affected      string `json:"affected_package"`
-	Reference     string `json:"reference"`
-	Reason        string `json:"reason"`
-	Patched       *Patch `json:"patched_npm"`
+	Vulnerability string     `json:"vulnerability"`
+	Package       string     `json:"package"`
+	Affected      string     `json:"affected_package"`
+	Reference     string     `json:"reference"`
+	Reason        string     `json:"reason"`
+	Patched       *Patch     `json:"patched_npm"`
+	Backports     []Backport `json:"verified_debian_backports,omitempty"`
 }
 type Patch struct {
 	Vulnerability string            `json:"vulnerability"`
@@ -80,6 +86,11 @@ func Evaluate(sbom SBOM, policy Policy) (Configuration, []map[string]any) {
 	rules, patched := patchedReview(sbom, policy.Patched)
 	config.Ignore = append(config.Ignore, rules...)
 	evidence = append(evidence, patched...)
+	for _, backport := range policy.Backports {
+		rules, checked := backportReview(sbom, backport)
+		config.Ignore = append(config.Ignore, rules...)
+		evidence = append(evidence, checked...)
+	}
 	return config, evidence
 }
 
