@@ -145,3 +145,27 @@ No blanket curl exclusion or distro override is applied. The raw scan still
 fails. A narrowly scoped, evidence-verified review of this source backport is
 needed before the scanner can distinguish it from the affected Trixie packages.
 Other components' findings remain independent of this curl update.
+
+## Evidence-verified review rollout
+
+The new optional `verified_debian_backports` policy scopes curl's 31 reviewed
+advisories to the exact four local Debian package versions and SHA-256 hashes of
+the curl executable plus both TLS libraries, separately for AMD64 and ARM64.
+The reviewer emits no rules for old versions, modified/missing bytes, duplicate
+evidence, missing packages, mixed architectures or a different distro. The source
+archive hashes and per-advisory references are retained in the evidence report.
+
+The local AMD64 scan with this verified review reports 7 critical and 201 high
+matches, representing 45 distinct remaining advisory IDs. No curl finding remains
+blocking under that review. The unreviewed report remains available alongside it;
+other dependencies are not excluded.
+The ARM64 SBOM independently passes its native hash checks and the reviewed scan
+reports 7 critical and 143 high matches, with the same 45 distinct advisories and
+no blocking curl finding.
+
+This extension must first be published from `feat/verified-backport-review`, which
+contains only the reviewer support on top of `main`. Its qualification does not
+depend on publishing the still-blocked KAS image. After that prerequisite release,
+update the migration branch to the actual published reviewer digest before
+claiming its workflow applies the policy. The old published reviewer ignores the
+new optional policy field and therefore cannot remove these findings.
