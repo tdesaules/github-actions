@@ -45,16 +45,25 @@ func backportReview(sbom SBOM, p Backport) ([]Rule, []map[string]any) {
 		if artifact.Version != p.Version || found[artifact.Name] != "" || artifact.ID == "" {
 			return nil, nil
 		}
-		if architecture == "" {
-			architecture = artifact.Metadata.Architecture
-		}
-		if architecture == "" || architecture != artifact.Metadata.Architecture {
+		arch := artifact.Metadata.Architecture
+		if arch == "" {
 			return nil, nil
+		}
+		if arch != "all" {
+			if architecture == "" {
+				architecture = arch
+			}
+			if architecture != arch {
+				return nil, nil
+			}
 		}
 		found[artifact.Name] = artifact.ID
 	}
 	if len(found) != len(wanted) {
 		return nil, nil
+	}
+	if architecture == "" {
+		architecture = "all"
 	}
 	expected := p.Variants[architecture]
 	if len(expected) == 0 {
