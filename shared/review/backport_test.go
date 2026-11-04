@@ -60,3 +60,32 @@ func TestBackportRequiresExactEvidence(t *testing.T) {
 		})
 	}
 }
+
+func TestBackportArchitectureIndependentCompanion(t *testing.T) {
+	sbom, p := backportFixture(t)
+	companion := sbom.Artifacts[0]
+	companion.ID, companion.Name, companion.Metadata.Architecture = "translations", "curl-l10n", "all"
+	sbom.Artifacts = append([]Artifact{companion}, sbom.Artifacts...)
+	p.Packages = append(p.Packages, companion.Name)
+	if rules, _ := backportReview(sbom, p); len(rules) != 3 {
+		t.Fatal("architecture-independent companion rejected")
+	}
+	sbom.Artifacts[0].Version = "old"
+	if rules, _ := backportReview(sbom, p); len(rules) != 0 {
+		t.Fatal("stale architecture-independent companion accepted")
+	}
+}
+
+func TestBackportPureArchitectureIndependentPayload(t *testing.T) {
+	sbom, p := backportFixture(t)
+	for i := range sbom.Artifacts {
+		sbom.Artifacts[i].Metadata.Architecture = "all"
+	}
+	if rules, _ := backportReview(sbom, p); len(rules) != 0 {
+		t.Fatal("native hashes implicitly accepted for architecture-independent packages")
+	}
+	p.Variants["all"] = p.Variants["amd64"]
+	if rules, _ := backportReview(sbom, p); len(rules) != 2 {
+		t.Fatal("explicit architecture-independent proof rejected")
+	}
+}
