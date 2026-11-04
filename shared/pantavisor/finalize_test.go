@@ -11,6 +11,8 @@ import (
 )
 
 func TestAtomicFinalizationAndAdvancedMain(t *testing.T) {
+	// The enclosing test action supplies its own directory input.
+	t.Setenv("INPUT_DIRECTORY", "")
 	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
 	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
 	for _, advanced := range []bool{false, true} {

@@ -31,6 +31,8 @@ func TestReleaseVersions(t *testing.T) {
 	}
 }
 func TestCandidateBundleRetainsExactCommit(t *testing.T) {
+	// The enclosing test action supplies its own directory input.
+	t.Setenv("INPUT_DIRECTORY", "")
 	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
 	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
 	root := t.TempDir()
