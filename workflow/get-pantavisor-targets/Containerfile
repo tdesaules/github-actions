@@ -5,7 +5,9 @@ COPY shared/workflow/ ./shared/workflow/
 COPY workflow/get-pantavisor-targets/main.go ./workflow/get-pantavisor-targets/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/get-pantavisor-targets
 
+RUN mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
 FROM scratch AS final
+COPY --from=build /runtime/ /
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=build /entrypoint /entrypoint
 # Writes only GITHUB_OUTPUT supplied by the runner; no process is spawned.

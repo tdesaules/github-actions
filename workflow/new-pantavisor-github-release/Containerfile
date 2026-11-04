@@ -6,7 +6,9 @@ COPY shared/component/ ./shared/component/
 COPY shared/pantavisor/ ./shared/pantavisor/
 COPY workflow/new-pantavisor-github-release/main.go ./workflow/new-pantavisor-github-release/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/new-pantavisor-github-release
+RUN mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
 FROM scratch AS final
+COPY --from=build /runtime/ /
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=build /entrypoint /entrypoint
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt

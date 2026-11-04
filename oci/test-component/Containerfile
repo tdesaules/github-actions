@@ -6,7 +6,9 @@ COPY shared/workflow/ ./shared/workflow/
 COPY oci/test-component/main.go ./oci/test-component/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./oci/test-component
 
+RUN mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
 FROM scratch AS final
+COPY --from=build /runtime/ /
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=build /entrypoint /entrypoint
 # Read-only component access; writes only the runner's GITHUB_OUTPUT file.

@@ -6,7 +6,9 @@ COPY shared/component/ ./shared/component/
 COPY shared/pantavisor/ ./shared/pantavisor/
 COPY workflow/test-pantavisor-artifact/main.go ./workflow/test-pantavisor-artifact/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/test-pantavisor-artifact
+RUN mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
 FROM scratch AS final
+COPY --from=build /runtime/ /
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=build /entrypoint /entrypoint
 # Writes only GITHUB_OUTPUT.
