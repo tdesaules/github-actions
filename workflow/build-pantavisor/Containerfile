@@ -6,7 +6,7 @@ COPY shared/pantavisor/ ./shared/pantavisor/
 COPY shared/component/ ./shared/component/
 COPY workflow/build-pantavisor/main.go ./workflow/build-pantavisor/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/build-pantavisor
-FROM ghcr.io/siemens/kas/kas@sha256:22c70f90e21997c0b6743ad2d802cf1d942c28e974361c4733b8a026cb7ef809 AS tools
+FROM ghcr.io/siemens/kas/kas:4.8.2@sha256:fd0000890ccf7c8091239e1df9aa46af7721b6e4d992be0ce3d178d17ffcebff AS tools
 # Collect root-owned tool files in this intermediate stage only.
 # hadolint ignore=DL3002
 USER 0:0
