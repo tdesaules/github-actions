@@ -6,10 +6,44 @@ COPY shared/pantavisor/ ./shared/pantavisor/
 COPY shared/component/ ./shared/component/
 COPY workflow/build-pantavisor/main.go ./workflow/build-pantavisor/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/build-pantavisor
-FROM ghcr.io/siemens/kas/kas:4.8.2@sha256:fd0000890ccf7c8091239e1df9aa46af7721b6e4d992be0ce3d178d17ffcebff AS tools
+FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS git-lfs
+WORKDIR /src
+RUN go mod init github.com/tdesaules/git-lfs-build \
+    && go mod edit -require=github.com/git-lfs/git-lfs/v3@v3.8.1 \
+    && go mod download -json github.com/git-lfs/git-lfs/v3@v3.8.1 > /source.json \
+    && grep -F '"Sum": "h1:SzfllBjlYuSaswBmhUeDPGgXSA74aIQ3/QHxbZmyyfM="' /source.json \
+    && go mod edit -require=golang.org/x/crypto@v0.56.0 -require=golang.org/x/net@v0.60.0 \
+    && CGO_ENABLED=0 go build -mod=mod -trimpath -ldflags='-s -w' -o /git-lfs github.com/git-lfs/git-lfs/v3 \
+    && cp /go/pkg/mod/github.com/git-lfs/git-lfs/v3@v3.8.1/LICENSE.md /LICENSE.md
+FROM ghcr.io/siemens/kas/kas:5.5-debian-trixie@sha256:4b210b0be3c887875973c4f4c35470b4ecf3edd2346c9de1bdd33feae5b86e94 AS tools
 # Collect root-owned tool files in this intermediate stage only.
 # hadolint ignore=DL3002
 USER 0:0
+# Apply published security updates newer than the KAS release image before
+# collecting the runtime. Keep package identities for downstream SBOM review.
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    curl=8.14.1-2+deb13u7 \
+    gzip=1.13-1+deb13u1 \
+    libbrotli1=1.1.0-2+deb13u1 \
+    libc6=2.41-12+deb13u4 \
+    libcurl3t64-gnutls=8.14.1-2+deb13u7 \
+    libexpat1=2.9.0-1~deb13u1 \
+    libpcre2-8-0=10.46-1~deb13u3 \
+    libsqlite3-0=3.46.1-7+deb13u2 \
+    libssh2-1t64=1.11.1-1+deb13u2 \
+    libssl3t64=3.5.7-1~deb13u3 \
+    locales=2.41-12+deb13u4 \
+    openssl=3.5.7-1~deb13u3 \
+    perl=5.40.1-6+deb13u1 \
+    python3-git=3.1.44-1+deb13u1 \
+    python3.13=3.13.5-2+deb13u5 \
+    rsync=3.5.0+ds1-0+deb13u1 \
+    socat=1.8.0.3-1+deb13u1 \
+    unzip=6.0-29+deb13u1 \
+    util-linux=2.41.5-0+deb13u1 \
+    xz-utils=5.8.1-1+deb13u2 \
+    && rm -rf /var/lib/apt/lists/* \
+    && localedef -i en_US -f UTF-8 en_US.UTF-8
 COPY workflow/build-pantavisor/collect-runtime.py /collect-runtime.py
 # Expand the loop variable in the inner chroot shell, not the build shell.
 # hadolint ignore=SC2016
@@ -19,6 +53,8 @@ FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=tools /runtime/ /
 COPY --from=build /entrypoint /entrypoint
+COPY --from=git-lfs /git-lfs /usr/bin/git-lfs
+COPY --from=git-lfs /LICENSE.md /usr/share/licenses/git-lfs/LICENSE.md
 COPY workflow/build-pantavisor/build.py /opt/pantavisor/build.py
 ENV PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin LANG=en_US.utf8 PYTHONDONTWRITEBYTECODE=1 SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 # Creates the /work alias, then drops to the checkout owner's non-root UID.

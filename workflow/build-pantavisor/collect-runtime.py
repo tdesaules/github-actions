@@ -4,6 +4,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 
 runtime = Path('/runtime')
 runtime.mkdir()
@@ -18,6 +19,9 @@ for row in rows:
             providers.setdefault(name, row[0])
 selected = set()
 def visit(name):
+    # Debian may replace a concrete package with a virtual provider (pkgconf).
+    if name not in packages and name in providers:
+        name = providers[name]
     if name in selected:
         return
     if name not in packages:
@@ -34,7 +38,7 @@ def visit(name):
         visit(present)
 
 for name in ('bash dash hostname coreutils findutils diffutils grep sed tar gzip bzip2 xz-utils zstd cpio pigz lz4 '
-             'build-essential chrpath diffstat gawk file patch perl pkg-config rsync git git-lfs '
+             'build-essential chrpath diffstat gawk file patch perl pkg-config rsync git '
              'wget curl ca-certificates locales python3 python3-yaml python3-jsonschema '
              'python3-kconfiglib python3-distro python3-colorlog python3-git python3-jinja2 '
              'python3-pexpect python3-ruamel.yaml python3-gnupg socat unzip util-linux procps texinfo').split():
@@ -82,7 +86,8 @@ for directory in ('/usr/bin', '/usr/sbin'):
     for source in Path(directory).iterdir():
         if source.is_symlink() and source.resolve() in copied:
             copy(source)
-shutil.copytree('/usr/local/lib/python3.11', runtime / 'usr/local/lib/python3.11', dirs_exist_ok=True)
+python_library = f'usr/local/lib/python{sys.version_info.major}.{sys.version_info.minor}'
+shutil.copytree('/' + python_library, runtime / python_library, dirs_exist_ok=True)
 shutil.copytree('/etc/ssl/certs', runtime / 'etc/ssl/certs', dirs_exist_ok=True, symlinks=True)
 for name in ('bin', 'sbin', 'lib', 'lib64'):
     source = Path('/') / name
