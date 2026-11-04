@@ -1,0 +1,26 @@
+name: Get Pantavisor targets
+description: Select Pantavisor checks and artifact qualification from changed source paths
+inputs:
+  project:
+    description: Pantavisor project kind (core, k0s or system)
+    required: true
+  files:
+    description: Changed repository-relative paths as a JSON array, including deleted and renamed paths
+    default: '[]'
+  full:
+    description: Select all work for a release or a full source comparison
+    default: 'false'
+outputs:
+  check-required:
+    description: Whether the project contract and unit tests must run
+  build-required:
+    description: Whether new artifacts must be constructed
+  test-required:
+    description: Whether the constructed artifacts require qualification
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-pantavisor-targets:unpublished
+  args:
+    - --project=${{ inputs.project }}
+    - --files=${{ inputs.files }}
+    - --full=${{ inputs.full }}

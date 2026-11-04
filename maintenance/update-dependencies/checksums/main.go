@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-var source = regexp.MustCompile(`(compile-tool\.sh\s+)((?:github\.com|golang\.org|google\.golang\.org|go\.podman\.io)/[A-Za-z0-9_./-]+)(\s+)(v[0-9][A-Za-z0-9.+-]*)(\s+)(h1:[A-Za-z0-9+/]{43}=)`)
+var source = regexp.MustCompile(`(compile-tool\.sh\s+)((?:github\.com|golang\.org|google\.golang\.org|go\.podman\.io|oras\.land)/[A-Za-z0-9_./-]+)(\s+)(v[0-9][A-Za-z0-9.+-]*)(\s+)(h1:[A-Za-z0-9+/]{43}=)`)
 var checksum = regexp.MustCompile(`^h1:[A-Za-z0-9+/]{43}=$`)
 
 func download(module, version string) (string, error) {

@@ -423,6 +423,222 @@ jobs:
       - name: Test native Python suite
         if: matrix.image == 'check-test-python'
         uses: ./.candidate-actions/check/test-python
+      - name: Test native System check dependencies
+        if: matrix.image == 'check-test-pantavisor-system'
+        uses: ./.candidate-actions/check/test-pantavisor-system
+        with:
+          directory: tests/fixtures/pantavisor-system
+      - name: Reject a missing System project
+        if: matrix.image == 'check-test-pantavisor-system'
+        id: invalid-system-project
+        continue-on-error: true
+        uses: ./.candidate-actions/check/test-pantavisor-system
+        with:
+          directory: .build/missing-system-project
+      - name: Verify System check rejection
+        if: matrix.image == 'check-test-pantavisor-system'
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: '["invalid-system-project"]'
+      - name: Test candidate Python discovery directory
+        if: matrix.image == 'check-test-python' && matrix.rebuild
+        uses: ./.candidate-actions/check/test-python
+        with:
+          directory: .build/fixtures
+          tests-directory: python-valid with spaces/tests/unit
+      - name: Reject a missing candidate Python discovery directory
+        if: matrix.image == 'check-test-python' && matrix.rebuild
+        id: invalid-python-directory
+        continue-on-error: true
+        uses: ./.candidate-actions/check/test-python
+        with:
+          tests-directory: missing
+      - name: Verify candidate Python discovery rejection
+        if: matrix.image == 'check-test-python' && matrix.rebuild
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: '["invalid-python-directory"]'
+      - name: Test native Pantavisor target selection
+        if: matrix.image == 'workflow-get-pantavisor-targets'
+        uses: ./.candidate-actions/workflow/get-pantavisor-targets
+        with:
+          project: system
+          files: '["compositions/profiles/k0s.json","services/deleted-service"]'
+      - name: Test native component verification
+        if: matrix.image == 'oci-test-component'
+        uses: ./.candidate-actions/oci/test-component
+        with:
+          directory: tests/fixtures/component
+      - name: Reject a missing component
+        if: matrix.image == 'oci-test-component'
+        id: invalid-component
+        continue-on-error: true
+        uses: ./.candidate-actions/oci/test-component
+        with:
+          directory: .build/missing-component
+      - name: Verify component rejection
+        if: matrix.image == 'oci-test-component'
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: '["invalid-component"]'
+      - name: Reject an invalid Pantavisor project
+        if: matrix.image == 'workflow-get-pantavisor-targets'
+        id: invalid-pantavisor-project
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/get-pantavisor-targets
+        with:
+          project: unknown
+      - name: Verify Pantavisor selector rejection
+        if: matrix.image == 'workflow-get-pantavisor-targets'
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: '["invalid-pantavisor-project"]'
+      - name: Reject invalid KAS project before construction
+        if: matrix.image == 'workflow-build-pantavisor'
+        id: invalid-pv-build
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/build-pantavisor
+        with: {project: invalid}
+      - name: Reject missing producer checkout
+        if: matrix.image == 'workflow-package-pantavisor-component'
+        id: invalid-pv-component
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/package-pantavisor-component
+        with: {directory: .build/missing-project}
+      - name: Reject missing BSP checkout
+        if: matrix.image == 'workflow-package-pantavisor-bsp'
+        id: invalid-pv-bsp
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/package-pantavisor-bsp
+        with: {directory: .build/missing-project}
+      - name: Reject missing assembly checkout
+        if: matrix.image == 'workflow-assemble-pantavisor'
+        id: invalid-pv-assembly
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/assemble-pantavisor
+        with: {directory: .build/missing-project}
+      - name: Reject missing rootfs checkout
+        if: matrix.image == 'workflow-test-pantavisor-rootfs'
+        id: invalid-pv-rootfs
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/test-pantavisor-rootfs
+        with: {directory: .build/missing-project}
+      - name: Reject missing platform checkout
+        if: matrix.image == 'workflow-test-pantavisor-platform'
+        id: invalid-pv-platform
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/test-pantavisor-platform
+        with: {directory: .build/missing-project}
+      - name: Reject mutable component reference
+        if: matrix.image == 'oci-get-component'
+        id: invalid-pv-fetch
+        continue-on-error: true
+        uses: ./.candidate-actions/oci/get-component
+        with: {reference: 'ghcr.io/example/component:latest', output: .build/rejected-component}
+      - name: Reject dirty component publication
+        if: matrix.image == 'oci-publish-component'
+        id: invalid-pv-publish
+        continue-on-error: true
+        uses: ./.candidate-actions/oci/publish-component
+        with:
+          directory: tests/fixtures/component
+          registry: ghcr.io/example/component
+          registry-username: fixture
+          registry-password: fixture
+      - name: Reject an invalid compressed rootfs
+        if: matrix.image == 'oci-new-rootfs-image'
+        id: invalid-pv-image
+        continue-on-error: true
+        uses: ./.candidate-actions/oci/new-rootfs-image
+        with: {directory: tests/fixtures/component, output: .build/rejected-image.oci.tar}
+      - name: Reject invalid receipt source
+        if: matrix.image == 'workflow-new-pantavisor-receipt'
+        id: invalid-pv-receipt
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/new-pantavisor-receipt
+        with: {project: core, revision: invalid}
+      - name: Reject missing artifact receipt
+        if: matrix.image == 'workflow-test-pantavisor-artifact'
+        id: invalid-pv-artifact
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/test-pantavisor-artifact
+        with: {revision: invalid}
+      - name: Reject missing qualification inputs
+        if: matrix.image == 'workflow-new-pantavisor-qualification'
+        id: invalid-pv-qualification
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/new-pantavisor-qualification
+        with: {revision: invalid}
+      - name: Reject missing profile receipts
+        if: matrix.image == 'workflow-merge-pantavisor-qualification'
+        id: invalid-pv-profiles
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/merge-pantavisor-qualification
+        with: {revision: invalid}
+      - name: Reject invalid release project
+        if: matrix.image == 'workflow-new-pantavisor-candidate'
+        id: invalid-pv-candidate
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/new-pantavisor-candidate
+        with: {project: invalid}
+      - name: Reject missing candidate bundle
+        if: matrix.image == 'workflow-import-pantavisor-candidate'
+        id: invalid-pv-import
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/import-pantavisor-candidate
+        with: {directory: .build/missing-candidate}
+      - name: Reject missing release candidate before push
+        if: matrix.image == 'workflow-complete-pantavisor-release'
+        id: invalid-pv-finalize
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/complete-pantavisor-release
+        with: {directory: .build/missing-candidate, artifact-id: '1', token: unused-fixture-token}
+      - name: Reject invalid qualification build identity
+        if: matrix.image == 'workflow-get-pantavisor-qualification'
+        id: invalid-pv-qualified-source
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/get-pantavisor-qualification
+        with: {build-artifact-id: invalid, token: unused-fixture-token}
+      - name: Assert qualification source rejection
+        if: matrix.image == 'workflow-get-pantavisor-qualification'
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: '["invalid-pv-qualified-source"]'
+      - name: Reject non-Pantavisor release provenance
+        if: matrix.image == 'workflow-read-pantavisor-release'
+        id: invalid-pv-tag
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/read-pantavisor-release
+        with: {token: unused-fixture-token}
+      - name: Reject missing publication evidence
+        if: matrix.image == 'workflow-new-pantavisor-github-release'
+        id: invalid-pv-github
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/new-pantavisor-github-release
+        with: {receipt-digest: invalid, component: invalid, token: unused-fixture-token}
+      - name: Reject missing versioned component references
+        if: matrix.image == 'workflow-read-pantavisor-components'
+        id: invalid-pv-references
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/read-pantavisor-components
+        with: {file: .build/missing-components.json}
+      - name: Reject missing maintenance authentication
+        if: matrix.image == 'workflow-read-pantavisor-published'
+        id: invalid-pv-maintenance
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/read-pantavisor-published
+        with: {token: ''}
+      - name: Assert Pantavisor candidate failures
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: >-
+            ${{ toJSON(fromJSON('{"workflow-build-pantavisor":["invalid-pv-build"],"workflow-package-pantavisor-component":["invalid-pv-component"],"workflow-package-pantavisor-bsp":["invalid-pv-bsp"],"workflow-assemble-pantavisor":["invalid-pv-assembly"],"workflow-test-pantavisor-rootfs":["invalid-pv-rootfs"],"workflow-test-pantavisor-platform":["invalid-pv-platform"],"oci-get-component":["invalid-pv-fetch"],"oci-publish-component":["invalid-pv-publish"],"oci-new-rootfs-image":["invalid-pv-image"],"workflow-new-pantavisor-receipt":["invalid-pv-receipt"],"workflow-test-pantavisor-artifact":["invalid-pv-artifact"],"workflow-new-pantavisor-qualification":["invalid-pv-qualification"],"workflow-merge-pantavisor-qualification":["invalid-pv-profiles"],"workflow-new-pantavisor-candidate":["invalid-pv-candidate"],"workflow-import-pantavisor-candidate":["invalid-pv-import"],"workflow-complete-pantavisor-release":["invalid-pv-finalize"],"workflow-read-pantavisor-release":["invalid-pv-tag"],"workflow-new-pantavisor-github-release":["invalid-pv-github"],"workflow-read-pantavisor-components":["invalid-pv-references"],"workflow-read-pantavisor-published":["invalid-pv-maintenance"]}')[matrix.image] || fromJSON('[]')) }}
       - name: Test native candidate preparation
         if: matrix.image == 'workflow-new-candidate-action'
         uses: ./.candidate-actions/workflow/new-candidate-action

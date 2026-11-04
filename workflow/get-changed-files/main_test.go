@@ -112,6 +112,7 @@ func TestCheckConditions(t *testing.T) {
 		{[]string{"README.md", "check/test-go/README.md"}, false, map[string]bool{"catalog": false, "go": false, "python": false}},
 		{[]string{"lint/yaml/deleted_test.go"}, false, map[string]bool{"catalog": false, "go": true, "python": false}},
 		{[]string{"scripts/release.py"}, false, map[string]bool{"catalog": false, "go": false, "python": true}},
+		{[]string{"templates/pantavisor-producer.yml"}, false, map[string]bool{"catalog": false, "go": false, "python": true}},
 		{[]string{"lint/yaml/action.yml"}, false, map[string]bool{"catalog": true, "go": false, "python": true}},
 		{[]string{"shared/testsuite/testsuite.go"}, false, map[string]bool{"catalog": false, "go": true, "python": true}},
 		{[]string{".github/workflows/main.yml"}, false, map[string]bool{"catalog": true, "go": true, "python": true}},
@@ -120,5 +121,37 @@ func TestCheckConditions(t *testing.T) {
 		if got := checks(tc.paths, tc.full); !reflect.DeepEqual(got, tc.want) {
 			t.Fatalf("checks(%v, %t) = %v, want %v", tc.paths, tc.full, got, tc.want)
 		}
+	}
+}
+
+func TestPantavisorFileKinds(t *testing.T) {
+	t.Chdir(t.TempDir())
+	files := map[string]string{
+		"runtime/boot/runtime-layout":     "# shellcheck shell=sh\nroot=/mnt\n",
+		"services/core-init":              "#!/bin/sh\nexit 0\n",
+		"runtime/boot/udhcpc.script":      "#!/bin/sh\nexit 0\n",
+		"build/build.sh":                  "#!/usr/bin/env bash\nexit 0\n",
+		"build/Containerfile.tools":       "FROM scratch\n",
+		"build/meta-core/service.bb":      "do_install() { :; }\n",
+		"build/meta-core/conf/layer.conf": "BBPATH .= \":${LAYERDIR}\"\n",
+		"runtime/lxc.conf.in":             "lxc.uts.name = ${node_name}\n",
+		"kas/base.yml":                    "header:\n  version: 16\n",
+	}
+	var paths []string
+	for name, content := range files {
+		if err := os.MkdirAll(filepath.Dir(name), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(name, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+		paths = append(paths, name)
+	}
+	got := classify(nil, paths, true)
+	if !reflect.DeepEqual(got["shellcheck"], []string{"build/build.sh", "runtime/boot/runtime-layout", "runtime/boot/udhcpc.script", "services/core-init"}) {
+		t.Fatal("incorrect shell classification", got)
+	}
+	if !reflect.DeepEqual(got["hadolint"], []string{"build/Containerfile.tools"}) || !reflect.DeepEqual(got["yaml"], []string{"kas/base.yml"}) || len(got["toml"]) != 0 {
+		t.Fatal("incorrect Pantavisor configuration classification", got)
 	}
 }

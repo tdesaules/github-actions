@@ -1,0 +1,22 @@
+name: Package Pantavisor component
+description: Export a provenance-bound producer rootfs without rebuilding
+inputs:
+  directory:
+    description: Producer checkout
+    default: .
+  deploy-directory:
+    description: Staged KAS deploy files
+    default: artifacts/ci/deploy
+  output:
+    description: New public component directory
+    default: dist/component
+outputs:
+  component:
+    description: Export directory relative to the project
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-package-pantavisor-component:unpublished
+  args:
+    - --directory=${{ inputs.directory }}
+    - --deploy-directory=${{ inputs.deploy-directory }}
+    - --output=${{ inputs.output }}

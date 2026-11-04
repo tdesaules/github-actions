@@ -1,0 +1,20 @@
+name: New rootfs image
+description: Wrap a verified ARM64 Pantavisor rootfs in an OCI archive without executing or rebuilding it
+inputs:
+  directory:
+    description: Verified Core or k0s component
+    default: dist/component
+  output:
+    description: New OCI archive
+    default: dist/image.oci.tar
+outputs:
+  archive:
+    description: OCI archive path
+  image-digest:
+    description: Root image manifest digest
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/oci-new-rootfs-image:unpublished
+  args:
+    - --directory=${{ inputs.directory }}
+    - --output=${{ inputs.output }}

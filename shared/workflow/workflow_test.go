@@ -35,6 +35,7 @@ func TestMigratedJobsUsePublishedActions(t *testing.T) {
 				t.Errorf("%s: host run step %v", job, step["name"])
 			}
 			uses, _ := step["uses"].(string)
+			candidate := job == "test" && strings.HasPrefix(uses, "./.candidate-actions/")
 			// Candidate actions preserve the source directory beneath this prefix.
 			uses = strings.Replace(uses, "./.candidate-actions/", "./", 1)
 			if !strings.HasPrefix(uses, "./") {
@@ -59,7 +60,12 @@ func TestMigratedJobsUsePublishedActions(t *testing.T) {
 			if uses == "./oci/build-image" {
 				continue // The qualified, narrowly scoped Buildah launcher.
 			}
-			if action.Runs.Using != "docker" || !regexp.MustCompile(`^docker://.+@sha256:[a-f0-9]{64}$`).MatchString(action.Runs.Image) {
+			// Generated test metadata points at the checksum-verified candidate,
+			// not the source's unpublished bootstrap reference. Runtime calls in
+			// every other job still require a real immutable published image.
+			pinned := regexp.MustCompile(`^docker://.+@sha256:[a-f0-9]{64}$`).MatchString(action.Runs.Image)
+			bootstrap := candidate && action.Runs.Image == "docker://ghcr.io/tdesaules/github-actions/"+strings.ReplaceAll(strings.TrimPrefix(uses, "./"), "/", "-")+":unpublished"
+			if action.Runs.Using != "docker" || !(pinned || bootstrap) {
 				t.Errorf("%s: %s must use a published Docker image", job, uses)
 			}
 		}

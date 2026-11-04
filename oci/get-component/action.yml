@@ -1,0 +1,29 @@
+name: Get component
+description: Download a digest-pinned public component and verify it before exposing the output
+inputs:
+  reference:
+    description: TLS registry component reference qualified by sha256 digest
+    required: true
+  output:
+    description: New component directory
+    required: true
+  registry-username:
+    description: Registry username for private packages
+    default: ''
+  registry-password:
+    description: Registry token, forwarded only through the environment
+    default: ''
+outputs:
+  component:
+    description: Verified component directory
+  descriptor-digest:
+    description: Digest of component.json, distinct from the registry manifest
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/oci-get-component:unpublished
+  env:
+    INPUT_REGISTRY-PASSWORD: ${{ inputs.registry-password }}
+  args:
+    - --reference=${{ inputs.reference }}
+    - --output=${{ inputs.output }}
+    - --registry-username=${{ inputs.registry-username }}

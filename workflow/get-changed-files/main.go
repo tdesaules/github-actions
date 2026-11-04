@@ -17,6 +17,7 @@ import (
 )
 
 var shell = regexp.MustCompile(`^#!.*\b(sh|bash|dash|ksh)\b`)
+var shellFragment = regexp.MustCompile(`(?m)^# shellcheck shell=(sh|bash|dash|ksh)\b`)
 
 func classify(paths, tracked []string, full bool) map[string][]string {
 	result := map[string][]string{}
@@ -54,7 +55,7 @@ func classify(paths, tracked []string, full bool) map[string][]string {
 				b := make([]byte, 200)
 				n, _ := f.Read(b)
 				f.Close()
-				if shell.Match(b[:n]) {
+				if shell.Match(b[:n]) || shellFragment.Match(b[:n]) {
 					kinds = append(kinds, "shellcheck")
 				}
 			}
@@ -100,7 +101,7 @@ func checks(paths []string, full bool) map[string]bool {
 		if name == "action.yml" || name == "Containerfile" {
 			r["python"] = true
 		}
-		for _, prefix := range []string{"scripts/", "tests/unit/", "check/test-python/", "shared/testsuite/"} {
+		for _, prefix := range []string{"scripts/", "templates/", "tests/unit/", "check/test-python/", "shared/testsuite/"} {
 			if strings.HasPrefix(p, prefix) {
 				r["python"] = true
 			}

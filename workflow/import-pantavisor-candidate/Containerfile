@@ -1,0 +1,24 @@
+FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/workflow/ ./shared/workflow/
+COPY shared/component/ ./shared/component/
+COPY shared/pantavisor/ ./shared/pantavisor/
+COPY workflow/import-pantavisor-candidate/main.go ./workflow/import-pantavisor-candidate/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/import-pantavisor-candidate \
+    && apk add --no-cache git=2.54.0-r0
+COPY shared/collect-binaries.sh /collect-binaries.sh
+RUN sh /collect-binaries.sh /usr/bin/git /bin/sh /usr/libexec/git-core/git-remote-http
+FROM scratch AS final
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=build /runtime/ /
+COPY --from=build /usr/libexec/git-core/ /usr/libexec/git-core/
+COPY --from=build /usr/share/git-core/ /usr/share/git-core/
+COPY --from=build /entrypoint /entrypoint
+ENV PATH=/usr/bin:/bin HOME=/tmp
+# Checks out the verified candidate commit in the runner workspace.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="workflow-import-pantavisor-candidate" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

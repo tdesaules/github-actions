@@ -1,0 +1,12 @@
+name: Read Pantavisor components
+description: Read and validate version-controlled immutable Core and k0s component references
+inputs:
+  file: {description: Component reference file, default: compositions/components.json}
+outputs:
+  core: {description: Immutable Core component reference}
+  k0s: {description: Immutable k0s component reference}
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-read-pantavisor-components:unpublished
+  args:
+    - --file=${{ inputs.file }}

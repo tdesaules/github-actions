@@ -1,0 +1,15 @@
+name: New Pantavisor candidate
+description: Prepare a versioned candidate commit and portable Git bundle from main without pushing
+inputs:
+  output: {description: Candidate bundle and metadata directory, default: artifacts/release}
+  project: {description: core or k0s or system, required: true}
+outputs:
+  changed: {description: Whether Conventional Commits require a release}
+  revision: {description: Exact candidate commit to build and qualify}
+  version: {description: Candidate VERSION}
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-pantavisor-candidate:unpublished
+  args:
+    - --output=${{ inputs.output }}
+    - --project=${{ inputs.project }}

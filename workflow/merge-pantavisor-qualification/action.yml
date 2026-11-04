@@ -1,0 +1,15 @@
+name: Merge Pantavisor qualification
+description: Require base and k0s qualification of identical System artifacts before finalization
+inputs:
+  base: {description: Base profile receipt, default: artifacts/qualified-receipt.json}
+  k0s: {description: k0s profile receipt, default: artifacts/profile-k0s/qualified-receipt.json}
+  revision: {description: Expected source revision, required: true}
+  output: {description: Combined qualification receipt, default: artifacts/qualified-receipt.json}
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-merge-pantavisor-qualification:unpublished
+  args:
+    - --base=${{ inputs.base }}
+    - --k0s=${{ inputs.k0s }}
+    - --revision=${{ inputs.revision }}
+    - --output=${{ inputs.output }}

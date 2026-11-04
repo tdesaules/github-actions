@@ -1,0 +1,1 @@
+{"architecture": "arm64", "id": "pantavisor-core-v1", "provides": [], "requires": ["host-network"], "schema": 1}

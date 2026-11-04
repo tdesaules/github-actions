@@ -1,0 +1,20 @@
+name: Test component
+description: Verify a Pantavisor schema-2 export without a producer checkout or registry access
+inputs:
+  directory:
+    description: Public component directory containing component.json
+    required: true
+outputs:
+  digest:
+    description: SHA-256 of component.json (not an OCI manifest digest)
+  name:
+    description: Verified component name
+  version:
+    description: Verified component release version
+  kind:
+    description: Verified rootfs or bsp kind
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/oci-test-component:unpublished
+  args:
+    - --directory=${{ inputs.directory }}

@@ -1,0 +1,29 @@
+name: Publish component
+description: Publish a clean verified component by immutable digest with an isolated ORAS configuration
+inputs:
+  directory:
+    description: Verified public component directory
+    required: true
+  registry:
+    description: TLS registry repository without tag or digest
+    required: true
+  registry-username:
+    description: Registry username
+    required: true
+  registry-password:
+    description: Registry token, forwarded only through the environment
+    required: true
+outputs:
+  reference:
+    description: Published immutable ORAS manifest reference
+  descriptor-digest:
+    description: Digest of component.json
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/oci-publish-component:unpublished
+  env:
+    INPUT_REGISTRY-PASSWORD: ${{ inputs.registry-password }}
+  args:
+    - --directory=${{ inputs.directory }}
+    - --registry=${{ inputs.registry }}
+    - --registry-username=${{ inputs.registry-username }}

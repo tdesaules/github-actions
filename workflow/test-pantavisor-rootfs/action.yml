@@ -1,0 +1,15 @@
+name: Test Pantavisor rootfs
+description: Execute the producer ARM64 binary smoke tests against its exported rootfs
+inputs:
+  directory:
+    description: Producer checkout
+    default: .
+  component:
+    description: Verified public export
+    default: dist/component
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-pantavisor-rootfs:unpublished
+  args:
+    - --directory=${{ inputs.directory }}
+    - --component=${{ inputs.component }}

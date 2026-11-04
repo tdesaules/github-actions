@@ -10,9 +10,27 @@ import (
 )
 
 func Main(binary string, args ...string) {
+	main(binary, false, args...)
+}
+
+// PythonMain preserves unittest discovery defaults while allowing consumers to
+// select their test directory without exposing an arbitrary command interface.
+func PythonMain() {
+	main("python3", true, "-B", "-m", "unittest", "discover", "-s", "tests/unit", "-v")
+}
+
+func main(binary string, python bool, args ...string) {
 	flags := flag.NewFlagSet("test", flag.ExitOnError)
 	directory := flags.String("directory", os.Getenv("INPUT_DIRECTORY"), "working directory")
 	version := flags.Bool("tool-version", false, "print the tool version")
+	var tests *string
+	if python {
+		value, ok := os.LookupEnv("INPUT_TESTS-DIRECTORY")
+		if !ok {
+			value = "tests/unit"
+		}
+		tests = flags.String("tests-directory", value, "relative unittest discovery directory")
+	}
 	flags.Parse(os.Args[1:])
 	if flags.NArg() != 0 {
 		fail(fmt.Errorf("unexpected positional arguments"))
@@ -29,6 +47,16 @@ func Main(binary string, args ...string) {
 		}
 		if err := os.Chdir(*directory); err != nil {
 			fail(err)
+		}
+		if err := trustProjectGit(); err != nil {
+			fail(err)
+		}
+		if tests != nil {
+			var err error
+			args, err = pythonArgs(*tests)
+			if err != nil {
+				fail(err)
+			}
 		}
 	}
 	path, err := exec.LookPath(binary)

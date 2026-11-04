@@ -82,6 +82,15 @@ def negative(ref, operation, workspace, inputs, extra=None):
 
 def test(image, version):
     smoke(image, version)
+    if image in ('check-test-python', 'check-test-go', 'check-test-catalog', 'check-test-pantavisor-system'):
+        run(sys.executable, ROOT/'scripts/test-suites.py', '--image', image, '--version', version)
+        return
+    if image == 'workflow-get-pantavisor-targets':
+        run(sys.executable, ROOT/'scripts/test-pantavisor-targets.py', '--version', version)
+        return
+    if image == 'oci-test-component':
+        run(sys.executable, ROOT/'scripts/test-components.py', '--version', version)
+        return
     if image.startswith('check-'):
         run(sys.executable, ROOT/'scripts/test-checks.py', '--image', image, '--version', version)
         return

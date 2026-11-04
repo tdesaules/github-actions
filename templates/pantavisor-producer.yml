@@ -1,0 +1,388 @@
+name: main
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      maintenance:
+        description: Run maintenance instead of preparing a release
+        type: boolean
+        default: false
+      renovate-dry-run:
+        description: Resolve dependency updates without writing branches
+        type: boolean
+        default: true
+  schedule:
+    - cron: '37 5 * * 1'
+permissions:
+  contents: read
+concurrency:
+  group: pantavisor-${{ github.event_name == 'workflow_dispatch' && 'preparation' || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref_type == 'branch' }}
+env:
+  PROJECT: __PROJECT__
+jobs:
+  check:
+    if: github.event_name != 'schedule' && !inputs.maintenance
+    runs-on: ubuntu-24.04
+    outputs:
+      candidate-id: ${{ steps.candidate-upload.outputs.artifact-id }}
+      build: ${{ github.ref_type != 'tag' && steps.select.outputs.build-required == 'true' && (github.event_name != 'workflow_dispatch' || steps.candidate.outputs.changed == 'true') }}
+      revision: ${{ steps.candidate.outputs.revision || github.sha }}
+      actionlint: ${{ steps.files.outputs.actionlint-files }}
+      hadolint: ${{ steps.files.outputs.hadolint-files }}
+      shellcheck: ${{ steps.files.outputs.shellcheck-files }}
+      yaml: ${{ steps.files.outputs.yaml-files }}
+      markdown: ${{ steps.files.outputs.markdownlint-files }}
+      links: ${{ steps.files.outputs.lychee-files }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with: {fetch-depth: 0, persist-credentials: false}
+      - name: Read changed files
+        id: files
+        uses: tdesaules/github-actions/workflow/get-changed-files@__CATALOG_TAG__
+        with:
+          before: ${{ github.event.before }}
+          after: ${{ github.sha }}
+          full: ${{ github.event_name != 'push' || github.ref_type == 'tag' }}
+      - name: Select work
+        id: select
+        uses: tdesaules/github-actions/workflow/get-pantavisor-targets@__CATALOG_TAG__
+        with:
+          project: ${{ env.PROJECT }}
+          files: ${{ steps.files.outputs.files }}
+          full: ${{ steps.files.outputs.full }}
+      - name: Prepare release candidate
+        id: candidate
+        if: github.event_name == 'workflow_dispatch'
+        uses: tdesaules/github-actions/workflow/new-pantavisor-candidate@__CATALOG_TAG__
+        with:
+          project: ${{ env.PROJECT }}
+      - name: Check release App access before building
+        if: steps.candidate.outputs.changed == 'true'
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+      - name: Test producer contracts
+        if: steps.select.outputs.check-required == 'true'
+        uses: tdesaules/github-actions/check/test-python@__CATALOG_TAG__
+        with:
+          tests-directory: tests
+      - name: Retain exact candidate commit
+        id: candidate-upload
+        if: steps.candidate.outputs.changed == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-candidate-${{ github.run_attempt }}
+          path: artifacts/release/
+          if-no-files-found: error
+  lint:
+    needs: check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with: {persist-credentials: false}
+      - name: Actionlint
+        if: needs.check.outputs.actionlint != '[]'
+        uses: tdesaules/github-actions/lint/actionlint@__CATALOG_TAG__
+        with: {files: '${{ needs.check.outputs.actionlint }}'}
+      - name: Hadolint
+        if: needs.check.outputs.hadolint != '[]'
+        uses: tdesaules/github-actions/lint/hadolint@__CATALOG_TAG__
+        with: {files: '${{ needs.check.outputs.hadolint }}'}
+      - name: ShellCheck
+        if: needs.check.outputs.shellcheck != '[]'
+        uses: tdesaules/github-actions/lint/shellcheck@__CATALOG_TAG__
+        with: {files: '${{ needs.check.outputs.shellcheck }}'}
+      - name: YAML
+        if: needs.check.outputs.yaml != '[]'
+        uses: tdesaules/github-actions/lint/yaml@__CATALOG_TAG__
+        with: {files: '${{ needs.check.outputs.yaml }}'}
+      - name: Markdown
+        if: needs.check.outputs.markdown != '[]'
+        uses: tdesaules/github-actions/lint/markdownlint@__CATALOG_TAG__
+        with: {files: '${{ needs.check.outputs.markdown }}'}
+      - name: Local links
+        if: needs.check.outputs.links != '[]'
+        uses: tdesaules/github-actions/lint/lychee@__CATALOG_TAG__
+        with: {files: '${{ needs.check.outputs.links }}'}
+  build:
+    needs: [check, lint]
+    if: ${{ !cancelled() && needs.check.result == 'success' && needs.lint.result == 'success' && needs.check.outputs.build == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    outputs:
+      artifact-id: ${{ steps.build-upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with: {fetch-depth: 0, persist-credentials: false}
+      - name: Fetch candidate commit
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with: {artifact-ids: '${{ needs.check.outputs.candidate-id }}', path: artifacts/release, merge-multiple: true}
+      - name: Import candidate
+        if: github.event_name == 'workflow_dispatch'
+        uses: tdesaules/github-actions/workflow/import-pantavisor-candidate@__CATALOG_TAG__
+      - name: Build with KAS
+        uses: tdesaules/github-actions/workflow/build-pantavisor@__CATALOG_TAG__
+        with: {project: '${{ env.PROJECT }}', cold: 'true'}
+      - name: Package public component
+        uses: tdesaules/github-actions/workflow/package-pantavisor-component@__CATALOG_TAG__
+      - name: Verify component
+        uses: tdesaules/github-actions/oci/test-component@__CATALOG_TAG__
+        with: {directory: dist/component}
+      - name: Assemble ARM64 OCI archive without execution
+        uses: tdesaules/github-actions/oci/new-rootfs-image@__CATALOG_TAG__
+      - name: Record untested outputs
+        uses: tdesaules/github-actions/workflow/new-pantavisor-receipt@__CATALOG_TAG__
+        with:
+          project: ${{ env.PROJECT }}
+          revision: ${{ needs.check.outputs.revision }}
+      - name: Transfer untested outputs
+        id: build-upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: untested-${{ env.PROJECT }}-${{ github.run_attempt }}
+          path: |
+            dist/
+            artifacts/build-receipt.json
+          if-no-files-found: error
+          compression-level: 0
+      - name: Retain build diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: build-diagnostics-${{ env.PROJECT }}-${{ github.run_attempt }}
+          path: artifacts/ci/build-report.json
+  test:
+    needs: [check, build]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    outputs:
+      artifact-id: ${{ steps.qualified-upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with: {fetch-depth: 0, persist-credentials: false}
+      - name: Fetch candidate commit
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with: {artifact-ids: '${{ needs.check.outputs.candidate-id }}', path: artifacts/release, merge-multiple: true}
+      - name: Import candidate
+        if: github.event_name == 'workflow_dispatch'
+        uses: tdesaules/github-actions/workflow/import-pantavisor-candidate@__CATALOG_TAG__
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with: {artifact-ids: '${{ needs.build.outputs.artifact-id }}', path: ., merge-multiple: true}
+      - name: Verify transferred outputs
+        uses: tdesaules/github-actions/workflow/test-pantavisor-artifact@__CATALOG_TAG__
+        with: {revision: '${{ needs.check.outputs.revision }}'}
+      - name: Test rootfs executables
+        uses: tdesaules/github-actions/workflow/test-pantavisor-rootfs@__CATALOG_TAG__
+      - name: Generate image SBOM
+        uses: tdesaules/github-actions/oci/new-sbom@__CATALOG_TAG__
+        with:
+          source: oci-archive:dist/image.oci.tar
+          output: artifacts/reports/sbom.spdx.json
+      - name: Capture scan evidence
+        uses: tdesaules/github-actions/oci/new-sbom@__CATALOG_TAG__
+        env:
+          SYFT_GOLANG_CAPTURE_SYMBOLS: all
+          SYFT_FILE_METADATA_SELECTION: all
+        with:
+          source: oci-archive:dist/image.oci.tar
+          format: syft-json
+          output: artifacts/reports/sbom.syft.json
+      - name: Enforce vulnerability threshold
+        uses: tdesaules/github-actions/oci/test-vulnerabilities@__CATALOG_TAG__
+        with:
+          sbom: artifacts/reports/sbom.syft.json
+          output: artifacts/reports/grype.json
+      - name: Record successful qualification
+        uses: tdesaules/github-actions/workflow/new-pantavisor-qualification@__CATALOG_TAG__
+        with: {revision: '${{ needs.check.outputs.revision }}'}
+      - name: Transfer exact qualified outputs
+        id: qualified-upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: qualified-${{ env.PROJECT }}-${{ github.run_attempt }}
+          path: |
+            dist/
+            artifacts/qualified-receipt.json
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+      - name: Retain reports even on failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: test-reports-${{ env.PROJECT }}-${{ github.run_attempt }}
+          path: artifacts/reports/
+  release:
+    needs: [check, lint, build, test]
+    if: ${{ !cancelled() && needs.check.result == 'success' && needs.lint.result == 'success' && ((github.event_name == 'workflow_dispatch' && needs.test.result == 'success') || github.ref_type == 'tag') }}
+    runs-on: ubuntu-24.04
+    permissions: {contents: write, packages: write, actions: read, id-token: write}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with: {fetch-depth: 0, persist-credentials: false}
+      - name: Validate release tag and preparation run
+        if: github.ref_type == 'tag'
+        id: provenance
+        uses: tdesaules/github-actions/workflow/read-pantavisor-release@__CATALOG_TAG__
+        with: {token: '${{ github.token }}'}
+      - name: Fetch previously qualified release outputs
+        if: github.ref_type == 'tag'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          artifact-ids: ${{ steps.provenance.outputs.artifact-id }}
+          merge-multiple: true
+          run-id: ${{ steps.provenance.outputs.run-id }}
+          github-token: ${{ github.token }}
+          path: .
+      - name: Fetch current qualification
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with: {artifact-ids: '${{ needs.test.outputs.artifact-id }}', path: ., merge-multiple: true}
+      - name: Fetch candidate commit
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with: {artifact-ids: '${{ needs.check.outputs.candidate-id }}', path: artifacts/release, merge-multiple: true}
+      - name: Import candidate
+        if: github.event_name == 'workflow_dispatch'
+        uses: tdesaules/github-actions/workflow/import-pantavisor-candidate@__CATALOG_TAG__
+      - name: Verify qualification before publication
+        id: qualified
+        uses: tdesaules/github-actions/workflow/test-pantavisor-artifact@__CATALOG_TAG__
+        with:
+          revision: ${{ needs.check.outputs.revision }}
+          receipt: artifacts/qualified-receipt.json
+          require-tested: 'true'
+          receipt-digest: ${{ steps.provenance.outputs.receipt-digest }}
+      - name: Create release App token
+        if: github.event_name == 'workflow_dispatch'
+        id: app
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+      - name: Finalize qualified commit and tag
+        if: github.event_name == 'workflow_dispatch'
+        uses: tdesaules/github-actions/workflow/complete-pantavisor-release@__CATALOG_TAG__
+        with:
+          token: ${{ steps.app.outputs.token }}
+          artifact-id: ${{ needs.test.outputs.artifact-id }}
+      - name: Publish exact OCI archive by digest
+        if: github.ref_type == 'tag'
+        uses: tdesaules/github-actions/oci/publish-image@__CATALOG_TAG__
+        with:
+          source: oci-archive:dist/image.oci.tar
+          destination: docker://ghcr.io/${{ github.repository }}@${{ steps.qualified.outputs.image-digest }}
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ github.token }}
+      - name: Publish component by digest
+        if: github.ref_type == 'tag'
+        id: component
+        uses: tdesaules/github-actions/oci/publish-component@__CATALOG_TAG__
+        with:
+          directory: dist/component
+          registry: ghcr.io/${{ github.repository }}/component
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ github.token }}
+      - name: Sign image
+        if: github.ref_type == 'tag'
+        uses: tdesaules/github-actions/oci/new-image-signature@__CATALOG_TAG__
+        with:
+          image: ghcr.io/${{ github.repository }}@${{ steps.qualified.outputs.image-digest }}
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ github.token }}
+      - name: Verify image signature
+        if: github.ref_type == 'tag'
+        uses: tdesaules/github-actions/oci/test-image-signature@__CATALOG_TAG__
+        with:
+          image: ghcr.io/${{ github.repository }}@${{ steps.qualified.outputs.image-digest }}
+          identity: https://github.com/${{ github.repository }}/.github/workflows/main.yml@${{ github.ref }}
+          issuer: https://token.actions.githubusercontent.com
+          output: artifacts/publication/image-signature.json
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ github.token }}
+      - name: Sign component
+        if: github.ref_type == 'tag'
+        uses: tdesaules/github-actions/oci/new-image-signature@__CATALOG_TAG__
+        with:
+          image: ${{ steps.component.outputs.reference }}
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ github.token }}
+      - name: Verify component signature
+        if: github.ref_type == 'tag'
+        uses: tdesaules/github-actions/oci/test-image-signature@__CATALOG_TAG__
+        with:
+          image: ${{ steps.component.outputs.reference }}
+          identity: https://github.com/${{ github.repository }}/.github/workflows/main.yml@${{ github.ref }}
+          issuer: https://token.actions.githubusercontent.com
+          output: artifacts/publication/component-signature.json
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ github.token }}
+      - name: Publish GitHub Release
+        if: github.ref_type == 'tag'
+        uses: tdesaules/github-actions/workflow/new-pantavisor-github-release@__CATALOG_TAG__
+        with:
+          receipt-digest: ${{ steps.provenance.outputs.receipt-digest }}
+          component: ${{ steps.component.outputs.reference }}
+          image: ghcr.io/${{ github.repository }}@${{ steps.qualified.outputs.image-digest }}
+          token: ${{ github.token }}
+      - name: Retain publication evidence
+        if: always() && github.ref_type == 'tag'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: publication-${{ env.PROJECT }}-${{ github.run_attempt }}
+          path: |
+            artifacts/publication/
+            artifacts/release-manifest.json
+  maintenance:
+    if: github.event_name == 'schedule' || inputs.maintenance
+    runs-on: ubuntu-24.04
+    permissions: {contents: read, packages: read}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with: {persist-credentials: false}
+      - name: Update dependencies
+        uses: tdesaules/github-actions/maintenance/update-dependencies@__CATALOG_TAG__
+        with:
+          repository: ${{ github.repository }}
+          token: ${{ secrets.RENOVATE_TOKEN }}
+          dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.renovate-dry-run || false }}
+      - name: Read published release
+        id: published
+        if: ${{ !cancelled() }}
+        uses: tdesaules/github-actions/workflow/read-pantavisor-published@__CATALOG_TAG__
+        with: {token: '${{ github.token }}'}
+      - name: Generate published image SBOM
+        if: ${{ !cancelled() && steps.published.outputs.has-release == 'true' }}
+        uses: tdesaules/github-actions/oci/new-sbom@__CATALOG_TAG__
+        env:
+          SYFT_GOLANG_CAPTURE_SYMBOLS: all
+          SYFT_FILE_METADATA_SELECTION: all
+        with:
+          source: registry:${{ steps.published.outputs.image }}
+          format: syft-json
+          output: artifacts/maintenance/sbom.syft.json
+      - name: Rescan published image
+        if: ${{ !cancelled() && steps.published.outputs.has-release == 'true' }}
+        uses: tdesaules/github-actions/oci/test-vulnerabilities@__CATALOG_TAG__
+        with:
+          sbom: artifacts/maintenance/sbom.syft.json
+          output: artifacts/maintenance/grype.json
+      - name: Retain maintenance reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with: {name: 'maintenance-reports-${{ github.run_attempt }}', path: artifacts/maintenance/}
+      - name: List documentation
+        id: files
+        uses: tdesaules/github-actions/workflow/get-changed-files@__CATALOG_TAG__
+        with: {full: 'true'}
+      - name: Check documentation links
+        uses: tdesaules/github-actions/lint/lychee@__CATALOG_TAG__
+        with: {files: '${{ steps.files.outputs.lychee-files }}'}

@@ -1,0 +1,27 @@
+FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/workflow/ ./shared/workflow/
+COPY shared/pantavisor/ ./shared/pantavisor/
+COPY shared/component/ ./shared/component/
+COPY oci/get-component/main.go ./oci/get-component/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./oci/get-component \
+    && mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
+FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS oras
+COPY shared/runtime/compile-tool.sh /compile-tool.sh
+COPY shared/runtime/compile-oras.sh /compile-oras.sh
+RUN sh /compile-oras.sh
+FROM scratch AS final
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=build /runtime/ /
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=build /entrypoint /entrypoint
+COPY --from=oras /tool /usr/bin/oras
+COPY --from=oras /runtime/usr/share/licenses/oras/ /usr/share/licenses/oras/
+ENV PATH=/usr/bin HOME=/tmp
+# Creates an uploader-readable component in the runner workspace.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="oci-get-component" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

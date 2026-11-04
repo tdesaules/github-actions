@@ -1,0 +1,11 @@
+name: Test Pantavisor System
+description: Check System compositions, unit tests, source syntax and local documentation links
+inputs:
+  directory:
+    description: Pantavisor System project directory
+    default: .
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-pantavisor-system:unpublished
+  args:
+    - --directory=${{ inputs.directory }}

@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-from images import ENGINE, local_ref, mount
+from images import ENGINE, ROOT, local_ref, mount
 
 
 def test(image, reference):
@@ -24,6 +24,14 @@ def test(image, reference):
             target = good / 'tests/unit/test_fixture.py'
             target.write_text('import unittest\nclass Fixture(unittest.TestCase):\n def test_fixture(self): self.assertTrue(True)\n')
             failure = 'import unittest\nclass Fixture(unittest.TestCase):\n def test_fixture(self): self.fail("intentional failure")\n'
+        elif image == 'check-test-pantavisor-system':
+            package = good / 'tools/pvbuild'
+            package.mkdir(parents=True)
+            (good / 'tools/__init__.py').touch()
+            (package / '__init__.py').touch()
+            target = package / '__main__.py'
+            target.write_text((ROOT / 'tests/fixtures/pantavisor-system/tools/pvbuild/__main__.py').read_text())
+            failure = 'raise SystemExit("intentional failure")\n'
         elif image == 'check-test-catalog':
             component = good / 'check/test-fixture'
             component.mkdir(parents=True)
@@ -39,6 +47,26 @@ def test(image, reference):
                    '-v', mount(root, '/github/workspace', True),
                    '-e', 'INPUT_DIRECTORY=missing', reference, '--directory=project with spaces']
         subprocess.run(command, check=True)
+        if image == 'check-test-python':
+            # The published default remains tests/unit. Exercise the additional
+            # candidate interface before changing the public action metadata.
+            custom = good / 'tests with spaces'
+            custom.mkdir()
+            custom_test = custom / 'test_custom.py'
+            custom_test.write_text('import unittest\nclass Fixture(unittest.TestCase):\n def test_fixture(self): self.assertTrue(True)\n')
+            subprocess.run(command + ['--tests-directory=tests with spaces'], check=True)
+            custom_test.write_text(failure)
+            failed = subprocess.run(command + ['--tests-directory=tests with spaces'], capture_output=True, text=True)
+            if failed.returncode == 0 or 'intentional failure' not in failed.stdout + failed.stderr:
+                raise AssertionError('custom test directory did not propagate its test failure')
+            for value in ('', '../outside', '/tmp', 'missing'):
+                rejected = subprocess.run(command + ['--tests-directory=' + value], capture_output=True, text=True)
+                if rejected.returncode == 0:
+                    raise AssertionError(f'invalid test directory accepted: {value!r}')
+            # Explicit CLI paths override an invalid environment value.
+            configured = command.copy()
+            configured[configured.index(reference):configured.index(reference)] = ['-e', 'INPUT_TESTS-DIRECTORY=missing']
+            subprocess.run(configured + ['--tests-directory=tests/unit'], check=True)
         target.write_text(failure)
         result = subprocess.run(command, capture_output=True, text=True)
         expected = 'unpinned base' if image == 'check-test-catalog' else 'intentional failure'

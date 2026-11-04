@@ -23,6 +23,8 @@ func TestSelection(t *testing.T) {
 		rebuild bool
 	}{
 		{"README.md", 0, false}, {"lint/a/Containerfile", 2, true}, {"lint/a/action.yml", 2, false}, {"shared/runtime/main.go", 4, true}, {".github/workflows/main.yml", 4, false}, {"lint/deleted/Containerfile", 0, false},
+		{"tests/fixtures/component/component.json", 4, false},
+		{"tests/fixtures/README.md", 0, false},
 	} {
 		m, err := selectImages(components, []string{tc.path}, false)
 		if err != nil {

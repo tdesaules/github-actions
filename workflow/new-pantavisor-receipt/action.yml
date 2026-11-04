@@ -1,0 +1,15 @@
+name: New Pantavisor receipt
+description: Inventory untested build outputs and bind them to the source revision
+inputs:
+  directory: {description: Artifact directory, default: dist}
+  project: {description: core or k0s or system, required: true}
+  revision: {description: Source Git commit, required: true}
+  output: {description: Receipt outside the inventoried directory, default: artifacts/build-receipt.json}
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-pantavisor-receipt:unpublished
+  args:
+    - --directory=${{ inputs.directory }}
+    - --project=${{ inputs.project }}
+    - --revision=${{ inputs.revision }}
+    - --output=${{ inputs.output }}

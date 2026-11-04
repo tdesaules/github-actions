@@ -1,0 +1,15 @@
+name: Get Pantavisor qualification
+description: Find both System profile artifacts for the exact build across paginated attempts
+inputs:
+  build-artifact-id: {description: Exact untested build artifact ID, required: true}
+  token: {description: GitHub token with actions read permission, required: true}
+outputs:
+  base-id: {description: Latest retained base profile artifact for this build}
+  k0s-id: {description: Latest retained k0s profile receipt for this build}
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-pantavisor-qualification:unpublished
+  env:
+    INPUT_TOKEN: ${{ inputs.token }}
+  args:
+    - --build-artifact-id=${{ inputs.build-artifact-id }}

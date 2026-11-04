@@ -54,7 +54,7 @@ def select(paths, full=False, root=ROOT):
     for path in paths:
         if Path(path).suffix.lower() in ('.md', '.markdown'):
             continue
-        if path.startswith(".github/workflows/") or path == 'grype-review.json':
+        if path.startswith((".github/workflows/", "tests/fixtures/")) or path == 'grype-review.json':
             selected_actions.update(actions)
         if path.startswith(("shared/", "scripts/", "tasks/")) or path in ("go.mod", "go.sum", ".containerignore", ".dockerignore", "taskfile.yml"):
             images.update(owners)
@@ -158,7 +158,7 @@ def main():
                         raise ValueError(f"{name}: unpinned base")
                     if len(words) == 4 and words[2].upper() == 'AS':
                         stages.add(words[3])
-        print(f"Validated {len(actions)} Docker actions and {len(owners)} scratch image definitions")
+        print(f"Validated {len(actions)} action/image contracts and {len(owners)} scratch image definitions")
         return
     event = os.environ.get("GITHUB_EVENT_NAME", "push")
     ref = os.environ.get("GITHUB_REF", "refs/heads/main")

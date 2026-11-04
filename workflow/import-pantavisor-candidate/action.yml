@@ -1,0 +1,11 @@
+name: Import Pantavisor candidate
+description: Verify and check out the exact candidate commit from its Git bundle
+inputs:
+  directory: {description: Candidate bundle and metadata directory, default: artifacts/release}
+outputs:
+  revision: {description: Imported candidate commit}
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-import-pantavisor-candidate:unpublished
+  args:
+    - --directory=${{ inputs.directory }}

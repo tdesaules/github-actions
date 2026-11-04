@@ -1,0 +1,22 @@
+name: Package Pantavisor BSP
+description: Package System BSP from staged provenance-bound KAS outputs
+inputs:
+  directory:
+    description: System checkout
+    default: .
+  deploy-directory:
+    description: Staged KAS deploy files
+    default: artifacts/ci/deploy
+  output:
+    description: New BSP component directory
+    default: dist/bsp
+outputs:
+  component:
+    description: Export directory relative to the project
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-package-pantavisor-bsp:unpublished
+  args:
+    - --directory=${{ inputs.directory }}
+    - --deploy-directory=${{ inputs.deploy-directory }}
+    - --output=${{ inputs.output }}

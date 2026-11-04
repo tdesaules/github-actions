@@ -1,0 +1,19 @@
+FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/workflow/ ./shared/workflow/
+COPY shared/pantavisor/ ./shared/pantavisor/
+COPY shared/component/ ./shared/component/
+COPY workflow/assemble-pantavisor/main.go ./workflow/assemble-pantavisor/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/assemble-pantavisor
+FROM ghcr.io/tdesaules/github-actions/check-test-python@sha256:83d292ab88ef823ad0d1243b5af2b240cfcd2d8ca7902b67246d4192ee8601da AS tools
+FROM scratch AS final
+COPY --from=tools / /
+COPY --from=build /entrypoint /entrypoint
+ENV PATH=/usr/bin:/bin HOME=/tmp PYTHONDONTWRITEBYTECODE=1
+# Writes the new bundle in the runner workspace.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="workflow-assemble-pantavisor" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

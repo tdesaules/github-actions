@@ -1,0 +1,23 @@
+name: Test Pantavisor platform
+description: Qualify System with pinned QEMU and export public reports separately from private fixtures
+inputs:
+  directory:
+    description: System checkout
+    default: .
+  bundle:
+    description: Verified assembled platform
+    default: dist/platform
+  output:
+    description: New private qualification directory
+    default: artifacts/qualification
+  reports:
+    description: New directory for public JSON and console reports
+    default: artifacts/public-reports
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-pantavisor-platform:unpublished
+  args:
+    - --directory=${{ inputs.directory }}
+    - --bundle=${{ inputs.bundle }}
+    - --output=${{ inputs.output }}
+    - --reports=${{ inputs.reports }}

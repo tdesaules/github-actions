@@ -1,0 +1,19 @@
+FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/workflow/ ./shared/workflow/
+COPY shared/component/ ./shared/component/
+COPY shared/pantavisor/ ./shared/pantavisor/
+COPY oci/new-rootfs-image/main.go ./oci/new-rootfs-image/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./oci/new-rootfs-image \
+    && mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
+FROM scratch AS final
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=build /runtime/ /
+COPY --from=build /entrypoint /entrypoint
+# Writes the OCI archive in the runner workspace without executing target code.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="oci-new-rootfs-image" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

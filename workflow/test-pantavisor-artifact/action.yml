@@ -1,0 +1,21 @@
+name: Test Pantavisor artifact
+description: Verify the exact artifact inventory and expected source before using transferred outputs
+inputs:
+  directory: {description: Artifact directory, default: dist}
+  receipt: {description: Source-bound receipt, default: artifacts/build-receipt.json}
+  revision: {description: Expected source Git commit, required: true}
+  require-tested: {description: Require a qualification receipt, default: 'false'}
+  receipt-digest: {description: Optional expected receipt SHA-256 from a release tag, default: ''}
+outputs:
+  verified: {description: Whether integrity and source checks passed}
+  version: {description: Receipt version}
+  image-digest: {description: Optional root image manifest digest}
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-pantavisor-artifact:unpublished
+  args:
+    - --directory=${{ inputs.directory }}
+    - --receipt=${{ inputs.receipt }}
+    - --revision=${{ inputs.revision }}
+    - --require-tested=${{ inputs.require-tested }}
+    - --receipt-digest=${{ inputs.receipt-digest }}

@@ -71,3 +71,18 @@ func TestUnrelatedPinsRemainUntouched(t *testing.T) {
 		t.Fatal("unrelated dependency modified")
 	}
 }
+
+func TestORASSourceUsesVerifiedChecksumUpdater(t *testing.T) {
+	oldSum := "h1:" + strings.Repeat("A", 43) + "="
+	newSum := "h1:" + strings.Repeat("B", 43) + "="
+	line := "sh /compile-tool.sh oras.land/oras v1.3.4 " + oldSum + " oras golang.org/x/crypto@v0.56.0\n"
+	out, err := update(line, func(module, version string) (string, error) {
+		if module != "oras.land/oras" || version != "v1.3.4" {
+			t.Fatal("incorrect ORAS source identity")
+		}
+		return newSum, nil
+	})
+	if err != nil || out != strings.Replace(line, oldSum, newSum, 1) {
+		t.Fatal(out, err)
+	}
+}

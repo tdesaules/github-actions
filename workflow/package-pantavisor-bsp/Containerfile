@@ -1,0 +1,32 @@
+FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/workflow/ ./shared/workflow/
+COPY shared/pantavisor/ ./shared/pantavisor/
+COPY shared/component/ ./shared/component/
+COPY workflow/package-pantavisor-bsp/main.go ./workflow/package-pantavisor-bsp/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/package-pantavisor-bsp
+FROM docker.io/library/ubuntu:24.04@sha256:534baea6a22c03a63003dbc8dbe78fe34bc0d7e595d9a9dc9834884ff530eb55 AS tools
+ARG DEBIAN_FRONTEND=noninteractive
+# The published action digest fixes the resolved security-updated tool closure.
+# hadolint ignore=DL3008
+RUN apt-get update && apt-get install -y --no-install-recommends binutils bzip2 ca-certificates git gzip kmod python3 tar xz-utils zstd && rm -rf /var/lib/apt/lists/*
+COPY shared/collect-binaries.sh /collect-binaries.sh
+COPY shared/pantavisor/collect-metadata.py /collect-metadata.py
+RUN sh /collect-binaries.sh /usr/bin/python3 /usr/bin/git /bin/sh /usr/bin/ar /usr/bin/tar /usr/bin/xz /usr/bin/gzip /usr/bin/bzip2 /usr/bin/zstd /usr/sbin/depmod /usr/sbin/modprobe /usr/sbin/modinfo \
+    && find /usr/lib/python3.12/lib-dynload -name '*.so' -exec sh /collect-binaries.sh {} + \
+    && python3 /collect-metadata.py
+FROM scratch AS final
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=tools /runtime/ /
+COPY --from=tools /usr/lib/python3.12/ /usr/lib/python3.12/
+COPY --from=tools /usr/lib/git-core/ /usr/lib/git-core/
+COPY --from=tools /usr/share/git-core/ /usr/share/git-core/
+COPY --from=build /entrypoint /entrypoint
+ENV PATH=/usr/bin:/bin:/usr/sbin HOME=/tmp PYTHONDONTWRITEBYTECODE=1 SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+# Packaging preserves vendor file metadata and creates the public export.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="workflow-package-pantavisor-bsp" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

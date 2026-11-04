@@ -1,0 +1,34 @@
+name: Assemble Pantavisor
+description: Assemble independently verified components into a System platform
+inputs:
+  directory:
+    description: System checkout
+    default: .
+  bsp:
+    description: BSP export
+    default: dist/bsp
+  core:
+    description: Core export
+    default: dist/core
+  k0s:
+    description: k0s export, required only for the k0s profile
+    default: ''
+  profile:
+    description: base or k0s
+    default: base
+  output:
+    description: New platform directory
+    default: dist/platform
+outputs:
+  bundle:
+    description: Platform directory relative to the project
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-assemble-pantavisor:unpublished
+  args:
+    - --directory=${{ inputs.directory }}
+    - --bsp=${{ inputs.bsp }}
+    - --core=${{ inputs.core }}
+    - --k0s=${{ inputs.k0s }}
+    - --profile=${{ inputs.profile }}
+    - --output=${{ inputs.output }}

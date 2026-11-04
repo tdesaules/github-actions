@@ -100,7 +100,7 @@ func selectImages(components []component, paths []string, full bool) (matrix, er
 			if ext == ".md" || ext == ".markdown" {
 				continue
 			}
-			if strings.HasPrefix(p, ".github/workflows/") || strings.HasPrefix(p, "scripts/") || strings.HasPrefix(p, "tasks/") || p == "taskfile.yml" {
+			if strings.HasPrefix(p, ".github/workflows/") || strings.HasPrefix(p, "scripts/") || strings.HasPrefix(p, "tasks/") || strings.HasPrefix(p, "tests/fixtures/") || p == "taskfile.yml" {
 				selected = true
 			}
 			if strings.HasPrefix(p, c.directory+"/") {

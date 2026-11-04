@@ -1,0 +1,29 @@
+FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/workflow/ ./shared/workflow/
+COPY shared/pantavisor/ ./shared/pantavisor/
+COPY shared/component/ ./shared/component/
+COPY workflow/build-pantavisor/main.go ./workflow/build-pantavisor/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/build-pantavisor
+FROM ghcr.io/siemens/kas/kas@sha256:22c70f90e21997c0b6743ad2d802cf1d942c28e974361c4733b8a026cb7ef809 AS tools
+# Collect root-owned tool files in this intermediate stage only.
+# hadolint ignore=DL3002
+USER 0:0
+COPY workflow/build-pantavisor/collect-runtime.py /collect-runtime.py
+# Expand the loop variable in the inner chroot shell, not the build shell.
+# hadolint ignore=SC2016
+RUN python3 /collect-runtime.py \
+    && chroot /runtime /bin/sh -ec 'for tool in awk which cc gcc g++ git python3 kas pzstd lz4c rpcgen; do command -v "$tool"; done'
+FROM scratch AS final
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=tools /runtime/ /
+COPY --from=build /entrypoint /entrypoint
+COPY workflow/build-pantavisor/build.py /opt/pantavisor/build.py
+ENV PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin LANG=en_US.utf8 PYTHONDONTWRITEBYTECODE=1 SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+# Creates the /work alias, then drops to the checkout owner's non-root UID.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="workflow-build-pantavisor" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

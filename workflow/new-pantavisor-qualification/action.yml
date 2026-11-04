@@ -1,0 +1,17 @@
+name: New Pantavisor qualification
+description: Recheck unchanged build outputs after successful tests and issue a qualified receipt
+inputs:
+  directory: {description: Artifact directory, default: dist}
+  receipt: {description: Original build receipt, default: artifacts/build-receipt.json}
+  revision: {description: Expected source Git commit, required: true}
+  output: {description: Qualification receipt outside the artifacts, default: artifacts/qualified-receipt.json}
+  profile: {description: System profile qualified by this matrix instance, default: ''}
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-pantavisor-qualification:unpublished
+  args:
+    - --directory=${{ inputs.directory }}
+    - --receipt=${{ inputs.receipt }}
+    - --revision=${{ inputs.revision }}
+    - --output=${{ inputs.output }}
+    - --profile=${{ inputs.profile }}

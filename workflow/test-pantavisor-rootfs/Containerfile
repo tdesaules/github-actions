@@ -1,0 +1,40 @@
+FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/workflow/ ./shared/workflow/
+COPY shared/pantavisor/ ./shared/pantavisor/
+COPY shared/component/ ./shared/component/
+COPY workflow/test-pantavisor-rootfs/main.go ./workflow/test-pantavisor-rootfs/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/test-pantavisor-rootfs
+FROM docker.io/library/ubuntu:24.04@sha256:534baea6a22c03a63003dbc8dbe78fe34bc0d7e595d9a9dc9834884ff530eb55 AS qemu
+ARG DEBIAN_FRONTEND=noninteractive
+# hadolint ignore=DL3008
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential ca-certificates curl libglib2.0-dev ninja-build python3 python3-venv python3-tomli xz-utils && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+RUN curl -fL https://download.qemu.org/qemu-10.2.2.tar.xz -o qemu.tar.xz \
+    && echo '784b296ff29c1417aa72323abcb2d2ea9ab9771724f577dcd785c3b04f21e176  qemu.tar.xz' | sha256sum -c - \
+    && tar -xf qemu.tar.xz --strip-components=1 \
+    && ./configure --prefix=/opt/qemu --target-list=aarch64-linux-user --disable-docs --disable-tools --disable-guest-agent \
+    && make -j4 && make install
+FROM docker.io/library/ubuntu:24.04@sha256:534baea6a22c03a63003dbc8dbe78fe34bc0d7e595d9a9dc9834884ff530eb55 AS tools
+ARG DEBIAN_FRONTEND=noninteractive
+# hadolint ignore=DL3008
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libglib2.0-0t64 python3 squashfs-tools && rm -rf /var/lib/apt/lists/*
+COPY --from=qemu /opt/qemu /opt/qemu
+COPY shared/collect-binaries.sh /collect-binaries.sh
+COPY shared/pantavisor/collect-metadata.py /collect-metadata.py
+RUN sh /collect-binaries.sh /usr/bin/python3 /usr/bin/unsquashfs /opt/qemu/bin/qemu-aarch64 \
+    && find /usr/lib/python3.12/lib-dynload -name '*.so' -exec sh /collect-binaries.sh {} + \
+    && python3 /collect-metadata.py
+FROM scratch AS final
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=qemu /src/COPYING /usr/share/licenses/qemu/COPYING
+COPY --from=tools /runtime/ /
+COPY --from=tools /usr/lib/python3.12/ /usr/lib/python3.12/
+COPY --from=build /entrypoint /entrypoint
+ENV PATH=/opt/qemu/bin:/usr/bin:/bin HOME=/tmp PYTHONDONTWRITEBYTECODE=1 SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+USER 65532:65532
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="workflow-test-pantavisor-rootfs" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

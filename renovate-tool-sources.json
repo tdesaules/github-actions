@@ -4,7 +4,7 @@
     {
       "customType": "regex",
       "managerFilePatterns": ["/^(oci|check|lint|workflow|maintenance)/.*Containerfile$/", "/^shared/runtime/compile-[a-z]+\\.sh$/"],
-      "matchStrings": ["compile-tool\\.sh\\s+(?<depName>(?:github\\.com|golang\\.org|google\\.golang\\.org|go\\.podman\\.io)/[a-zA-Z0-9_./-]+)\\s+(?<currentValue>v[0-9][a-zA-Z0-9.+-]*)\\s+h1:[A-Za-z0-9+/]{43}="],
+      "matchStrings": ["compile-tool\\.sh\\s+(?<depName>(?:github\\.com|golang\\.org|google\\.golang\\.org|go\\.podman\\.io|oras\\.land)/[a-zA-Z0-9_./-]+)\\s+(?<currentValue>v[0-9][a-zA-Z0-9.+-]*)\\s+h1:[A-Za-z0-9+/]{43}="],
       "datasourceTemplate": "go",
       "versioningTemplate": "gomod",
       "depTypeTemplate": "tool-source"

@@ -1,0 +1,25 @@
+FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/testsuite/ ./shared/testsuite/
+COPY check/test-pantavisor-system/main.go ./check/test-pantavisor-system/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./check/test-pantavisor-system \
+    && apk add --no-cache bash=5.3.9-r1 cpio=2.15-r0 git=2.54.0-r0 grub=2.14-r0 python3=3.14.10-r1
+COPY shared/collect-binaries.sh /collect-binaries.sh
+RUN sh /collect-binaries.sh /usr/bin/python3 /usr/bin/git /bin/sh /bin/bash /usr/bin/env /usr/bin/cpio /usr/bin/grub-script-check /usr/bin/grub-editenv \
+    && find /usr/lib/python3.14/lib-dynload -name '*.so' -exec sh /collect-binaries.sh {} +
+
+FROM scratch AS final
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=build /runtime/ /
+COPY --from=build /usr/lib/python3.14/ /usr/lib/python3.14/
+COPY --from=build /usr/libexec/git-core/ /usr/libexec/git-core/
+COPY --from=build /usr/share/git-core/ /usr/share/git-core/
+COPY --from=build /entrypoint /entrypoint
+ENV PATH=/usr/bin:/bin HOME=/tmp PYTHONDONTWRITEBYTECODE=1
+# System's check writes ignored bytecode/artifacts in the checkout.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="check-test-pantavisor-system" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

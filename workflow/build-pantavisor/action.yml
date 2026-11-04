@@ -1,0 +1,22 @@
+name: Build Pantavisor
+description: Build the fixed KAS CI target and stage provenance-bound deploy files
+inputs:
+  directory:
+    description: Project checkout
+    default: .
+  project:
+    description: core, k0s or system
+    required: true
+  cold:
+    description: Require a new build directory; false permits explicit local diagnostic recovery
+    default: 'true'
+outputs:
+  deploy-directory:
+    description: Staged deploy directory relative to the project
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-build-pantavisor:unpublished
+  args:
+    - --directory=${{ inputs.directory }}
+    - --project=${{ inputs.project }}
+    - --cold=${{ inputs.cold }}
