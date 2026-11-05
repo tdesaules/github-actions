@@ -32,7 +32,7 @@ new reports are under `/tmp/opencode/kas-upstream-action/`. Historical backport
 reviews require exact versions and payload hashes; they must not waive the
 distribution packages now selected. The `high` gate remains blocking.
 
-The final reduced action with the official curl 8.21.0 backport reports:
+Before advisory triage, the reduced action with the official curl 8.21.0 backport reports:
 
 | Architecture | Critical matches | High matches | Distinct high/critical IDs |
 | --- | ---: | ---: | ---: |
@@ -43,8 +43,15 @@ Compared with the reduced AMD64 baseline before the curl update, the only new
 blocking package/advisory pairs are the same 31 curl advisories attached to the
 additional `libcurl4-gnutls` package. No new advisory ID appeared. This is not
 evidence that every curl finding is applicable or fixed; their individual
-upstream/backport status still needs review. Evaluation of the existing policy
-against both final SBOMs emits **zero exclusions**.
+upstream/backport status still needs review. At that baseline, evaluation of the
+historical policy against both SBOMs emitted **zero exclusions**.
+
+The [hosted-run advisory triage](pantavisor-kas-triage.md) subsequently verifies
+eight curl advisories fixed by the installed official 8.21.0 packages. Their
+finite, native-file-hash-bound review reduces the local rescans of the hosted
+SBOMs to **23 critical / 278 high on AMD64**, and **23 critical / 220 high on
+ARM64**, covering **69 distinct blocking IDs**. These are recognized upstream
+fixes, not risk acceptances. All remaining findings still block publication.
 
 ### Remaining advisory triage
 

@@ -7,6 +7,38 @@
   "verified_debian_backports": [
     {
       "namespace": "debian:distro:debian:13", "codename": "trixie",
+      "version": "8.21.0-2~bpo13+1",
+      "packages": ["curl", "libcurl3t64-gnutls", "libcurl4-gnutls", "libcurl4t64"],
+      "reason": "Official Trixie backports packages contain curl 8.21.0. For these eight advisories only, curl's upstream OSV records explicitly mark 8.21.0 fixed and exclude it from affected versions; Debian's sid fixed versions agree, while the unbounded Trixie source-package records remain open. On both architectures, the executable and both TLS libraries in run 42018140474 match packages downloaded through authenticated Debian APT indexes. The transitional GnuTLS package must also match. The other 23 curl advisories remain blocking; this is verified remediation, not risk acceptance.",
+      "source_sha256": {
+        "https://deb.debian.org/debian/pool/main/c/curl/curl_8.21.0.orig.tar.gz": "d9b327997999045a24cda50f3983e69e51c516bd8be6ef9842fc7f99135e33bb",
+        "https://deb.debian.org/debian/pool/main/c/curl/curl_8.21.0-2~bpo13+1.debian.tar.xz": "d13ebcfd5824d545e139a5426fa403f8cce42c7ea7ef87325913c68a31133d73"
+      },
+      "variants": {
+        "amd64": {
+          "/usr/bin/curl": "d60d7408a8ae47d267126a6bafb59a1e91bb6ca7eb6903289f9647c8f70f96f7",
+          "/usr/lib/x86_64-linux-gnu/libcurl.so.4.8.0": "c17692a13ab5c01eb95e0c5b4e419a9a0da21f474ff1145732d60f14b3cfaad7",
+          "/usr/lib/x86_64-linux-gnu/libcurl-gnutls.so.4.8.0": "9acdbf589c2f771675983f4afedcca892a36304b3a404770ed0ef0062c6d97c4"
+        },
+        "arm64": {
+          "/usr/bin/curl": "e04df16c7f0852c8f30b04eb7feb19c5cca38bcad90a85ca7acdf162340cd04b",
+          "/usr/lib/aarch64-linux-gnu/libcurl.so.4.8.0": "9f859828153b6f4734bc43954de27d8e685f907a5a462a8582496c7f622aecbb",
+          "/usr/lib/aarch64-linux-gnu/libcurl-gnutls.so.4.8.0": "c109b586aa70b730d9a997f22af88f43c12f5901fbd7dfb69435dbcf6a67f50d"
+        }
+      },
+      "advisories": {
+        "CVE-2026-10536": "https://curl.se/docs/CVE-2026-10536.html",
+        "CVE-2026-11856": "https://curl.se/docs/CVE-2026-11856.html",
+        "CVE-2026-12064": "https://curl.se/docs/CVE-2026-12064.html",
+        "CVE-2026-8926": "https://curl.se/docs/CVE-2026-8926.html",
+        "CVE-2026-8932": "https://curl.se/docs/CVE-2026-8932.html",
+        "CVE-2026-9079": "https://curl.se/docs/CVE-2026-9079.html",
+        "CVE-2026-9080": "https://curl.se/docs/CVE-2026-9080.html",
+        "CVE-2026-9545": "https://curl.se/docs/CVE-2026-9545.html"
+      }
+    },
+    {
+      "namespace": "debian:distro:debian:13", "codename": "trixie",
       "version": "2.41.5-0+deb13u1+pantavisor1",
       "packages": ["util-linux", "libblkid1", "liblastlog2-2", "libmount1", "libsmartcols1", "libuuid1"],
       "reason": "Built from stable util-linux 2.41.6 with Trixie packaging: upstream fixes failed-helper hooks and restricted source resolution. The local patch completes nsenter descriptor closure, includes fileutils.h in the idmap hook and corrects RESOLVE_NO_SYMLINKS to Linux UAPI 0x04 (patch SHA-256 ec260c3fe82a0385a1ce7afe2c1c592d57729f134a22f1447af5ec28c69e529d). The 78409 detached-subdirectory fast path was introduced in 2.42 and is absent from this stable source. Package tests and direct final/intermediate symlink rejection checks pass; kernel-denied inotify/personality prerequisites are explicitly reported as skipped. Match every native payload below before reviewing these four source-package advisories.",
