@@ -79,8 +79,18 @@ with the candidate `--reference` to qualify that image. Both final variants pass
 the runtime/negative-fixture harness and the HTTPS/Git/KAS fixture; ARM64 was
 executed under local emulation. The historical
 Python 3.13.18 regression fixture is not evidence for distribution Python 3.13.5.
-A cold Core build is running. Hosted native ARM64 qualification and resolution
-of the security gate are still required before publication or consumer activation.
+The distribution-based AMD64 action completed a fresh Core build in
+**2439.224 seconds**, with `cold: true` and `success: true`. Its staged outputs
+include squashfs, tar, manifest, SPDX, the Core release description and bound
+build provenance. Evidence is retained in
+`.build/kas-upstream-core-cold/source/artifacts/ci/` and the adjacent build log.
+An earlier attempt in `/tmp` stopped on BitBake's low-inode guard after 497
+successful tasks; the successful run used a separate fresh checkout on the
+repository filesystem, without disabling any disk or inode guard.
+
+This qualifies a local AMD64-hosted Core build, not a k0s/System build or a
+native ARM64-hosted producer build. Hosted qualification and resolution of the
+security gate are still required before publication or consumer activation.
 
 ## Historical source-backport experiments (superseded)
 
