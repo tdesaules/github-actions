@@ -51,7 +51,9 @@ diff is limited to 50 curl/dependency/package-cache paths per architecture;
 all seven existing applicability package/version and native-file witnesses are
 unchanged. After revalidating their complete inventories, the reviewed scans
 report **30 critical / 215 high on AMD64** and **30 critical / 180 high on ARM64**,
-with **70 distinct blocking IDs**. The new cold Core build is still running.
+with **70 distinct blocking IDs**. The stable-security cold Core build subsequently
+passed in **2325.496 seconds**. See the [remaining findings report](pantavisor-kas-remaining.md)
+for the complete advisory inventory and refreshed official-package availability.
 
 ## The original seven critical advisory IDs
 

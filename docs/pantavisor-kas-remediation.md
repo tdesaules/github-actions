@@ -29,8 +29,10 @@ Current reviewed results are **30 critical / 215 high on AMD64** and
 **30 critical / 180 high on ARM64**, covering **70 blocking IDs**. The eight
 8.21.0-specific fixed-advisory reviews do not apply to this version. This increase
 is the disclosed tradeoff for the stable security correction, not a lowered
-threshold or new risk acceptance. A fresh cold Core build is running for this
-exact image; hosted qualification is still required.
+threshold or new risk acceptance. A fresh cold Core build passed for this exact
+image in **2325.496 seconds**; hosted qualification is still required. The
+[remaining findings report](pantavisor-kas-remaining.md) records all 70 IDs and
+the 2026-11-06 verification of official package availability.
 
 System-library and compiler source backports are **disabled** in the current
 Containerfile. Their committed scripts and evidence remain available for a
