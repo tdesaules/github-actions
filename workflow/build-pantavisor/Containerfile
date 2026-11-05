@@ -6,6 +6,7 @@ COPY shared/pantavisor/ ./shared/pantavisor/
 COPY shared/component/ ./shared/component/
 COPY workflow/build-pantavisor/main.go ./workflow/build-pantavisor/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/build-pantavisor
+
 FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS git-lfs
 WORKDIR /src
 RUN go mod init github.com/tdesaules/git-lfs-build \
@@ -15,19 +16,25 @@ RUN go mod init github.com/tdesaules/git-lfs-build \
     && go mod edit -require=golang.org/x/crypto@v0.56.0 -require=golang.org/x/net@v0.60.0 \
     && CGO_ENABLED=0 go build -mod=mod -trimpath -ldflags='-s -w' -o /git-lfs github.com/git-lfs/git-lfs/v3 \
     && cp /go/pkg/mod/github.com/git-lfs/git-lfs/v3@v3.8.1/LICENSE.md /LICENSE.md
-FROM ghcr.io/siemens/kas/kas:5.5-debian-trixie@sha256:4b210b0be3c887875973c4f4c35470b4ecf3edd2346c9de1bdd33feae5b86e94 AS tools-base
-# Collect root-owned tool files in this intermediate stage only.
+
+FROM ghcr.io/siemens/kas/kas:latest-debian-trixie@sha256:0f929318babc0291ab940d6d6db535906dd32e4cf6a0914f0cd19b42ae7453f9 AS tools
+# Keep the distribution-maintained toolchain; do not rebuild system libraries.
 # hadolint ignore=DL3002
 USER 0:0
-# Apply published security updates newer than the KAS release image before
-# collecting the runtime. Keep package identities for downstream SBOM review.
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    curl=8.14.1-2+deb13u7 \
+RUN printf '%s\n' 'deb https://deb.debian.org/debian trixie-backports main' > /etc/apt/sources.list.d/pantavisor-backports.list \
+    && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    curl=8.21.0-2~bpo13+1 \
     gzip=1.13-1+deb13u1 \
     libbrotli1=1.1.0-2+deb13u1 \
     libc6=2.41-12+deb13u4 \
-    libcurl3t64-gnutls=8.14.1-2+deb13u7 \
+    libcurl3t64-gnutls=8.21.0-2~bpo13+1 \
+    libcurl4-gnutls=8.21.0-2~bpo13+1 \
+    libcurl4t64=8.21.0-2~bpo13+1 \
     libexpat1=2.9.0-1~deb13u1 \
+    libnghttp3-9=1.15.0-1~bpo13+1 \
+    libngtcp2-16=1.22.1-1~bpo13+1 \
+    libngtcp2-crypto-gnutls8=1.22.1-1~bpo13+1 \
+    libngtcp2-crypto-ossl0=1.22.1-1~bpo13+1 \
     libpcre2-8-0=10.46-1~deb13u3 \
     libsqlite3-0=3.46.1-7+deb13u2 \
     libssh2-1t64=1.11.1-1+deb13u2 \
@@ -44,236 +51,12 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     xz-utils=5.8.1-1+deb13u2 \
     && rm -rf /var/lib/apt/lists/* \
     && localedef -i en_US -f UTF-8 en_US.UTF-8
-RUN echo 'deb https://deb.debian.org/debian trixie-backports main' > /etc/apt/sources.list.d/pantavisor-backports.list
-FROM tools-base AS curl-build
-# Build-only headers and Debian packaging tools come from signed Trixie repos.
-# Pin the backports that provide curl's HTTP/3 APIs; do not enable sid binaries.
-# hadolint ignore=DL3008
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    autoconf automake debhelper dpkg-dev groff-base libbrotli-dev libgnutls28-dev \
-    libidn2-dev libkrb5-dev libldap2-dev libnghttp2-dev \
-    libnghttp3-9=1.15.0-1~bpo13+1 \
-    libnghttp3-dev=1.15.0-1~bpo13+1 \
-    libngtcp2-16=1.22.1-1~bpo13+1 \
-    libngtcp2-crypto-gnutls8=1.22.1-1~bpo13+1 \
-    libngtcp2-crypto-gnutls-dev=1.22.1-1~bpo13+1 \
-    libngtcp2-crypto-ossl-dev=1.22.1-1~bpo13+1 \
-    libngtcp2-dev=1.22.1-1~bpo13+1 \
-    libpsl-dev librtmp-dev libssh2-1-dev libssl-dev libtool libzstd-dev zlib1g-dev \
-    && rm -rf /var/lib/apt/lists/*
-COPY workflow/build-pantavisor/build-curl.sh /build-curl.sh
-RUN sh /build-curl.sh
-FROM tools-base AS python-build
-# Build-only dependencies from signed Trixie repositories; source is pinned.
-# hadolint ignore=DL3008
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    autoconf blt-dev debhelper dpkg-dev libbluetooth-dev libbz2-dev libdb-dev \
-    libexpat1-dev libffi-dev libgdbm-dev libgpm2 liblzma-dev libncurses-dev \
-    libreadline-dev libsqlite3-dev libssl-dev locales-all lsb-release media-types \
-    net-tools netbase quilt sharutils systemtap-sdt-dev time tk-dev uuid-dev \
-    valgrind-if-available zlib1g-dev \
-    && rm -rf /var/lib/apt/lists/*
-COPY workflow/build-pantavisor/build-python.sh /build-python.sh
-RUN sh /build-python.sh
-FROM tools-base AS xml-build
-# Rebuild the library and its Perl consumer together on the host Perl ABI.
-# hadolint ignore=DL3008
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    autoconf automake debhelper docbook-xsl doxygen libdevel-checklib-perl \
-    liblzma-dev libperl-dev libreadline-dev libtool libxml-namespacesupport-perl \
-    libxml-sax-perl pkgconf rename xsltproc zlib1g-dev \
-    && rm -rf /var/lib/apt/lists/*
-COPY workflow/build-pantavisor/build-xml.sh /build-xml.sh
-RUN sh /build-xml.sh
-FROM tools-base AS gawk-build
-# Build-only dependencies for the signed upstream release.
-# hadolint ignore=DL3008
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    dpkg-dev libgmp-dev libmpfr-dev libreadline-dev libsigsegv-dev \
-    && rm -rf /var/lib/apt/lists/*
-COPY workflow/build-pantavisor/build-gawk.sh /build-gawk.sh
-RUN sh /build-gawk.sh
-FROM tools-base AS sqlite-build
-# Only the C library is exported; Tcl 8.6 drives its build and regression tests.
-# hadolint ignore=DL3008
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    autoconf automake chrpath debhelper libicu-dev libreadline-dev libtommath-dev \
-    libtool lynx pkgconf tcl8.6-dev \
-    && rm -rf /var/lib/apt/lists/*
-COPY workflow/build-pantavisor/build-sqlite.sh /build-sqlite.sh
-RUN sh /build-sqlite.sh
-FROM tools-base AS expat-build
-# Build-only documentation/packaging dependencies; run the upstream tests.
-# hadolint ignore=DL3008
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    debhelper docbook-to-man docbook2x fakeroot \
-    && rm -rf /var/lib/apt/lists/*
-COPY workflow/build-pantavisor/build-debian-library.sh /build-debian-library.sh
-RUN sh /build-debian-library.sh \
-    https://deb.debian.org/debian/pool/main/e/expat/expat_2.10.0.orig.tar.gz \
-    b3644a12f62d7762b62c444f69d169ba0234f13138d0240244bca64cbe35286f \
-    https://deb.debian.org/debian/pool/main/e/expat/expat_2.10.0-1.debian.tar.xz \
-    9be65c3ff79ca0508590970422de0a55f117bb7134a0274dd1ed3261f85631dc \
-    libexpat1
-FROM tools-base AS basic-library-build
-# Build-only tools shared by the small source backports below.
-# hadolint ignore=DL3008
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    autoconf autopoint debhelper fakeroot gettext libtool pkgconf \
-    && rm -rf /var/lib/apt/lists/*
-COPY workflow/build-pantavisor/build-debian-library.sh /build-debian-library.sh
-FROM basic-library-build AS acl-build
-# hadolint ignore=DL3008
-RUN apt-get update && apt-get install -y --no-install-recommends libattr1-dev \
-    && rm -rf /var/lib/apt/lists/*
-RUN sh /build-debian-library.sh \
-    https://deb.debian.org/debian/pool/main/a/acl/acl_2.4.0.orig.tar.xz \
-    e661131456d2708a01c614a0f400e11d7d1bfaeb6f3e74b75bb980b72f0161a3 \
-    https://deb.debian.org/debian/pool/main/a/acl/acl_2.4.0-1.debian.tar.xz \
-    65931c2fb3e821bda67f8d8d72d77e99ac61502748dcdf38b6805fe89339085e \
-    libacl1
-FROM basic-library-build AS zlib-build
-RUN DEB_BUILD_PROFILES=nobiarch sh /build-debian-library.sh \
-    https://deb.debian.org/debian/pool/main/z/zlib/zlib_1.3.dfsg+really1.3.2.orig.tar.gz \
-    7b6903eb019983987b7112eccf90f1703f1c6c0e0cede36564bf611d19ca579d \
-    https://deb.debian.org/debian/pool/main/z/zlib/zlib_1.3.dfsg+really1.3.2-4.debian.tar.xz \
-    ee9db06d87b2d810b9edd8485b8b39433b18eb30d93f9e1d40fe8dbd40eda7a1 \
-    zlib1g
-FROM basic-library-build AS ncurses-build
-# hadolint ignore=DL3008
-RUN apt-get update && apt-get install -y --no-install-recommends autoconf-dickey libgpm-dev \
-    && rm -rf /var/lib/apt/lists/*
-RUN DEB_BUILD_PROFILES=nobiarch sh /build-debian-library.sh \
-    https://deb.debian.org/debian/pool/main/n/ncurses/ncurses_6.6+20260608.orig.tar.gz \
-    3b91eb714ba61b9ebfcfe09cf8e7c1c45cf2e8a6282f5887fb942db514ae93bd \
-    https://deb.debian.org/debian/pool/main/n/ncurses/ncurses_6.6+20260608-2.debian.tar.xz \
-    52a49c453121bd90d21edef53903beac9d9d8229e0ef4f49d3b0252e49932f4c \
-    libncursesw6 libtinfo6
-FROM basic-library-build AS sasl-build
-# Only core and DB modules are exported, matching the original runtime closure.
-# hadolint ignore=DL3008
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    chrpath docbook-to-man groff-base libcrypt-dev libdb-dev libpam0g-dev \
-    libsqlite3-dev libssl-dev po-debconf \
-    && rm -rf /var/lib/apt/lists/*
-RUN DEB_BUILD_PROFILES='nodoc pkg.cyrus-sasl2.nosql pkg.cyrus-sasl2.noldap pkg.cyrus-sasl2.nogssapi' sh /build-debian-library.sh \
-    https://deb.debian.org/debian/pool/main/c/cyrus-sasl2/cyrus-sasl2_2.1.28+dfsg1.orig.tar.xz \
-    e796a5d85d1a85e1b433d43504e467f9075c7ebc0b45730a3996cf11b1deada4 \
-    https://deb.debian.org/debian/pool/main/c/cyrus-sasl2/cyrus-sasl2_2.1.28+dfsg1-12.debian.tar.xz \
-    5aef55aa41fad421aed3fa1cf1f79ecb9db82534220c6211d64383ae5f39e20f \
-    libsasl2-2 libsasl2-modules-db
-FROM basic-library-build AS krb5-build
-# hadolint ignore=DL3008
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    bison comerr-dev docbook-to-man keyutils libcmocka-dev libkeyutils-dev \
-    libldap2-dev liblmdb-dev libnss-myhostname libsasl2-dev libssl-dev libverto-dev \
-    python3-kdcproxy python3-pyrad ss-dev \
-    && rm -rf /var/lib/apt/lists/*
-RUN BACKPORT_SUFFIX=+pantavisor1 \
-    SECURITY_PATCH_URL=https://github.com/krb5/krb5/commit/48afa9abb89ab2176bb20624d87d010b9984fc08.patch \
-    SECURITY_PATCH_SHA256=955de54b130bc76b07d4d6ca8117eda441cbfc0daa83d93c6d05d776889bc5d0 \
-    sh /build-debian-library.sh \
-    https://deb.debian.org/debian/pool/main/k/krb5/krb5_1.21.3.orig.tar.gz \
-    b7a4cd5ead67fb08b980b21abd150ff7217e85ea320c9ed0c6dadd304840ad35 \
-    https://deb.debian.org/debian/pool/main/k/krb5/krb5_1.21.3-5+deb13u1.debian.tar.xz \
-    02b873b239fbe7ddf016dfe44deba4130673f4606c18c93da0622e2bc8500fb4 \
-    libkrb5-3 libgssapi-krb5-2 libk5crypto3 libkrb5support0
-FROM basic-library-build AS gnupg-build
-# Native executables only: no Windows builds or binary packages from sid.
-# hadolint ignore=DL3008
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    dh-sequence-builtusing gpgrt-tools libassuan-dev libbz2-dev libgcrypt20-dev \
-    libgnutls28-dev libgpg-error-dev libksba-dev libldap2-dev libnpth0-dev \
-    libreadline-dev libsqlite3-dev libtss2-dev libusb-1.0-0-dev openssh-client \
-    swtpm unicode-data zlib1g-dev \
-    && rm -rf /var/lib/apt/lists/*
-RUN DEB_BUILD_PROFILES=nodoc sh /build-debian-library.sh \
-    https://deb.debian.org/debian/pool/main/g/gnupg2/gnupg2_2.4.9.orig.tar.bz2 \
-    dd17ab2e9a04fd79d39d853f599cbc852062ddb9ab52a4ddeb4176fd8b302964 \
-    https://deb.debian.org/debian/pool/main/g/gnupg2/gnupg2_2.4.9-8.debian.tar.xz \
-    69e954dc52f1a674bf567aa40064e24ca230210394975a6cddf98742e2a6f882 \
-    gpg gpg-agent gpgconf gpgsm gpgv dirmngr gnupg-utils
-WORKDIR /backport-source/source
-# Build the matching architecture-independent packages from the already built
-# native tree, without pulling in unrelated Windows cross-build dependencies.
-RUN export DEB_BUILD_PROFILES=nodoc; \
-    for command in dh_install dh_installdocs dh_installchangelogs dh_compress dh_fixperms dh_installdeb dh_gencontrol dh_md5sums dh_builddeb; do \
-        "$command" -pgnupg -pgnupg-l10n || exit; \
-    done; \
-    cp ../gnupg_2.4.9-8~pantavisor1_all.deb ../gnupg-l10n_2.4.9-8~pantavisor1_all.deb /packages/
-FROM tools-base AS perl-modules-build
-COPY workflow/build-pantavisor/build-perl-modules.py /build-perl-modules.py
-RUN python3 /build-perl-modules.py
-FROM basic-library-build AS util-linux-build
-# Build the stable security release with Trixie's packaging and native tests.
-# hadolint ignore=DL3008
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    asciidoctor bc bison dh-exec dh-package-notes dh-sequence-installsysusers \
-    dh-sequence-zz-debputy-rrr flex libaudit-dev libcap-ng-dev libcrypt-dev \
-    libcryptsetup-dev libncurses-dev libpam0g-dev libreadline-dev libselinux1-dev \
-    libsqlite3-dev libsystemd-dev libudev-dev netbase po-debconf po4a socat \
-    systemd systemd-dev zlib1g-dev \
-    && rm -rf /var/lib/apt/lists/*
-COPY workflow/build-pantavisor/util-linux-cgroup.patch /util-linux-cgroup.patch
-COPY workflow/build-pantavisor/test-util-linux-sandbox.py /test-util-linux-sandbox.py
-RUN BACKPORT_SUFFIX=+pantavisor1 \
-    ALREADY_APPLIED_PATCHES='upstream/loopdev-use-openat2-RESOLVE_NO_SYMLINKS-for-backing-file.patch upstream/libmount-restrict-source-path-canonicalization-for-non-ro.patch' \
-    LOCAL_SECURITY_PATCH=/util-linux-cgroup.patch \
-    LOCAL_SECURITY_PATCH_SHA256=ec260c3fe82a0385a1ce7afe2c1c592d57729f134a22f1447af5ec28c69e529d \
-    sh /build-debian-library.sh \
-    https://mirrors.edge.kernel.org/pub/linux/utils/util-linux/v2.41/util-linux-2.41.6.tar.xz \
-    e596083744e746be7d2823b62b43f4418dd7bf56303b4dc09e6fe8112fe3d7ed \
-    https://deb.debian.org/debian/pool/main/u/util-linux/util-linux_2.41.5-0+deb13u1.debian.tar.xz \
-    5b327ccd22f0f4ed28a389870aa51d04ecedb8693e52a1d122850f2b3188cbf6 \
-    libblkid1 liblastlog2-2 libmount1 libsmartcols1 libuuid1 util-linux
-COPY workflow/build-pantavisor/test-util-linux-paths.py /test-util-linux-paths.py
-RUN python3 /test-util-linux-paths.py
-FROM basic-library-build AS wget-build
-# hadolint ignore=DL3008
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgnutls28-dev libhttp-daemon-perl libidn2-dev libpcre2-dev libpsl-dev \
-    libssl-dev texinfo uuid-dev zlib1g-dev \
-    && rm -rf /var/lib/apt/lists/*
-COPY workflow/build-pantavisor/wget-bounds.patch /wget-bounds.patch
-COPY workflow/build-pantavisor/test-wget-bounds.py /test-wget-bounds.py
-RUN BACKPORT_SUFFIX=+pantavisor1 \
-    SECURITY_PATCH_URL=https://gitlab.com/gnuwget/wget/-/commit/c2640fe5171c59f87c58dc9fcb195b2d18b010ee.patch \
-    SECURITY_PATCH_SHA256=1cf705d8020435be06fe8daca1ab3dfa8cd2bc93937b613dfb1c49d56135878e \
-    LOCAL_SECURITY_PATCH=/wget-bounds.patch \
-    LOCAL_SECURITY_PATCH_SHA256=245918fddf2563093654a4080691334f69b49696ebf5390a01d471054dcaea8d \
-    sh /build-debian-library.sh \
-    https://deb.debian.org/debian/pool/main/w/wget/wget_1.25.0.orig.tar.gz \
-    766e48423e79359ea31e41db9e5c289675947a7fcf2efdcedb726ac9d0da3784 \
-    https://deb.debian.org/debian/pool/main/w/wget/wget_1.25.0-2.debian.tar.xz \
-    45d4411e892d12af710ddff536d2daf430031387e336153f5f996cf536487b90 \
-    wget \
-    && python3 /test-wget-bounds.py
-FROM tools-base AS tools
-COPY --from=curl-build /packages/ /packages/
-COPY --from=python-build /packages/ /packages/
-COPY --from=xml-build /packages/ /packages/
-COPY --from=gawk-build /packages/ /packages/
-COPY --from=sqlite-build /packages/ /packages/
-COPY --from=expat-build /packages/ /packages/
-COPY --from=acl-build /packages/ /packages/
-COPY --from=zlib-build /packages/ /packages/
-COPY --from=ncurses-build /packages/ /packages/
-COPY --from=sasl-build /packages/ /packages/
-COPY --from=krb5-build /packages/ /packages/
-COPY --from=gnupg-build /packages/ /packages/
-COPY --from=perl-modules-build /packages/ /packages/
-COPY --from=wget-build /packages/ /packages/
-COPY --from=util-linux-build /packages/ /packages/
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends /packages/*.deb \
-    libnghttp3-9=1.15.0-1~bpo13+1 \
-    libngtcp2-16=1.22.1-1~bpo13+1 \
-    libngtcp2-crypto-gnutls8=1.22.1-1~bpo13+1 \
-    && rm -rf /packages /var/lib/apt/lists/*
 COPY workflow/build-pantavisor/collect-runtime.py /collect-runtime.py
 # Expand the loop variable in the inner chroot shell, not the build shell.
 # hadolint ignore=SC2016
 RUN python3 /collect-runtime.py \
     && chroot /runtime /bin/sh -ec 'for tool in awk which cc gcc g++ git python3 kas pzstd lz4c rpcgen; do command -v "$tool"; done'
+
 FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=tools /runtime/ /

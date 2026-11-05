@@ -1,8 +1,90 @@
 # KAS runtime security refresh
 
-## Latest local state
+## Current strategy (2026-11-05)
 
-The most recent completed integrated AMD64 scan, before the final Wget package
+Use Siemens' recent `latest-debian-trixie` image pinned to multi-platform digest
+`sha256:0f929318babc0291ab940d6d6db535906dd32e4cf6a0914f0cd19b42ae7453f9`.
+The tag describes the upstream channel; the digest fixes the actual input.
+Retain explicitly versioned Debian security updates and the minimal package
+closure, including package ownership metadata. The action executable and the
+already-qualified Git LFS binary are still built with the pinned Go toolchain.
+curl 8.21.0 and its HTTP/3 dependencies come from official signed Trixie backports
+packages, with both TLS backends and their compatibility package pinned explicitly.
+The inspected repositories did not offer newer applicable glibc, GCC, Python,
+libxml2, Expat, util-linux or Wget packages for this baseline.
+
+System-library and compiler source backports are **disabled** in the current
+Containerfile. Their committed scripts and evidence remain available for a
+future narrowly justified correction. The experimental, uncommitted GCC/glibc
+builders have been removed and the long-running GCC build was stopped. Neither
+experimental GCC nor glibc was installed in a published action.
+
+Scanning the exact unmodified Siemens image without exclusions reports:
+
+| Architecture | Critical matches | High matches | Distinct high/critical IDs |
+| --- | ---: | ---: | ---: |
+| AMD64 | 38 | 462 | 189 |
+| ARM64 | 38 | 404 | 189 |
+
+These upstream counts are not the final action's scan. Reports and exact source
+references are under `/tmp/opencode/kas-latest-comparison/`. The reduced action's
+new reports are under `/tmp/opencode/kas-upstream-action/`. Historical backport
+reviews require exact versions and payload hashes; they must not waive the
+distribution packages now selected. The `high` gate remains blocking.
+
+The final reduced action with the official curl 8.21.0 backport reports:
+
+| Architecture | Critical matches | High matches | Distinct high/critical IDs |
+| --- | ---: | ---: | ---: |
+| AMD64 | 39 | 294 | 77 |
+| ARM64 | 39 | 236 | 77 |
+
+Compared with the reduced AMD64 baseline before the curl update, the only new
+blocking package/advisory pairs are the same 31 curl advisories attached to the
+additional `libcurl4-gnutls` package. No new advisory ID appeared. This is not
+evidence that every curl finding is applicable or fixed; their individual
+upstream/backport status still needs review. Evaluation of the existing policy
+against both final SBOMs emits **zero exclusions**.
+
+### Remaining advisory triage
+
+No risk-acceptance exclusion has been approved or added. For each remaining
+advisory, record the exact image/package version, upstream status, affected API,
+reachable caller and trust boundary before deciding whether an exception is
+justified. An image being a CI build tool is not sufficient evidence by itself.
+
+| Area | Evidence still needed | Current decision |
+| --- | --- | --- |
+| glibc formatting/gettext | Actual callers and whether format, catalogue path or environment can cross a trust boundary | Keep findings blocking |
+| GCC/libstdc++ | Affected ABI/configuration and installed header consumers | Keep findings blocking |
+| util-linux | Shipped commands/libraries, privileges and namespace/mount use | Keep findings blocking |
+| Download/archive/XML/Python tools | Input provenance, verification order and affected parsing paths | Keep findings blocking |
+
+Any future risk acceptance must name its owner, finite advisory/package scope,
+supporting evidence, expiration and upstream-remediation removal condition.
+Expiry must be enforced by the review implementation before such a rule can be
+used in CI. The existing immutable backport/symbol reviews are not a general
+risk-acceptance mechanism. Prefer distribution updates; reintroduce a local
+backport only when necessary and qualify its compatibility on both architectures.
+
+### Compatibility validation
+
+The first distribution-based AMD64 action builds and passes Python extension
+smoke checks plus HTTPS redirects, certificate/hostname rejection, Git/GnuTLS
+cloning and KAS checkout. Its pre-backports scan has 31 critical and 271 high
+matches across 77 distinct blocking IDs, with no historical review rule applied.
+The subsequent official curl 8.21.0 backport restores HTTP/3 support without
+local compilation. Use `scripts/test-pantavisor-curl.py --curl-version 8.21.0`
+with the candidate `--reference` to qualify that image. Both final variants pass
+the runtime/negative-fixture harness and the HTTPS/Git/KAS fixture; ARM64 was
+executed under local emulation. The historical
+Python 3.13.18 regression fixture is not evidence for distribution Python 3.13.5.
+A cold Core build is running. Hosted native ARM64 qualification and resolution
+of the security gate are still required before publication or consumer activation.
+
+## Historical source-backport experiments (superseded)
+
+An earlier integrated AMD64 scan, before the final Wget package
 is added, has **no critical matches and 143 high matches across 12 distinct
 advisories** after evidence-verified reviews. Remaining groups are glibc (3),
 GCC/libstdc++ (2), util-linux (4), and Wget (3). The CI gate is not cleared.
@@ -36,12 +118,10 @@ evidence is retained in `.build/kas-python/`, `.build/kas-xml/`,
   image integration, architecture-specific evidence and review remain to be
   qualified; no Wget exception has been added to the policy.
 
-The updated reviewer must be published separately from
-`feat/verified-backport-review`, then consumed by its actual image digest.
-Current migration workflows still call the older published reviewer. Most new
-native backport policies currently contain AMD64 evidence only, so they cannot
-silently waive unverified ARM64 payloads. The following sections retain the
-earlier measurements and explain the progression.
+The original separate-branch reviewer rollout was superseded by consolidation
+on `main` and the same-run candidate bootstrap described below. The following
+sections retain historical measurements; they do not qualify the current
+distribution-based image.
 
 ## Hosted failure and remediation
 
@@ -206,9 +286,73 @@ The ARM64 SBOM independently passes its native hash checks and the reviewed scan
 reports 7 critical and 143 high matches, with the same 45 distinct advisories and
 no blocking curl finding.
 
-This extension must first be published from `feat/verified-backport-review`, which
-contains only the reviewer support on top of `main`. Its qualification does not
-depend on publishing the still-blocked KAS image. After that prerequisite release,
-update the migration branch to the actual published reviewer digest before
-claiming its workflow applies the policy. The old published reviewer ignores the
-new optional policy field and therefore cannot remove these findings.
+Both development histories are now consolidated on `main`. The old published
+reviewer ignores the optional backport policy. During bootstrap, the workflow
+therefore builds the full native matrix and downloads the source reviewer's
+archive and receipt from the same run. Every scan verifies its checksum,
+architecture and revision, qualifies its runtime and invokes it as a Docker
+action through the private candidate registry. Release still requires the entire
+test matrix, including the reviewer's own negative tests and vulnerability scan.
+
+After publishing this reviewer and pinning its verified multi-platform digest,
+remove the source-reviewer preparation steps, restore the published action call
+and restore `steps.sources.outputs.full` for dynamic matrix selection. This
+bootstrap has not yet been exercised on GitHub. Completing it does not resolve
+the remaining KAS dependency vulnerabilities.
+
+## Hosted native evidence from run 41892997468
+
+The run built commit `08522d32554d34f88a40351f8c110ff9a1d0a5f6` on native
+AMD64 and ARM64 runners. Both KAS jobs reached the security scan; neither image
+was qualified for publication. The ARM64 archive checksum is
+`3600a57ff20ecd207a56af851867b3ca050dddeeea5b3fec30ef2e1945d95a33`.
+The downloaded archive matches its build receipt, and 34 reviewed file hashes
+were independently recomputed from its layer and compared to the hosted SBOM.
+The policy now includes the ARM64 variants of the already documented backports.
+These hashes do not imply a full ARM64 cold Yocto qualification.
+
+Wget's exact `1.25.0-2+pantavisor1` native payloads were also checked against
+both downloaded archives and receipts. Its finite review covers only the three
+advisories addressed by the checksum-pinned filename patch and the repository's
+Metalink/HTML allocation bounds patch. The source builder executes the package
+tests and the ASan/UBSan regression probe before producing its packages.
+
+Local diagnostics for this follow-up are under `/tmp/opencode/ci-fixes/`.
+The ten corrected scratch images pass AMD64 native runtime qualification,
+including negative fixtures and source permissions. The BSP and platform images
+pass AMD64 and ARM64 scans at `high` with an empty ignore list after restoring
+Debian ownership metadata. ARM64 images were built locally under emulation;
+native hosted requalification remains required.
+
+## util-linux stable security backport
+
+The source builder uses util-linux 2.41.6 and Trixie's 2.41.5 packaging, both
+checksum-pinned. The upstream release fixes failed-helper post-hooks and
+restricted mount source resolution. The local patch completes the upstream
+nsenter descriptor-lifetime correction, includes the resolution declarations
+in the idmap hook and corrects the fallback `RESOLVE_NO_SYMLINKS` value to
+Linux UAPI `0x04`. The vulnerable detached-subdirectory fast path reported by
+CVE-2026-78409 was introduced in 2.42 and is absent from this stable source.
+
+Two Debian packaging patches are already incorporated upstream. Before removing
+their exact series entries, the builder requires a zero-fuzz reverse dry-run
+proving each patch is present. Other patches and build errors remain fatal.
+
+The AMD64 Debian test run completes without failures. The two extra prerequisite
+probes report the kernel-denied inotify `/proc` watch and personality changes as
+skipped only for `EPERM`, `EACCES` or `ENOSYS`; unexpected errors fail the test.
+Existing upstream skips remain visible in the log. A separate executable links
+the actual built libcommon archive and checks successful regular-file opening
+plus rejection of both final and intermediate symlinks without mounting anything.
+
+The integrated AMD64 KAS image passes runtime qualification, Python extension
+checks and the HTTPS/Git/KAS fixture. Its finite advisory review requires all
+six exact package versions and seven native file hashes. ARM64 util-linux
+backport evidence and the final glibc/GCC integration remain outstanding.
+
+The reviewed integrated AMD64 scan now has **0 critical and 116 high matches**,
+covering five distinct advisories: GCC `CVE-2026-102010` and `CVE-2026-95619`,
+and glibc `CVE-2026-19499`, `CVE-2026-5435` and `CVE-2026-84243`.
+The security gate still failed for that historical image. The experimental
+`gcc-build` and `glibc-build` stages were subsequently abandoned in favor of the
+distribution-maintained strategy above.

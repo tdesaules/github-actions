@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise both rebuilt curl TLS backends against an isolated HTTPS fixture."""
+"""Exercise curl TLS backends against an isolated HTTPS fixture."""
 import argparse
 from functools import partial
 import http.server
@@ -14,6 +14,9 @@ import threading
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--reference', required=True)
 parser.add_argument('--platform', default='linux/amd64')
+parser.add_argument('--curl-version', default='8.23.0')
+parser.add_argument('--http3', action=argparse.BooleanOptionalAction, default=True,
+                    help='require HTTP/3 (enabled for the historical curl backport)')
 args = parser.parse_args()
 
 
@@ -86,15 +89,19 @@ with tempfile.TemporaryDirectory(prefix='kas-curl-') as directory:
 
     try:
         container('/usr/bin/python3', '-c',
-                  'import ctypes\n'
+                  'import ctypes, sys\n'
                   'for name, backend in [("libcurl.so.4", b"OpenSSL"), ("libcurl-gnutls.so.4", b"GnuTLS")]:\n'
                   ' lib = ctypes.CDLL(name)\n'
                   ' lib.curl_version.restype = ctypes.c_char_p\n'
                   ' version = lib.curl_version()\n'
-                  ' assert b"libcurl/8.23.0" in version and backend in version, version\n')
+                  ' assert ("libcurl/" + sys.argv[1]).encode() in version and backend in version, version\n',
+                  args.curl_version)
         version = container('/usr/bin/curl', '--version').stdout
-        assert 'curl 8.23.0 ' in version and 'libcurl/8.23.0 ' in version, version
-        for feature in ('OpenSSL/', 'HTTP2', 'HTTP3', 'GSS-API', 'IDN', 'PSL'):
+        assert f'curl {args.curl_version} ' in version and f'libcurl/{args.curl_version} ' in version, version
+        features = ('OpenSSL/', 'HTTP2', 'GSS-API', 'IDN', 'PSL')
+        if args.http3:
+            features += ('HTTP3',)
+        for feature in features:
             assert feature in version, (feature, version)
         result = container('/usr/bin/curl', '--fail', '--location', '--noproxy', '*',
                            '--cacert', '/fixtures/ca.pem', f'https://localhost:{port}/redirect')
@@ -119,7 +126,7 @@ with tempfile.TemporaryDirectory(prefix='kas-curl-') as directory:
                              'kas checkout --skip setup_environ --skip write_bbconfig /fixtures/kas.yml >&2; '
                              'git -C /tmp/kas/repo rev-parse HEAD')
         assert checkout.stdout.strip() == revision, checkout.stdout
-        print('PASS: curl 8.23.0, HTTP/3 feature retention, HTTPS redirect, CA/hostname rejection, Git GnuTLS clone, CA rejection and KAS checkout')
+        print(f'PASS: curl {args.curl_version}, HTTPS redirect, CA/hostname rejection, Git GnuTLS clone, CA rejection and KAS checkout; HTTP/3 required={args.http3}')
     finally:
         server.shutdown()
         server.server_close()
