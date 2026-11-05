@@ -19,7 +19,7 @@
       "absent_artifacts": [{"name": "tpm2daemon", "type": "deb"}, {"name": "tpm2daemon", "type": "binary"}],
       "variants": {
         "amd64": {
-          "inventory_sha256": "7c2e8e8cc7f37ba4d310ca9a335bdf0049cb4e884c61e6e22205f9db7cde0721",
+          "inventory_sha256": "02c81dee9f4ea266eccb44ce9d69f72c3c3371f1115e565b9ce459781898fcab",
           "absent_sha256": ["b20957e597a79fc9c8e51230867ed44b241371a93d637a520bce49452bba56f8"],
           "packages": {"dirmngr": "2.4.7-21+deb13u1+b5", "gnupg": "2.4.7-21+deb13u1", "gnupg-l10n": "2.4.7-21+deb13u1", "gpg": "2.4.7-21+deb13u1+b5", "gpg-agent": "2.4.7-21+deb13u1+b5", "gpgconf": "2.4.7-21+deb13u1+b5", "gpgsm": "2.4.7-21+deb13u1+b5"},
           "files": {
@@ -31,7 +31,7 @@
           }
         },
         "arm64": {
-          "inventory_sha256": "872099b0a261704625973c6b7d4455f2acd71ca9bbcdb916c4ca12daf786e56f",
+          "inventory_sha256": "470692d99a8436e27aa72918f897c434dfe0a997a9a9d982861dd0090fcf000b",
           "absent_sha256": ["0acd7c77ac195937832260b0dd12defdb6c00579ec6ecfe99d2cc62e647ac33f"],
           "packages": {"dirmngr": "2.4.7-21+deb13u1+b5", "gnupg": "2.4.7-21+deb13u1", "gnupg-l10n": "2.4.7-21+deb13u1", "gpg": "2.4.7-21+deb13u1+b5", "gpg-agent": "2.4.7-21+deb13u1+b5", "gpgconf": "2.4.7-21+deb13u1+b5", "gpgsm": "2.4.7-21+deb13u1+b5"},
           "files": {
@@ -58,7 +58,7 @@
       "absent_artifacts": [{"name": "ncurses-bin", "type": "deb"}, {"name": "infocmp", "type": "binary"}],
       "variants": {
         "amd64": {
-          "inventory_sha256": "7c2e8e8cc7f37ba4d310ca9a335bdf0049cb4e884c61e6e22205f9db7cde0721",
+          "inventory_sha256": "02c81dee9f4ea266eccb44ce9d69f72c3c3371f1115e565b9ce459781898fcab",
           "absent_sha256": ["934ce418360bd162a188f22310509640f3b0c14a858ec4ec04c25df64f97feb0"],
           "packages": {"libncursesw6": "6.5+20250216-2", "libtinfo6": "6.5+20250216-2"},
           "files": {
@@ -67,7 +67,7 @@
           }
         },
         "arm64": {
-          "inventory_sha256": "872099b0a261704625973c6b7d4455f2acd71ca9bbcdb916c4ca12daf786e56f",
+          "inventory_sha256": "470692d99a8436e27aa72918f897c434dfe0a997a9a9d982861dd0090fcf000b",
           "absent_sha256": ["67e9b35318117a7ddef4de04fd552e8ca5039cada906f74b1ecb7637153a02e6"],
           "packages": {"libncursesw6": "6.5+20250216-2", "libtinfo6": "6.5+20250216-2"},
           "files": {
@@ -91,7 +91,7 @@
       "absent_artifacts": [{"name": "libsasl2-modules", "type": "deb"}, {"name": "libsasl2-dev", "type": "deb"}],
       "variants": {
         "amd64": {
-          "inventory_sha256": "7c2e8e8cc7f37ba4d310ca9a335bdf0049cb4e884c61e6e22205f9db7cde0721",
+          "inventory_sha256": "02c81dee9f4ea266eccb44ce9d69f72c3c3371f1115e565b9ce459781898fcab",
           "absent_sha256": ["365555cc8af20aa11e1ed4ec6accdd27a9582bdcfb450d9b4b3c0152953a351b"],
           "packages": {"libsasl2-2": "2.1.28+dfsg1-9", "libsasl2-modules-db": "2.1.28+dfsg1-9"},
           "files": {
@@ -100,7 +100,7 @@
           }
         },
         "arm64": {
-          "inventory_sha256": "872099b0a261704625973c6b7d4455f2acd71ca9bbcdb916c4ca12daf786e56f",
+          "inventory_sha256": "470692d99a8436e27aa72918f897c434dfe0a997a9a9d982861dd0090fcf000b",
           "absent_sha256": ["80a00e82000e54c82e8cc41d88d0e0dc2a352f2333d9c35631e37ec71a7c46e3"],
           "packages": {"libsasl2-2": "2.1.28+dfsg1-9", "libsasl2-modules-db": "2.1.28+dfsg1-9"},
           "files": {
@@ -124,13 +124,13 @@
       "absent_artifacts": [{"name": "python3-libxml2", "type": "deb"}, {"name": "python-libxml2", "type": "deb"}, {"name": "libxml2", "type": "python"}],
       "variants": {
         "amd64": {
-          "inventory_sha256": "7c2e8e8cc7f37ba4d310ca9a335bdf0049cb4e884c61e6e22205f9db7cde0721",
+          "inventory_sha256": "02c81dee9f4ea266eccb44ce9d69f72c3c3371f1115e565b9ce459781898fcab",
           "absent_sha256": ["11b2db13fbbfcadbdc13a0d52bccf960637e86c81ac0fdad6e64be50a423b47e"],
           "packages": {"libxml2": "2.12.7+dfsg+really2.9.14-2.1+deb13u3"},
           "files": {"/usr/lib/x86_64-linux-gnu/libxml2.so.2.9.14": "8f2643af68a9eba917929046806dabd1848867068d0eee0f6799288a8e886963"}
         },
         "arm64": {
-          "inventory_sha256": "872099b0a261704625973c6b7d4455f2acd71ca9bbcdb916c4ca12daf786e56f",
+          "inventory_sha256": "470692d99a8436e27aa72918f897c434dfe0a997a9a9d982861dd0090fcf000b",
           "absent_sha256": ["f0f24dd6a28acf042dd96e26697e3ca92ac01e593ff69a02f03f7ec50df72a90"],
           "packages": {"libxml2": "2.12.7+dfsg+really2.9.14-2.1+deb13u3"},
           "files": {"/usr/lib/aarch64-linux-gnu/libxml2.so.2.9.14": "1729c2e360adc7a56b1358758234bca7395c2b990bb8cf5acb4218d06839602d"}
@@ -148,8 +148,8 @@
         "https://deb.debian.org/debian/pool/main/g/gawk/gawk_5.2.1-2.debian.tar.xz": "ae031782d073e8d1670b4d9ced47b3adecde2f314d824339673d163ba7029f4b"
       },
       "variants": {
-        "amd64": {"inventory_sha256": "7c2e8e8cc7f37ba4d310ca9a335bdf0049cb4e884c61e6e22205f9db7cde0721", "packages": {"gawk": "1:5.2.1-2+b1"}, "files": {"/usr/bin/gawk": "c90aba59e13752526d9cb767533f3802d3b7cd5dd6355615516d21abbc28b005"}},
-        "arm64": {"inventory_sha256": "872099b0a261704625973c6b7d4455f2acd71ca9bbcdb916c4ca12daf786e56f", "packages": {"gawk": "1:5.2.1-2+b2"}, "files": {"/usr/bin/gawk": "fe0fbadd6bdb47d7bf088514bc281f29d032108b9d5f11af115edcf79476923f"}}
+        "amd64": {"inventory_sha256": "02c81dee9f4ea266eccb44ce9d69f72c3c3371f1115e565b9ce459781898fcab", "packages": {"gawk": "1:5.2.1-2+b1"}, "files": {"/usr/bin/gawk": "c90aba59e13752526d9cb767533f3802d3b7cd5dd6355615516d21abbc28b005"}},
+        "arm64": {"inventory_sha256": "470692d99a8436e27aa72918f897c434dfe0a997a9a9d982861dd0090fcf000b", "packages": {"gawk": "1:5.2.1-2+b2"}, "files": {"/usr/bin/gawk": "fe0fbadd6bdb47d7bf088514bc281f29d032108b9d5f11af115edcf79476923f"}}
       }
     },
     {
@@ -163,8 +163,8 @@
         "https://deb.debian.org/debian/pool/main/z/zlib/zlib_1.3.dfsg+really1.3.1-1.debian.tar.xz": "9ed525955ce9fb0c1b39be8ff98f73450dbfc6305a9a27e6149c8972d38a0a9e"
       },
       "variants": {
-        "amd64": {"inventory_sha256": "7c2e8e8cc7f37ba4d310ca9a335bdf0049cb4e884c61e6e22205f9db7cde0721", "packages": {"zlib1g": "1:1.3.dfsg+really1.3.1-1+b1"}, "files": {"/usr/lib/x86_64-linux-gnu/libz.so.1.3.1": "85590dd58edf5445e18bc7193e5ebc01ac5841f1ae187e97705a662e90c6421e"}},
-        "arm64": {"inventory_sha256": "872099b0a261704625973c6b7d4455f2acd71ca9bbcdb916c4ca12daf786e56f", "packages": {"zlib1g": "1:1.3.dfsg+really1.3.1-1+b1"}, "files": {"/usr/lib/aarch64-linux-gnu/libz.so.1.3.1": "6fe00acadf8119ff245855e5dcc7f26c6c0ffaf4bfa2baa88feab58f23727d65"}}
+        "amd64": {"inventory_sha256": "02c81dee9f4ea266eccb44ce9d69f72c3c3371f1115e565b9ce459781898fcab", "packages": {"zlib1g": "1:1.3.dfsg+really1.3.1-1+b1"}, "files": {"/usr/lib/x86_64-linux-gnu/libz.so.1.3.1": "85590dd58edf5445e18bc7193e5ebc01ac5841f1ae187e97705a662e90c6421e"}},
+        "arm64": {"inventory_sha256": "470692d99a8436e27aa72918f897c434dfe0a997a9a9d982861dd0090fcf000b", "packages": {"zlib1g": "1:1.3.dfsg+really1.3.1-1+b1"}, "files": {"/usr/lib/aarch64-linux-gnu/libz.so.1.3.1": "6fe00acadf8119ff245855e5dcc7f26c6c0ffaf4bfa2baa88feab58f23727d65"}}
       }
     },
     {
@@ -179,7 +179,7 @@
       },
       "variants": {
         "amd64": {
-          "inventory_sha256": "7c2e8e8cc7f37ba4d310ca9a335bdf0049cb4e884c61e6e22205f9db7cde0721",
+          "inventory_sha256": "02c81dee9f4ea266eccb44ce9d69f72c3c3371f1115e565b9ce459781898fcab",
           "packages": {
             "cpp-14": "14.2.0-19", "cpp-14-x86-64-linux-gnu": "14.2.0-19", "g++-14": "14.2.0-19", "g++-14-multilib": "14.2.0-19", "g++-14-x86-64-linux-gnu": "14.2.0-19",
             "gcc-14": "14.2.0-19", "gcc-14-base": "14.2.0-19", "gcc-14-multilib": "14.2.0-19", "gcc-14-x86-64-linux-gnu": "14.2.0-19",
@@ -203,7 +203,7 @@
           }
         },
         "arm64": {
-          "inventory_sha256": "872099b0a261704625973c6b7d4455f2acd71ca9bbcdb916c4ca12daf786e56f",
+          "inventory_sha256": "470692d99a8436e27aa72918f897c434dfe0a997a9a9d982861dd0090fcf000b",
           "packages": {
             "cpp-14": "14.2.0-19", "cpp-14-aarch64-linux-gnu": "14.2.0-19", "g++-14": "14.2.0-19", "g++-14-aarch64-linux-gnu": "14.2.0-19", "gcc-14": "14.2.0-19", "gcc-14-aarch64-linux-gnu": "14.2.0-19", "gcc-14-base": "14.2.0-19",
             "libasan8": "14.2.0-19", "libatomic1": "14.2.0-19", "libcc1-0": "14.2.0-19", "libgcc-14-dev": "14.2.0-19", "libgcc-s1": "14.2.0-19", "libgomp1": "14.2.0-19", "libhwasan0": "14.2.0-19", "libitm1": "14.2.0-19", "liblsan0": "14.2.0-19", "libstdc++-14-dev": "14.2.0-19", "libstdc++6": "14.2.0-19", "libtsan2": "14.2.0-19", "libubsan1": "14.2.0-19"

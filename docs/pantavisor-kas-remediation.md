@@ -8,10 +8,29 @@ The tag describes the upstream channel; the digest fixes the actual input.
 Retain explicitly versioned Debian security updates and the minimal package
 closure, including package ownership metadata. The action executable and the
 already-qualified Git LFS binary are still built with the pinned Go toolchain.
-curl 8.21.0 and its HTTP/3 dependencies come from official signed Trixie backports
-packages, with both TLS backends and their compatibility package pinned explicitly.
+curl and both TLS libraries now use official security revision
+`8.14.1-2+deb13u7`. The user selected that stream after source inspection confirmed
+its CVE-2026-92392 fix is missing from the newer 8.21.0 backport. The backports
+repository and HTTP/3 dependency overrides are removed. See the
+[critical exposure assessment](pantavisor-kas-critical-exposure.md).
 The inspected repositories did not offer newer applicable glibc, GCC, Python,
 libxml2, Expat, util-linux or Wget packages for this baseline.
+
+The stable-security image passes both architecture runtime and HTTPS/Git/KAS
+fixtures locally (ARM64 under emulation). Its native curl/TLS bytes match exact
+Debian binary packages downloaded through authenticated APT indexes. The seven
+applicability witness sets are unchanged; their whole-image fingerprints were
+revalidated after reviewing all 50 changed paths per architecture, limited to
+curl/dependencies, their package records and the generated loader/package caches.
+The collector now explicitly creates empty `/github/workspace` directories so
+local layered and hosted squashed exports have consistent inventories.
+
+Current reviewed results are **30 critical / 215 high on AMD64** and
+**30 critical / 180 high on ARM64**, covering **70 blocking IDs**. The eight
+8.21.0-specific fixed-advisory reviews do not apply to this version. This increase
+is the disclosed tradeoff for the stable security correction, not a lowered
+threshold or new risk acceptance. A fresh cold Core build is running for this
+exact image; hosted qualification is still required.
 
 System-library and compiler source backports are **disabled** in the current
 Containerfile. Their committed scripts and evidence remain available for a
@@ -53,13 +72,15 @@ SBOMs to **23 critical / 278 high on AMD64**, and **23 critical / 220 high on
 ARM64**, covering **69 distinct blocking IDs**. These are recognized upstream
 fixes, not risk acceptances. All remaining findings still block publication.
 
-The subsequent applicability verification against run `42046121374` establishes
+On the former backports baseline, applicability verification against run `42046121374` establishes
 seven further non-applicable IDs, with exact native bytes and independent OCI
 inventory checks. Local rescans now have **22 critical / 222 high on AMD64** and
 **22 critical / 187 high on ARM64**, covering **62 distinct blocking IDs**. These
-new bounded proofs expire at 2026-12-05 00:00 UTC. See the triage report for their
-conditions and the unresolved util-linux candidate. The updated reviewer still
-requires hosted qualification.
+bounded proofs expire at 2026-12-05 00:00 UTC. Hosted run `42098220154` subsequently
+confirmed those results. The same seven semantic proofs were revalidated for
+the current stable-security tree; their package/file witnesses and expiry were
+not relaxed. See the triage report for their conditions and the unresolved
+util-linux candidate.
 
 ### Remaining advisory triage
 

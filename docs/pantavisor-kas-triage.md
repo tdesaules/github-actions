@@ -1,5 +1,24 @@
 # KAS advisory triage — 2026-11-05
 
+## Current baseline update
+
+The [critical exposure assessment](pantavisor-kas-critical-exposure.md) found
+CVE-2026-92392 affected curl 8.21.0 despite being absent from the hosted scan.
+The user selected stable Debian security revision `8.14.1-2+deb13u7`, which
+explicitly contains its fix. The eight 8.21.0-specific reviews below are retained
+as historical, exact-version rules and do not apply to the new image.
+
+The seven applicability proofs have been revalidated on the new tree: all
+positive package versions/hashes remain identical, while the full inventories
+change only for curl, its dependency closure and generated package/loader records.
+Current local reviewed scans are **30 critical / 215 high (AMD64)** and
+**30 critical / 180 high (ARM64)**, with **70 distinct blocking IDs**. No severity
+override or new risk acceptance was added. The sections below retain the
+earlier backports-baseline evidence and its 62-ID result, confirmed by hosted
+run `42098220154`.
+
+## Backports baseline evidence
+
 Initial scope: the exact AMD64 and ARM64 SBOMs from
 [run 42018140474](https://github.com/tdesaules/github-actions/actions/runs/42018140474),
 commit `40a95c3811f3fc16551237ed37c6b1f9d63e74c1`. This is the reduced action

@@ -1,7 +1,8 @@
 # Build Pantavisor
 
-Builds `kas/ci.yml` for `core`, `k0s` or `system` inside the action, without a
-container engine, socket, privileged mode or host sysctl changes. KAS 5.5 and
+Builds `kas/ci.yml` for `core`, `k0s` or `system` inside the action. The build
+operation does not invoke a container engine or require socket access,
+privileged mode or host sysctl changes. KAS 5.5 and
 the Debian Trixie build-tool runtime are extracted from the pinned upstream
 multi-platform `latest-debian-trixie` snapshot, pinned by digest rather than
 following the mutable tag, with explicit Debian security package updates. Compilers
@@ -25,12 +26,14 @@ See [the remediation evidence](../../docs/pantavisor-kas-remediation.md) for
 local test coverage and the remaining publication gates. Native ARM64 hosted
 qualification is required; AMD64 results do not establish ARM64 qualification.
 
-curl 8.21.0 and its HTTP/3 dependencies use explicitly versioned, signed Debian
-Trixie backports packages. Both OpenSSL and GnuTLS variants are installed, with
-the compatibility package needed by Git. No unstable binary repository is
-enabled. `scripts/test-pantavisor-curl.py --curl-version 8.21.0` exercises HTTP/3
-feature retention, HTTPS, certificate and hostname rejection, the Git GnuTLS ABI
-and KAS repository checkout (supply `--reference` for the candidate image).
+curl and both TLS libraries use Debian security version `8.14.1-2+deb13u7`.
+Its HTTP/2 upload correction for CVE-2026-92392 is absent from the numerically
+newer `8.21.0-2~bpo13+1` backport. No backports or unstable repository is enabled.
+`scripts/test-pantavisor-curl.py --curl-version 8.14.1 --no-http3` exercises HTTPS,
+certificate and hostname rejection, the Git GnuTLS ABI and KAS checkout (supply
+`--reference` for the candidate image). HTTP/3 is not required by this baseline.
+See the [critical exposure assessment](../../docs/pantavisor-kas-critical-exposure.md)
+for this deliberate branch-security tradeoff and the remaining conditional risks.
 
 The security refresh is not a clean-scan claim. Debian stable still has open
 advisories, including GCC's
@@ -41,6 +44,10 @@ list of the currently pinned Yocto sources, so its compatibility requires actual
 build evidence rather than just a successful KAS version command.
 
 Runs non-root as the checkout owner, with `/work` pointing to that checkout.
+This is not a claim of complete sandbox isolation: the standard GitHub Docker
+action runner can mount its engine socket and inject an Actions runtime token.
+Effective UID/GID access to those resources needs hosted verification; clearing
+supplemental groups alone does not establish that the primary group lacks access.
 Existing build/staged-output directories are refused by default. `cold: 'false'`
 allows explicit diagnostic recovery of a build tree, never overwriting a staged
 export; the report records that it was not a cold build. The consumer workflows

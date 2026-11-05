@@ -21,20 +21,15 @@ FROM ghcr.io/siemens/kas/kas:latest-debian-trixie@sha256:0f929318babc0291ab940d6
 # Keep the distribution-maintained toolchain; do not rebuild system libraries.
 # hadolint ignore=DL3002
 USER 0:0
-RUN printf '%s\n' 'deb https://deb.debian.org/debian trixie-backports main' > /etc/apt/sources.list.d/pantavisor-backports.list \
-    && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    curl=8.21.0-2~bpo13+1 \
+# The stable security revision contains CVE-2026-92392's fix, absent from 8.21.0 backports.
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    curl=8.14.1-2+deb13u7 \
     gzip=1.13-1+deb13u1 \
     libbrotli1=1.1.0-2+deb13u1 \
     libc6=2.41-12+deb13u4 \
-    libcurl3t64-gnutls=8.21.0-2~bpo13+1 \
-    libcurl4-gnutls=8.21.0-2~bpo13+1 \
-    libcurl4t64=8.21.0-2~bpo13+1 \
+    libcurl3t64-gnutls=8.14.1-2+deb13u7 \
+    libcurl4t64=8.14.1-2+deb13u7 \
     libexpat1=2.9.0-1~deb13u1 \
-    libnghttp3-9=1.15.0-1~bpo13+1 \
-    libngtcp2-16=1.22.1-1~bpo13+1 \
-    libngtcp2-crypto-gnutls8=1.22.1-1~bpo13+1 \
-    libngtcp2-crypto-ossl0=1.22.1-1~bpo13+1 \
     libpcre2-8-0=10.46-1~deb13u3 \
     libsqlite3-0=3.46.1-7+deb13u2 \
     libssh2-1t64=1.11.1-1+deb13u2 \

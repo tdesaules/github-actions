@@ -101,6 +101,11 @@ for name in ('bin', 'sbin', 'lib', 'lib64'):
 for name in ('tmp', 'var/tmp'):
     (runtime / name).mkdir(parents=True, exist_ok=True)
     (runtime / name).chmod(0o1777)
+# Materialize the declared workdir so local layered and hosted squashed exports
+# contain the same empty runner mountpoints, independent of builder behavior.
+for name in ('github', 'github/workspace'):
+    (runtime / name).mkdir(parents=True, exist_ok=True)
+    (runtime / name).chmod(0o755)
 (runtime / 'etc/pantavisor-action-packages.json').write_text(json.dumps(sorted(selected)) + '\n')
 # Retain accurate package identities for Syft/Grype; omitting the package database
 # would hide the build-tool dependencies from OS vulnerability matching.
