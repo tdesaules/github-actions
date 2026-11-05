@@ -101,7 +101,8 @@ func backportReview(sbom SBOM, p Backport) ([]Rule, []map[string]any) {
 	rules := []Rule{}
 	for _, id := range ids {
 		for _, name := range p.Packages {
-			rules = append(rules, Rule{id, p.Namespace, map[string]string{"name": name, "version": p.Version, "type": "deb"}, p.Reason})
+			// Grype interprets metacharacters such as '+' as a package-name regex.
+			rules = append(rules, Rule{id, p.Namespace, map[string]string{"name": regexp.QuoteMeta(name), "version": p.Version, "type": "deb"}, p.Reason})
 		}
 	}
 	return rules, []map[string]any{{"packages": found, "version": p.Version, "architecture": architecture, "verified_files": expected, "source_sha256": p.Sources, "advisories": p.Advisories}}

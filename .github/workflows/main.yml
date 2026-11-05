@@ -1079,6 +1079,7 @@ jobs:
         if: matrix.rebuild || matrix.scan
         uses: ./.candidate-actions/workflow/new-vulnerability-review
         with:
+          archive: .build/${{ matrix.image }}/${{ matrix.arch }}/${{ matrix.rebuild && 'image' || 'scan' }}.oci.tar
           sbom: .build/${{ matrix.image }}/${{ matrix.arch }}/sbom.syft.json
           output: .build/${{ matrix.image }}/${{ matrix.arch }}/grype-reviewed.json
           evidence: .build/${{ matrix.image }}/${{ matrix.arch }}/review-evidence.json

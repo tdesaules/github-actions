@@ -5,6 +5,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"time"
 )
 
 type Location struct {
@@ -24,23 +25,54 @@ type Artifact struct {
 type File struct {
 	Location Location                            `json:"location"`
 	Digests  []struct{ Algorithm, Value string } `json:"digests"`
+	Metadata struct {
+		Type            string `json:"type"`
+		LinkDestination string `json:"linkDestination"`
+	} `json:"metadata"`
 }
 type SBOM struct {
+	// Populated only by verified OCI archive parsing, never by SBOM JSON.
+	Inventory *Inventory `json:"-"`
 	Artifacts []Artifact `json:"artifacts"`
 	Files     []File     `json:"files"`
 	Distro    struct {
 		ID       string `json:"id"`
 		Codename string `json:"versionCodename"`
 	} `json:"distro"`
+	Source struct {
+		Type     string `json:"type"`
+		Metadata struct {
+			Architecture   string            `json:"architecture"`
+			OS             string            `json:"os"`
+			ManifestDigest string            `json:"manifestDigest"`
+			ImageID        string            `json:"imageID"`
+			Labels         map[string]string `json:"labels"`
+		} `json:"metadata"`
+	} `json:"source"`
+	Descriptor struct {
+		Name          string `json:"name"`
+		Configuration struct {
+			Files struct {
+				Selection string `json:"selection"`
+			} `json:"files"`
+			Catalogers struct {
+				Used []string `json:"used"`
+			} `json:"catalogers"`
+			Search struct {
+				Scope string `json:"scope"`
+			} `json:"search"`
+		} `json:"configuration"`
+	} `json:"descriptor"`
 }
 type Policy struct {
-	Vulnerability string     `json:"vulnerability"`
-	Package       string     `json:"package"`
-	Affected      string     `json:"affected_package"`
-	Reference     string     `json:"reference"`
-	Reason        string     `json:"reason"`
-	Patched       *Patch     `json:"patched_npm"`
-	Backports     []Backport `json:"verified_debian_backports,omitempty"`
+	Vulnerability string          `json:"vulnerability"`
+	Package       string          `json:"package"`
+	Affected      string          `json:"affected_package"`
+	Reference     string          `json:"reference"`
+	Reason        string          `json:"reason"`
+	Patched       *Patch          `json:"patched_npm"`
+	Backports     []Backport      `json:"verified_debian_backports,omitempty"`
+	Applicability []Applicability `json:"verified_debian_applicability,omitempty"`
 }
 type Patch struct {
 	Vulnerability string            `json:"vulnerability"`
@@ -61,6 +93,10 @@ type Configuration struct {
 }
 
 func Evaluate(sbom SBOM, policy Policy) (Configuration, []map[string]any) {
+	return evaluateAt(sbom, policy, time.Now())
+}
+
+func evaluateAt(sbom SBOM, policy Policy, now time.Time) (Configuration, []map[string]any) {
 	config := Configuration{Ignore: []Rule{}}
 	evidence := []map[string]any{}
 	for _, a := range sbom.Artifacts {
@@ -88,6 +124,18 @@ func Evaluate(sbom SBOM, policy Policy) (Configuration, []map[string]any) {
 	evidence = append(evidence, patched...)
 	for _, backport := range policy.Backports {
 		rules, checked := backportReview(sbom, backport)
+		config.Ignore = append(config.Ignore, rules...)
+		evidence = append(evidence, checked...)
+	}
+	ids := map[string]int{}
+	for _, p := range policy.Applicability {
+		ids[p.ID]++
+	}
+	for _, p := range policy.Applicability {
+		if ids[p.ID] != 1 {
+			continue
+		}
+		rules, checked := applicabilityReview(sbom, p, now)
 		config.Ignore = append(config.Ignore, rules...)
 		evidence = append(evidence, checked...)
 	}
