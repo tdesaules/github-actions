@@ -1,22 +1,26 @@
 # KAS advisory triage — 2026-11-05
 
-Scope: the exact AMD64 and ARM64 SBOMs from
+Initial scope: the exact AMD64 and ARM64 SBOMs from
 [run 42018140474](https://github.com/tdesaules/github-actions/actions/runs/42018140474),
 commit `40a95c3811f3fc16551237ed37c6b1f9d63e74c1`. This is the reduced action
 image with official Debian curl backports, not the unmodified Siemens image.
-No system libraries were rebuilt for this triage.
+No system libraries were rebuilt for this triage. Applicability verification
+uses the subsequent native archives and SBOMs from
+[run 42046121374](https://github.com/tdesaules/github-actions/actions/runs/42046121374),
+commit `c5ec8fc3d9930bab6f7284d01aaae2fd0028a9cb`.
 
 ## Result
 
 Eight of the original 77 distinct blocking advisories are demonstrably fixed in
 the installed curl version. The finite review now recognizes only those fixes.
-The other **69 remain blocking**, including eight candidates for a more precise
-applicability review; those candidates are not exclusions.
+That first review left 69 blocking IDs. Seven of the eight subsequent
+applicability candidates are now verified, leaving **62 blocking IDs**.
+The util-linux candidate remains unresolved and is not excluded.
 
-| Architecture | Original critical / high matches | Reviewed critical / high matches |
-| --- | --- | --- |
-| AMD64 | 39 / 294 | 23 / 278 |
-| ARM64 | 39 / 236 | 23 / 220 |
+| Architecture | Original critical / high | After curl fixes | After applicability proofs |
+| --- | --- | --- | --- |
+| AMD64 | 39 / 294 | 23 / 278 | 22 / 222 |
+| ARM64 | 39 / 236 | 23 / 220 | 22 / 187 |
 
 Counts are package/advisory matches, not distinct CVEs. Each reviewed curl CVE
 appears on four binary packages. Both reviewed scans still fail at `high`.
@@ -63,9 +67,9 @@ releases are 8.22.0 or 8.23.0 on this release line. Fixes in the separate 8.14.x
 Curl rates these remaining issues Low or Medium; that severity disagreement is
 documented, but does not automatically override the scanner's High/Critical gate.
 
-## Complete remaining source-package inventory
+## Inventory after the initial curl review
 
-The counts below sum to all 69 remaining advisory IDs. Detailed package/version
+The counts below describe the 69 IDs before applicability verification. Detailed package/version
 and file-level evidence is retained in the original scan artifacts. Trixie
 tracker entries are open for all these rows; `no-dsa` or a “Minor issue” note is
 not treated as proof of non-applicability.
@@ -96,30 +100,73 @@ applicable binary version for the other 17 source-package groups on AMD64.
 Do not substitute sid binaries or restart compiler/library source rebuilds merely
 to reduce these counts.
 
-## Applicability candidates — still blocking
+## Applicability verification
 
-These eight IDs are promising candidates, not accepted exceptions:
+All eight candidates were investigated. Seven now have bounded, automatically
+revalidated proofs; util-linux remains blocking:
 
-| Advisory | Observed boundary | Proof still required before automated review |
+| Advisory | Observed boundary | Verification result |
 | --- | --- | --- |
-| CVE-2026-24882 | `tpm2daemon` is absent from both complete hosted file inventories | Bind absence and exact package payloads; reject a future image that adds the daemon |
-| CVE-2025-69720 | `infocmp` is absent from both inventories; the advisory concerns its command implementation | Bind executable absence rather than ignoring all ncurses findings |
-| CVE-2026-107161 | No DIGEST-MD5 plugin payload appears in either inventory | Verify module ownership/loading paths and enforce absence of all plugin aliases |
-| CVE-2026-74860 | No `libxml2mod` or `libxml2.py` binding appears in either inventory | Verify that the affected implementation belongs exclusively to the missing Python bindings |
-| CVE-2026-40469 | Upstream description limits this issue to 32-bit gawk; both native packages are 64-bit architectures | Verify the actual executable ABI and source condition, not just the image architecture |
-| CVE-2026-95619 | Upstream describes the overflow in non-POSIX aligned allocation branches | Verify selected implementation for every shipped shared/static and biarch library |
-| CVE-2026-78409 | Upstream identifies a fast path introduced in util-linux 2.42; this source is 2.41.5 | Check the exact Debian patch set for a backport of the affected path |
-| CVE-2026-85091 | Upstream affected range begins at zlib 1.3.1.2; installed upstream baseline is 1.3.1 | Check the exact Debian patches and affected function, not the version string alone |
+| CVE-2026-24882 | Missing TPM daemon | `tpm2d/command.c` belongs to separately packaged `tpm2daemon`; verify its absence in the actual OCI layers and bind the installed GnuPG payloads |
+| CVE-2025-69720 | Missing infocmp command | `analyze_string` occurs only in `progs/infocmp.c`, not the shipped libraries; independent archive inventory excludes the executable |
+| CVE-2026-107161 | Missing DIGEST-MD5 plugin | `add_to_challenge` occurs in `plugins/digestmd5.c`; installed core/DB libraries match official packages, and affected plugin paths, package and fingerprint are absent |
+| CVE-2026-74860 | Missing Python libxml2 binding | Broken Python SAX `attributeDecl` reference handling is in `python/libxml.c`, not the native shared library; enforce binding/module/package absence |
+| CVE-2026-40469 | 32-bit-only gawk issue | CERT-PL's CNA record restricts the platform to 32 bit; the exact authenticated executables matching both images are ELFCLASS64, EM_X86_64 / EM_AARCH64 |
+| CVE-2026-95619 | Unaffected POSIX aligned-new implementation | All four native/biarch config headers select POSIX; disassembly of shared aligned-new routines and `new_opa.o` members of all eight static archives confirms `posix_memalign` |
+| CVE-2026-78409 | Version argument insufficient | **Still blocking:** 2.41.5 has an older `open_tree` path in `hook_subdir.c`; absence of the 2.42 detached fast path alone is not a sufficient proof |
+| CVE-2026-85091 | Installed source predates affected implementation | CNA affected range is 1.3.1.2–1.3.2; the exact 1.3.1 source has no `gz_vacate`, and its Debian patch series is empty |
 
-The file observations use Syft's `files.selection=all`, squashed image scope and
-file-metadata cataloger on both hosted SBOMs. The current reviewer does not
-enforce absent-component conditions, so none of these observations produces an
-ignore rule. A forged or incomplete inventory must never establish absence.
+### Enforcement and validation
+
+The rules in `verified_debian_applicability` expire exclusively at
+**2026-12-05 00:00 UTC** and name `tdesaules/github-actions` as their review owner.
+The maximum review window is 31 days. They require the exact image-owner label,
+distribution, native architecture, package/version maps and positive payload
+hashes, plus source references. They are non-applicability proofs, not permission
+to accept a vulnerable runtime merely because it runs in CI.
+
+Each variant additionally binds the complete inventory fingerprint (all recorded
+paths/types, payload hashes, links, modes and ownership). New files, unknown
+replacement binaries or changed permissions invalidate all applicable proofs
+until the tree is revalidated. Timestamps and OCI labels are excluded so a new
+run ID alone does not invalidate an identical tree. The two independent hosted
+runs have identical payload, inventory, mode and ownership records.
+
+All positive native files were compared to exact Debian packages downloaded
+through authenticated APT indexes. The absent components' official packages
+were also downloaded for fingerprints, without installing or executing them.
+Reintroduced paths, aliases, package artifacts or renamed identical native
+payloads invalidate a component-absence proof. The GCC heap-template advisory
+CVE-2026-102010 remains blocking.
+
+An experiment found that Syft 1.54.1 does **not** record `--exclude` in its
+descriptor: `files.selection=all` cannot independently establish completeness.
+The reviewer now requires the exact OCI archive and verifies its manifest,
+config and layer hashes against the SBOM identity. It streams a separate final
+file inventory, applying whiteouts and hard links without extraction or execution.
+Filename/fingerprint absence and positive native hashes are checked directly
+against that inventory. SBOM JSON cannot inject the trusted archive inventory.
+
+Negative tests cover a component hidden by a Syft exclusion, reintroduced or
+renamed components, aliases, altered payloads, changed versions, missing/wrong
+archives, expiry, duplicate evidence, unsafe paths, corrupt gzip data and tar
+content hidden after an end marker. Package names are escaped for Grype's regex
+matching, including literal `g++` and `libstdc++` identities.
+
+The native AMD64 reviewer and emulated ARM64 reviewer both generate the expected
+proofs against the hosted archives. Rescans remove exactly these seven additional
+IDs, retain util-linux's disputed finding and all other unreviewed IDs, and still
+fail at `high`. The updated reviewer/workflow must be qualified on GitHub before
+these local results are called hosted qualification. Saved review configurations
+are not a fresh evaluation of expiry; regenerate them on each scan.
+
+The older, inactive util-linux source-backport policy also no longer excludes
+CVE-2026-78409 on the strength of the version-only argument.
 
 ## Next decisions
 
-1. Finish the eight applicability proofs and add only evidence-enforced reviews
-   whose prerequisites can be checked on every scan.
+1. Qualify the updated reviewer and archive forwarding on hosted runners; keep
+   the unresolved util-linux finding blocking pending a stronger proof or fix.
 2. Prioritize network/download/archive parsers and any credential-bearing paths
    among the remaining version-affected findings. A successful build is not a
    security regression test.
@@ -141,3 +188,8 @@ Local evidence directory: `/tmp/opencode/kas-triage-42018140474/`.
 The directory also contains downloaded source archives, native Debian packages,
 positive/negative review outputs, and both reviewed Grype reports with database
 metadata. These are local evidence files, not a publication or a hosted rerun.
+
+Applicability evidence is under `/tmp/opencode/kas-applicability-42046121374/`:
+exact hosted archives with checked receipts, source/CNA snapshots, authenticated
+positive and absent-component packages, native hashes, reviewer build/execution
+logs, evidence reports and final reviewed scans for both architectures.

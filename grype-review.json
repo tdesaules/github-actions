@@ -4,6 +4,220 @@
   "affected_package": "github.com/docker/docker/pkg/authorization",
   "reference": "https://github.com/moby/moby/commit/e89edb19ad7de0407a5d31e3111cb01aa10b5a38",
   "reason": "The vulnerable daemon authorization package is not linked into this client tool. Revalidated against nonempty Go package symbol evidence for every scanned binary. Missing, ambiguous or affected symbol evidence must fail closed on both rebuilt and published images.",
+  "verified_debian_applicability": [
+    {
+      "id": "gnupg-tpm2daemon-absent", "image": "workflow-build-pantavisor",
+      "namespace": "debian:distro:debian:13", "codename": "trixie", "basis": "component_absent",
+      "owner": "tdesaules/github-actions", "reviewed": "2026-11-05", "expires": "2026-12-05",
+      "reason": "CVE-2026-24882 affects PKDECRYPT handling in tpm2d/command.c, built into the separately packaged tpm2daemon, not the agent IPC stub. Both complete hosted inventories omit that daemon and its package. Bind every installed GnuPG companion version and the authenticated Debian native payloads; invalidate this review when the daemon reappears or evidence expires.",
+      "advisories": {"CVE-2026-24882": "https://www.cve.org/CVERecord?id=CVE-2026-24882"},
+      "source_sha256": {
+        "https://deb.debian.org/debian/pool/main/g/gnupg2/gnupg2_2.4.7.orig.tar.bz2": "7b24706e4da7e0e3b06ca068231027401f238102c41c909631349dcc3b85eb46",
+        "https://deb.debian.org/debian/pool/main/g/gnupg2/gnupg2_2.4.7-21+deb13u1.debian.tar.xz": "3941a8a537e258f6216ad1c1b9ecb255dfc286e5d03eb39805e536de4a448856"
+      },
+      "absent_file_names": ["*tpm2daemon*"],
+      "absent_artifacts": [{"name": "tpm2daemon", "type": "deb"}, {"name": "tpm2daemon", "type": "binary"}],
+      "variants": {
+        "amd64": {
+          "inventory_sha256": "7c2e8e8cc7f37ba4d310ca9a335bdf0049cb4e884c61e6e22205f9db7cde0721",
+          "absent_sha256": ["b20957e597a79fc9c8e51230867ed44b241371a93d637a520bce49452bba56f8"],
+          "packages": {"dirmngr": "2.4.7-21+deb13u1+b5", "gnupg": "2.4.7-21+deb13u1", "gnupg-l10n": "2.4.7-21+deb13u1", "gpg": "2.4.7-21+deb13u1+b5", "gpg-agent": "2.4.7-21+deb13u1+b5", "gpgconf": "2.4.7-21+deb13u1+b5", "gpgsm": "2.4.7-21+deb13u1+b5"},
+          "files": {
+            "/usr/bin/gpg": "7c9d2f9416aabcd10199e2984439f49612644a948279ac56bdf70d69c8958ddf",
+            "/usr/bin/gpg-agent": "6855b10b86292329d6b8185e6e55a10fed0c6406756d3d04feb4633e7aaafff4",
+            "/usr/bin/gpgconf": "17ea11378c9d71166df855b73a66333fbf8095cb8da7d3a474bd325e3ca726db",
+            "/usr/bin/gpgsm": "b3411f52a1e8317d523f062b920511ab2ba0da10ef995d46cf11711313484029",
+            "/usr/bin/dirmngr": "9c72739e653b6198a780bcad5a8fdc80933727ebd76073254b02443a941c8168"
+          }
+        },
+        "arm64": {
+          "inventory_sha256": "872099b0a261704625973c6b7d4455f2acd71ca9bbcdb916c4ca12daf786e56f",
+          "absent_sha256": ["0acd7c77ac195937832260b0dd12defdb6c00579ec6ecfe99d2cc62e647ac33f"],
+          "packages": {"dirmngr": "2.4.7-21+deb13u1+b5", "gnupg": "2.4.7-21+deb13u1", "gnupg-l10n": "2.4.7-21+deb13u1", "gpg": "2.4.7-21+deb13u1+b5", "gpg-agent": "2.4.7-21+deb13u1+b5", "gpgconf": "2.4.7-21+deb13u1+b5", "gpgsm": "2.4.7-21+deb13u1+b5"},
+          "files": {
+            "/usr/bin/gpg": "8abfa53f25b7e338fcef742ac0f900bd87dbdcd9c0d0cb2c7c89accdd1299192",
+            "/usr/bin/gpg-agent": "03d58f5d54dfc3fb4bff044e2765d33599f8d7d05d18cfa96698b6f664d6f308",
+            "/usr/bin/gpgconf": "cf92e711c3bb7ebdb57dcc627a740da6c77348fa12257e2c842c4059bbd13ae4",
+            "/usr/bin/gpgsm": "81a8c93adc18f2f09749de5fa123dfd3f21988a93f953825630f2694b767e232",
+            "/usr/bin/dirmngr": "8e51d608b44b60a6e816fa2c294908329393d72c3697b53a755160a013d4102c"
+          }
+        }
+      }
+    },
+    {
+      "id": "ncurses-infocmp-absent", "image": "workflow-build-pantavisor",
+      "namespace": "debian:distro:debian:13", "codename": "trixie", "basis": "component_absent",
+      "owner": "tdesaules/github-actions", "reviewed": "2026-11-05", "expires": "2026-12-05",
+      "reason": "The vulnerable analyze_string implementation occurs in progs/infocmp.c, not the shipped ncurses libraries. Require the exact native libraries and complete inventory proving infocmp and ncurses-bin absent. No other ncurses advisory is covered.",
+      "advisories": {"CVE-2025-69720": "https://www.cve.org/CVERecord?id=CVE-2025-69720"},
+      "source_sha256": {
+        "https://deb.debian.org/debian/pool/main/n/ncurses/ncurses_6.5+20250216.orig.tar.gz": "b37baafa436e7133bb12a185cb8f60e1599b1947e9f0181c76f3190acf28b6eb",
+        "https://deb.debian.org/debian/pool/main/n/ncurses/ncurses_6.5+20250216-2.debian.tar.xz": "546930a8992ae3325d8c38378f290265d969cf6333cfae9648ac6d69e1e8a8a6"
+      },
+      "absent_file_names": ["*infocmp*"],
+      "absent_artifacts": [{"name": "ncurses-bin", "type": "deb"}, {"name": "infocmp", "type": "binary"}],
+      "variants": {
+        "amd64": {
+          "inventory_sha256": "7c2e8e8cc7f37ba4d310ca9a335bdf0049cb4e884c61e6e22205f9db7cde0721",
+          "absent_sha256": ["934ce418360bd162a188f22310509640f3b0c14a858ec4ec04c25df64f97feb0"],
+          "packages": {"libncursesw6": "6.5+20250216-2", "libtinfo6": "6.5+20250216-2"},
+          "files": {
+            "/usr/lib/x86_64-linux-gnu/libncursesw.so.6.5": "ea1e3fea29b3d3f35e240f626e5e783885d1d17f7915e7840f2a1542058c154c",
+            "/usr/lib/x86_64-linux-gnu/libtinfo.so.6.5": "4013e7651ac68f547d8333517def25b2366c97eec7de7f06e105dbf3444ffebf"
+          }
+        },
+        "arm64": {
+          "inventory_sha256": "872099b0a261704625973c6b7d4455f2acd71ca9bbcdb916c4ca12daf786e56f",
+          "absent_sha256": ["67e9b35318117a7ddef4de04fd552e8ca5039cada906f74b1ecb7637153a02e6"],
+          "packages": {"libncursesw6": "6.5+20250216-2", "libtinfo6": "6.5+20250216-2"},
+          "files": {
+            "/usr/lib/aarch64-linux-gnu/libncursesw.so.6.5": "c686275a2b0129ff95a17e09dc0c58a44fb306386e472212ca541951e527c91c",
+            "/usr/lib/aarch64-linux-gnu/libtinfo.so.6.5": "57cda9469aa613f8ab25b21af56867d5a01d19c0a91fda6965aa6501ea98cfcf"
+          }
+        }
+      }
+    },
+    {
+      "id": "sasl-digestmd5-absent", "image": "workflow-build-pantavisor",
+      "namespace": "debian:distro:debian:13", "codename": "trixie", "basis": "component_absent",
+      "owner": "tdesaules/github-actions", "reviewed": "2026-11-05", "expires": "2026-12-05",
+      "reason": "add_to_challenge is in plugins/digestmd5.c and the separately packaged DIGEST-MD5 plugin. The image contains the core SASL library and DB plugin only. Bind their exact official native bytes and require the affected plugin/package to remain absent from a complete inventory.",
+      "advisories": {"CVE-2026-107161": "https://www.cve.org/CVERecord?id=CVE-2026-107161"},
+      "source_sha256": {
+        "https://deb.debian.org/debian/pool/main/c/cyrus-sasl2/cyrus-sasl2_2.1.28+dfsg1.orig.tar.xz": "e796a5d85d1a85e1b433d43504e467f9075c7ebc0b45730a3996cf11b1deada4",
+        "https://deb.debian.org/debian/pool/main/c/cyrus-sasl2/cyrus-sasl2_2.1.28+dfsg1-9.debian.tar.xz": "8215afa01ee2907da0a650bfa6b9cf0fae12f2611a098eedd853b5e71adf6623"
+      },
+      "absent_file_names": ["*digestmd5*"],
+      "absent_artifacts": [{"name": "libsasl2-modules", "type": "deb"}, {"name": "libsasl2-dev", "type": "deb"}],
+      "variants": {
+        "amd64": {
+          "inventory_sha256": "7c2e8e8cc7f37ba4d310ca9a335bdf0049cb4e884c61e6e22205f9db7cde0721",
+          "absent_sha256": ["365555cc8af20aa11e1ed4ec6accdd27a9582bdcfb450d9b4b3c0152953a351b"],
+          "packages": {"libsasl2-2": "2.1.28+dfsg1-9", "libsasl2-modules-db": "2.1.28+dfsg1-9"},
+          "files": {
+            "/usr/lib/x86_64-linux-gnu/libsasl2.so.2.0.25": "3f93968591811eb3972c3467c69c2968dd9cb2b51f7b7bb48de22ba8e17d13fd",
+            "/usr/lib/x86_64-linux-gnu/sasl2/libsasldb.so.2.0.25": "2cb155db2279fbc84ca8536b80be8e06f34ef9854c1b223e182279cea773b503"
+          }
+        },
+        "arm64": {
+          "inventory_sha256": "872099b0a261704625973c6b7d4455f2acd71ca9bbcdb916c4ca12daf786e56f",
+          "absent_sha256": ["80a00e82000e54c82e8cc41d88d0e0dc2a352f2333d9c35631e37ec71a7c46e3"],
+          "packages": {"libsasl2-2": "2.1.28+dfsg1-9", "libsasl2-modules-db": "2.1.28+dfsg1-9"},
+          "files": {
+            "/usr/lib/aarch64-linux-gnu/libsasl2.so.2.0.25": "8bfeedd24d410b345ac39c26dfa9970609fe0ca6738a20fd6ac154a232aec152",
+            "/usr/lib/aarch64-linux-gnu/sasl2/libsasldb.so.2.0.25": "53950420bbbe183428e1445115b5d09ff762a1e38d6b0ea5c032cd3ab5e7f440"
+          }
+        }
+      }
+    },
+    {
+      "id": "libxml2-python-binding-absent", "image": "workflow-build-pantavisor",
+      "namespace": "debian:distro:debian:13", "codename": "trixie", "basis": "component_absent",
+      "owner": "tdesaules/github-actions", "reviewed": "2026-11-05", "expires": "2026-12-05",
+      "reason": "The advisory concerns Python SAX attributeDecl reference handling in python/libxml.c. That Python extension is not part of the native libxml2 shared library and is absent from the image. Require the native library hash plus absence of binding files and packages; all other libxml2 advisories remain blocking.",
+      "advisories": {"CVE-2026-74860": "https://www.cve.org/CVERecord?id=CVE-2026-74860"},
+      "source_sha256": {
+        "https://deb.debian.org/debian/pool/main/libx/libxml2/libxml2_2.12.7+dfsg+really2.9.14.orig.tar.xz": "4fe913dec8b1ab89d13b489b419a8203176ea39e931eaa0d25b17eafb9c279e9",
+        "https://deb.debian.org/debian/pool/main/libx/libxml2/libxml2_2.12.7+dfsg+really2.9.14-2.1+deb13u3.debian.tar.xz": "3b6d265f482d6a8fbe3c056d2006fb3b563b4a838f7258b388ac5f0b29206921"
+      },
+      "absent_file_names": ["*libxml2mod*", "libxml2.py*", "libxml2.cpython-*"],
+      "absent_artifacts": [{"name": "python3-libxml2", "type": "deb"}, {"name": "python-libxml2", "type": "deb"}, {"name": "libxml2", "type": "python"}],
+      "variants": {
+        "amd64": {
+          "inventory_sha256": "7c2e8e8cc7f37ba4d310ca9a335bdf0049cb4e884c61e6e22205f9db7cde0721",
+          "absent_sha256": ["11b2db13fbbfcadbdc13a0d52bccf960637e86c81ac0fdad6e64be50a423b47e"],
+          "packages": {"libxml2": "2.12.7+dfsg+really2.9.14-2.1+deb13u3"},
+          "files": {"/usr/lib/x86_64-linux-gnu/libxml2.so.2.9.14": "8f2643af68a9eba917929046806dabd1848867068d0eee0f6799288a8e886963"}
+        },
+        "arm64": {
+          "inventory_sha256": "872099b0a261704625973c6b7d4455f2acd71ca9bbcdb916c4ca12daf786e56f",
+          "absent_sha256": ["f0f24dd6a28acf042dd96e26697e3ca92ac01e593ff69a02f03f7ec50df72a90"],
+          "packages": {"libxml2": "2.12.7+dfsg+really2.9.14-2.1+deb13u3"},
+          "files": {"/usr/lib/aarch64-linux-gnu/libxml2.so.2.9.14": "1729c2e360adc7a56b1358758234bca7395c2b990bb8cf5acb4218d06839602d"}
+        }
+      }
+    },
+    {
+      "id": "gawk-64-bit-abi", "image": "workflow-build-pantavisor",
+      "namespace": "debian:distro:debian:13", "codename": "trixie", "basis": "unaffected_abi",
+      "owner": "tdesaules/github-actions", "reviewed": "2026-11-05", "expires": "2026-12-05",
+      "reason": "CERT-PL's CNA record restricts CVE-2026-40469 to 32-bit builds. The authenticated native Debian executables matching the hosted images are ELFCLASS64 with EM_X86_64 and EM_AARCH64 respectively. Bind those executable bytes and architecture-specific binNMU versions; no other gawk advisory is excluded.",
+      "advisories": {"CVE-2026-40469": "https://cveawg.mitre.org/api/cve/CVE-2026-40469"},
+      "source_sha256": {
+        "https://deb.debian.org/debian/pool/main/g/gawk/gawk_5.2.1.orig.tar.xz": "2337a0283b180ec1b9c727973a34781c6478b3ae9bcbdcca0a4dc49861d75a65",
+        "https://deb.debian.org/debian/pool/main/g/gawk/gawk_5.2.1-2.debian.tar.xz": "ae031782d073e8d1670b4d9ced47b3adecde2f314d824339673d163ba7029f4b"
+      },
+      "variants": {
+        "amd64": {"inventory_sha256": "7c2e8e8cc7f37ba4d310ca9a335bdf0049cb4e884c61e6e22205f9db7cde0721", "packages": {"gawk": "1:5.2.1-2+b1"}, "files": {"/usr/bin/gawk": "c90aba59e13752526d9cb767533f3802d3b7cd5dd6355615516d21abbc28b005"}},
+        "arm64": {"inventory_sha256": "872099b0a261704625973c6b7d4455f2acd71ca9bbcdb916c4ca12daf786e56f", "packages": {"gawk": "1:5.2.1-2+b2"}, "files": {"/usr/bin/gawk": "fe0fbadd6bdb47d7bf088514bc281f29d032108b9d5f11af115edcf79476923f"}}
+      }
+    },
+    {
+      "id": "zlib-pre-gz-vacate", "image": "workflow-build-pantavisor",
+      "namespace": "debian:distro:debian:13", "codename": "trixie", "basis": "unaffected_source",
+      "owner": "tdesaules/github-actions", "reviewed": "2026-11-05", "expires": "2026-12-05",
+      "reason": "The CNA affected range starts at 1.3.1.2. The exact Debian upstream source is 1.3.1, contains no gz_vacate implementation, and its packaging has an empty patch series. Native library bytes were compared to authenticated Debian packages and both hosted SBOMs. This does not cover any later package or another zlib advisory.",
+      "advisories": {"CVE-2026-85091": "https://cveawg.mitre.org/api/cve/CVE-2026-85091"},
+      "source_sha256": {
+        "https://deb.debian.org/debian/pool/main/z/zlib/zlib_1.3.dfsg+really1.3.1.orig.tar.gz": "60dd315c07f616887caa029408308a018ace66e3d142726a97db164b3b8f69fb",
+        "https://deb.debian.org/debian/pool/main/z/zlib/zlib_1.3.dfsg+really1.3.1-1.debian.tar.xz": "9ed525955ce9fb0c1b39be8ff98f73450dbfc6305a9a27e6149c8972d38a0a9e"
+      },
+      "variants": {
+        "amd64": {"inventory_sha256": "7c2e8e8cc7f37ba4d310ca9a335bdf0049cb4e884c61e6e22205f9db7cde0721", "packages": {"zlib1g": "1:1.3.dfsg+really1.3.1-1+b1"}, "files": {"/usr/lib/x86_64-linux-gnu/libz.so.1.3.1": "85590dd58edf5445e18bc7193e5ebc01ac5841f1ae187e97705a662e90c6421e"}},
+        "arm64": {"inventory_sha256": "872099b0a261704625973c6b7d4455f2acd71ca9bbcdb916c4ca12daf786e56f", "packages": {"zlib1g": "1:1.3.dfsg+really1.3.1-1+b1"}, "files": {"/usr/lib/aarch64-linux-gnu/libz.so.1.3.1": "6fe00acadf8119ff245855e5dcc7f26c6c0ffaf4bfa2baa88feab58f23727d65"}}
+      }
+    },
+    {
+      "id": "gcc-posix-aligned-allocation", "image": "workflow-build-pantavisor",
+      "namespace": "debian:distro:debian:13", "codename": "trixie", "basis": "unaffected_abi",
+      "owner": "tdesaules/github-actions", "reviewed": "2026-11-05", "expires": "2026-12-05",
+      "reason": "Upstream's CVE-2026-95619 fix states the POSIX implementation is unaffected. All shipped native, i386 and x32 configurations define _GLIBCXX_HAVE_POSIX_MEMALIGN=1. The aligned-new shared-library routines call posix_memalign and each libstdc++/libsupc++ new_opa.o archive member references it, bypassing the affected rounding branches. Require every inspected shared/static payload and config header plus the exact GCC source-package family. CVE-2026-102010 remains blocking.",
+      "advisories": {"CVE-2026-95619": "https://github.com/gcc-mirror/gcc/commit/200183d4ab5d57575f3dfebc6af3baf649910b9e"},
+      "source_sha256": {
+        "https://deb.debian.org/debian/pool/main/g/gcc-14/gcc-14_14.2.0.orig.tar.gz": "e162a5ef3f0077ecae598c6556908d2ab80841532df3398072a96a6df6e6aa29",
+        "https://deb.debian.org/debian/pool/main/g/gcc-14/gcc-14_14.2.0-19.debian.tar.xz": "31cbab4bafa48aa1c540497bd8098cbcf98e673778f927651ed944709f687781"
+      },
+      "variants": {
+        "amd64": {
+          "inventory_sha256": "7c2e8e8cc7f37ba4d310ca9a335bdf0049cb4e884c61e6e22205f9db7cde0721",
+          "packages": {
+            "cpp-14": "14.2.0-19", "cpp-14-x86-64-linux-gnu": "14.2.0-19", "g++-14": "14.2.0-19", "g++-14-multilib": "14.2.0-19", "g++-14-x86-64-linux-gnu": "14.2.0-19",
+            "gcc-14": "14.2.0-19", "gcc-14-base": "14.2.0-19", "gcc-14-multilib": "14.2.0-19", "gcc-14-x86-64-linux-gnu": "14.2.0-19",
+            "lib32asan8": "14.2.0-19", "lib32atomic1": "14.2.0-19", "lib32gcc-14-dev": "14.2.0-19", "lib32gcc-s1": "14.2.0-19", "lib32gomp1": "14.2.0-19", "lib32itm1": "14.2.0-19", "lib32quadmath0": "14.2.0-19", "lib32stdc++-14-dev": "14.2.0-19", "lib32stdc++6": "14.2.0-19", "lib32ubsan1": "14.2.0-19",
+            "libasan8": "14.2.0-19", "libatomic1": "14.2.0-19", "libcc1-0": "14.2.0-19", "libgcc-14-dev": "14.2.0-19", "libgcc-s1": "14.2.0-19", "libgomp1": "14.2.0-19", "libhwasan0": "14.2.0-19", "libitm1": "14.2.0-19", "liblsan0": "14.2.0-19", "libquadmath0": "14.2.0-19", "libstdc++-14-dev": "14.2.0-19", "libstdc++6": "14.2.0-19", "libtsan2": "14.2.0-19", "libubsan1": "14.2.0-19",
+            "libx32asan8": "14.2.0-19", "libx32atomic1": "14.2.0-19", "libx32gcc-14-dev": "14.2.0-19", "libx32gcc-s1": "14.2.0-19", "libx32gomp1": "14.2.0-19", "libx32itm1": "14.2.0-19", "libx32quadmath0": "14.2.0-19", "libx32stdc++-14-dev": "14.2.0-19", "libx32stdc++6": "14.2.0-19", "libx32ubsan1": "14.2.0-19"
+          },
+          "files": {
+            "/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.33": "972bb2a18b71140dab0240f8a1f68ab3fb1d56bcd4c4f824a91b70888faf5a00",
+            "/usr/lib32/libstdc++.so.6.0.33": "fbefd10ac1b28483405c3af35425c369e2dfe3f162f836a5ac047304a393cc5c",
+            "/usr/libx32/libstdc++.so.6.0.33": "206f61719fa9ee871e9ba8daa8573a1279aa85d0286149b8b4d77d187c457b60",
+            "/usr/lib/gcc/x86_64-linux-gnu/14/32/libstdc++.a": "793ecf2c3531ce6b65c4b032c2e7184614b6708f9db0946863265d91042a1de8",
+            "/usr/lib/gcc/x86_64-linux-gnu/14/libstdc++.a": "3a7def7eb48c699651c0a301d1f5eb1263bbfd2ec186b152bfbc5debb60ad3d7",
+            "/usr/lib/gcc/x86_64-linux-gnu/14/x32/libstdc++.a": "538d1c9eafb20c8e04f9c962d7ee495f7e16c7418fb058a4a450f7f9ec003cba",
+            "/usr/lib/gcc/x86_64-linux-gnu/14/32/libsupc++.a": "fd071c5ff11537d27e3a6ce105a59aaad2d7fc4aa0a41dde21062bfc750462d4",
+            "/usr/lib/gcc/x86_64-linux-gnu/14/libsupc++.a": "145f678cb8d5df4c6637ff4f3281fb337cd518e3a56ffb9c01aaba9b0f345c46",
+            "/usr/lib/gcc/x86_64-linux-gnu/14/x32/libsupc++.a": "a668d44f6cd3fa0aedade3f7ad8624b40c42280836497a00176f43786ef1cc01",
+            "/usr/include/x86_64-linux-gnu/c++/14/32/bits/c++config.h": "80ead768c0fe9b456ba4ecbff92c40ced20d771f19ce88a83923fc776cdabe76",
+            "/usr/include/x86_64-linux-gnu/c++/14/bits/c++config.h": "50be3fba464b7bb3aaa5b20df677f2ceddf13065de8fb62ad16391466e36bce5",
+            "/usr/include/x86_64-linux-gnu/c++/14/x32/bits/c++config.h": "cc1d89e5cbf821defbe8738d7cbca9e8af0550000784a7506fed975f3435103c"
+          }
+        },
+        "arm64": {
+          "inventory_sha256": "872099b0a261704625973c6b7d4455f2acd71ca9bbcdb916c4ca12daf786e56f",
+          "packages": {
+            "cpp-14": "14.2.0-19", "cpp-14-aarch64-linux-gnu": "14.2.0-19", "g++-14": "14.2.0-19", "g++-14-aarch64-linux-gnu": "14.2.0-19", "gcc-14": "14.2.0-19", "gcc-14-aarch64-linux-gnu": "14.2.0-19", "gcc-14-base": "14.2.0-19",
+            "libasan8": "14.2.0-19", "libatomic1": "14.2.0-19", "libcc1-0": "14.2.0-19", "libgcc-14-dev": "14.2.0-19", "libgcc-s1": "14.2.0-19", "libgomp1": "14.2.0-19", "libhwasan0": "14.2.0-19", "libitm1": "14.2.0-19", "liblsan0": "14.2.0-19", "libstdc++-14-dev": "14.2.0-19", "libstdc++6": "14.2.0-19", "libtsan2": "14.2.0-19", "libubsan1": "14.2.0-19"
+          },
+          "files": {
+            "/usr/lib/aarch64-linux-gnu/libstdc++.so.6.0.33": "fff1f0050a33ddf29c44634c7639ac16e2573a61e3daab4fcc4c007b432ccf19",
+            "/usr/lib/gcc/aarch64-linux-gnu/14/libstdc++.a": "b6126329f603d4928e08ebdbd2eef38a020b0161caf152b81aef4916b3c07eba",
+            "/usr/lib/gcc/aarch64-linux-gnu/14/libsupc++.a": "2b15c4dff6631ada9ac3f53a780ceda7a6aa8bd4b303a85f816dccac5fa1701a",
+            "/usr/include/aarch64-linux-gnu/c++/14/bits/c++config.h": "05a62128daaaf7a5b75908cd551f5bc785ee83e65bf73494edbf0ac89dfc0e42"
+          }
+        }
+      }
+    }
+  ],
   "verified_debian_backports": [
     {
       "namespace": "debian:distro:debian:13", "codename": "trixie",
@@ -41,7 +255,7 @@
       "namespace": "debian:distro:debian:13", "codename": "trixie",
       "version": "2.41.5-0+deb13u1+pantavisor1",
       "packages": ["util-linux", "libblkid1", "liblastlog2-2", "libmount1", "libsmartcols1", "libuuid1"],
-      "reason": "Built from stable util-linux 2.41.6 with Trixie packaging: upstream fixes failed-helper hooks and restricted source resolution. The local patch completes nsenter descriptor closure, includes fileutils.h in the idmap hook and corrects RESOLVE_NO_SYMLINKS to Linux UAPI 0x04 (patch SHA-256 ec260c3fe82a0385a1ce7afe2c1c592d57729f134a22f1447af5ec28c69e529d). The 78409 detached-subdirectory fast path was introduced in 2.42 and is absent from this stable source. Package tests and direct final/intermediate symlink rejection checks pass; kernel-denied inotify/personality prerequisites are explicitly reported as skipped. Match every native payload below before reviewing these four source-package advisories.",
+      "reason": "Built from stable util-linux 2.41.6 with Trixie packaging: upstream fixes failed-helper hooks and restricted source resolution. The local patch completes nsenter descriptor closure, includes fileutils.h in the idmap hook and corrects RESOLVE_NO_SYMLINKS to Linux UAPI 0x04 (patch SHA-256 ec260c3fe82a0385a1ce7afe2c1c592d57729f134a22f1447af5ec28c69e529d). CVE-2026-78409 is not reviewed: absence of the 2.42 fast path alone does not settle older open_tree paths. Package tests and direct final/intermediate symlink rejection checks pass; kernel-denied inotify/personality prerequisites are explicitly reported as skipped. Match every native payload below before reviewing these three source-package advisories.",
       "source_sha256": {
         "https://mirrors.edge.kernel.org/pub/linux/utils/util-linux/v2.41/util-linux-2.41.6.tar.xz": "e596083744e746be7d2823b62b43f4418dd7bf56303b4dc09e6fe8112fe3d7ed",
         "https://deb.debian.org/debian/pool/main/u/util-linux/util-linux_2.41.5-0+deb13u1.debian.tar.xz": "5b327ccd22f0f4ed28a389870aa51d04ecedb8693e52a1d122850f2b3188cbf6",
@@ -60,7 +274,6 @@
       "advisories": {
         "CVE-2026-76642": "https://security-tracker.debian.org/tracker/CVE-2026-76642",
         "CVE-2026-78408": "https://security-tracker.debian.org/tracker/CVE-2026-78408",
-        "CVE-2026-78409": "https://github.com/util-linux/util-linux/security/advisories/GHSA-8f2p-47x3-43mv",
         "CVE-2026-78410": "https://security-tracker.debian.org/tracker/CVE-2026-78410"
       }
     },

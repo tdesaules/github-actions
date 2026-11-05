@@ -53,6 +53,14 @@ SBOMs to **23 critical / 278 high on AMD64**, and **23 critical / 220 high on
 ARM64**, covering **69 distinct blocking IDs**. These are recognized upstream
 fixes, not risk acceptances. All remaining findings still block publication.
 
+The subsequent applicability verification against run `42046121374` establishes
+seven further non-applicable IDs, with exact native bytes and independent OCI
+inventory checks. Local rescans now have **22 critical / 222 high on AMD64** and
+**22 critical / 187 high on ARM64**, covering **62 distinct blocking IDs**. These
+new bounded proofs expire at 2026-12-05 00:00 UTC. See the triage report for their
+conditions and the unresolved util-linux candidate. The updated reviewer still
+requires hosted qualification.
+
 ### Remaining advisory triage
 
 No risk-acceptance exclusion has been approved or added. For each remaining
@@ -348,8 +356,10 @@ checksum-pinned. The upstream release fixes failed-helper post-hooks and
 restricted mount source resolution. The local patch completes the upstream
 nsenter descriptor-lifetime correction, includes the resolution declarations
 in the idmap hook and corrects the fallback `RESOLVE_NO_SYMLINKS` value to
-Linux UAPI `0x04`. The vulnerable detached-subdirectory fast path reported by
-CVE-2026-78409 was introduced in 2.42 and is absent from this stable source.
+Linux UAPI `0x04`. The original review of CVE-2026-78409 relied on the absence of
+the 2.42 detached fast path. Later source inspection found that this argument
+alone does not settle the older `open_tree` path; that advisory was removed from
+the inactive backport review and remains blocking for the distribution image.
 
 Two Debian packaging patches are already incorporated upstream. Before removing
 their exact series entries, the builder requires a zero-fuzz reverse dry-run
