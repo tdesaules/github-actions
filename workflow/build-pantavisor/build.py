@@ -7,6 +7,7 @@ import shutil
 import sys
 import tempfile
 import time
+from build_config import validate_producer
 
 project = sys.argv[1]
 cold = sys.argv[2] == 'true'
@@ -44,8 +45,7 @@ try:
         provenance = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(provenance)
         config = json.loads((root / 'build/component.json').read_text())
-        if config['name'] != project:
-            raise ValueError('Project input does not match producer metadata')
+        validate_producer(config, project)
         prefix = config['image'] + '-' + config['machine']
         names = [prefix + '.' + suffix for suffix in ('squashfs', 'tar.gz', 'manifest', 'spdx.tar.zst')]
         if project == 'core':

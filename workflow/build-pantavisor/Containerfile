@@ -47,6 +47,7 @@ COPY --from=build /entrypoint /entrypoint
 COPY --from=git-lfs /git-lfs /usr/bin/git-lfs
 COPY --from=git-lfs /LICENSE.md /usr/share/licenses/git-lfs/LICENSE.md
 COPY workflow/build-pantavisor/build.py /opt/pantavisor/build.py
+COPY workflow/build-pantavisor/build_config.py /opt/pantavisor/build_config.py
 ENV PATH=/opt/kas/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin LANG=en_US.UTF-8 PYTHONDONTWRITEBYTECODE=1 SSL_CERT_FILE=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
 # Creates the /work alias, then drops to the checkout owner's non-root UID.
 # hadolint ignore=DL3002
