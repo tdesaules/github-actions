@@ -48,6 +48,8 @@ jobs:
       matrix: ${{ steps.select.outputs.matrix }}
       test-registry-image: ${{ steps.select.outputs.test-registry-image }}
       has-work: ${{ steps.select.outputs.has-work }}
+      has-build: ${{ contains(fromJSON(steps.select.outputs.matrix || '{"include":[]}').include.*.rebuild, true) || contains(fromJSON(steps.select.outputs.matrix || '{"include":[]}').include.*.scan, true) }}
+      has-lint: ${{ steps.sources.outputs.actionlint-changed == 'true' || steps.sources.outputs.hadolint-changed == 'true' || steps.sources.outputs.shellcheck-changed == 'true' || steps.sources.outputs.yaml-changed == 'true' || steps.sources.outputs.toml-changed == 'true' || steps.sources.outputs.markdownlint-changed == 'true' || steps.sources.outputs.lychee-changed == 'true' }}
       version: ${{ steps.select.outputs.version }}
       release-version: ${{ steps.plan.outputs.release-version }}
       release-changed: ${{ steps.plan.outputs.release-changed }}
@@ -114,8 +116,7 @@ jobs:
         uses: ./workflow/get-image-matrix
         with:
           files: ${{ steps.sources.outputs.files }}
-          # Bootstrap the source reviewer until its digest is published and pinned.
-          full: true
+          full: ${{ steps.sources.outputs.full }}
           event: ${{ github.event_name }}
           ref: ${{ github.ref }}
           release-plan: ${{ steps.plan.outcome == 'success' && '.build/publication/release-plan.json' || '' }}
@@ -151,6 +152,7 @@ jobs:
 
   lint:
     needs: check
+    if: needs.check.outputs.has-lint == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -200,7 +202,9 @@ jobs:
     needs: [check, lint]
     if: >-
       always() && !cancelled() && needs.check.result == 'success' &&
-      needs.lint.result == 'success' && needs.check.outputs.has-work == 'true'
+      ((needs.check.outputs.has-lint == 'true' && needs.lint.result == 'success') ||
+       (needs.check.outputs.has-lint == 'false' && needs.lint.result == 'skipped')) &&
+      needs.check.outputs.has-build == 'true'
     strategy:
       fail-fast: false
       max-parallel: 4
@@ -216,7 +220,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Build selected native OCI archive
-        if: matrix.rebuild
+        if: matrix.rebuild || matrix.image == 'workflow-new-vulnerability-review'
         id: archive
         uses: ./oci/build-image
         with:
@@ -228,7 +232,7 @@ jobs:
           labels: '{"org.opencontainers.image.revision":"${{ github.sha }}"}'
           output: image.oci.tar
       - name: Record untested build receipt
-        if: matrix.rebuild
+        if: matrix.rebuild || matrix.image == 'workflow-new-vulnerability-review'
         uses: ./workflow/new-build-receipt
         with:
           archive: image.oci.tar
@@ -239,7 +243,7 @@ jobs:
           revision: ${{ github.sha }}
           version: ${{ env.VERSION }}
       - name: Transfer untested archive and build receipt
-        if: matrix.rebuild
+        if: matrix.rebuild || matrix.image == 'workflow-new-vulnerability-review'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: build-${{ matrix.image }}-${{ matrix.arch }}-${{ github.run_id }}
@@ -249,12 +253,54 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
+      # Until the source reviewer is published, one selected image per architecture
+      # also produces its scan helper. If selected itself, the normal steps above
+      # own that archive. Never force unrelated catalogue images to rebuild.
+      - name: Build source reviewer dependency
+        if: >-
+          matrix.image == fromJSON(needs.check.outputs.matrix).include[0].image &&
+          !contains(fromJSON(needs.check.outputs.matrix).include.*.image, 'workflow-new-vulnerability-review')
+        id: reviewer-archive
+        uses: ./oci/build-image
+        with:
+          context: .
+          containerfile: workflow/new-vulnerability-review/Containerfile
+          image: localhost/github-actions/workflow-new-vulnerability-review
+          version: ${{ env.VERSION }}
+          platform: linux/${{ matrix.arch }}
+          labels: '{"org.opencontainers.image.revision":"${{ github.sha }}"}'
+          output: reviewer.oci.tar
+      - name: Record source reviewer dependency receipt
+        if: steps.reviewer-archive.outcome == 'success'
+        uses: ./workflow/new-build-receipt
+        with:
+          archive: reviewer.oci.tar
+          output: reviewer-build.json
+          expected-sha256: ${{ steps.reviewer-archive.outputs.archive-sha256 }}
+          image: workflow-new-vulnerability-review
+          architecture: ${{ matrix.arch }}
+          revision: ${{ github.sha }}
+          version: ${{ env.VERSION }}
+      - name: Transfer source reviewer dependency
+        if: steps.reviewer-archive.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: reviewer-${{ matrix.arch }}-${{ github.run_id }}
+          path: |
+            reviewer.oci.tar
+            reviewer-build.json
+          if-no-files-found: error
+          overwrite: true
+
   test:
     name: test (${{ matrix.image }}, ${{ matrix.arch }})
     needs: [check, lint, build]
     if: >-
       always() && !cancelled() && needs.check.result == 'success' &&
-      needs.lint.result == 'success' && needs.build.result == 'success' &&
+      ((needs.check.outputs.has-lint == 'true' && needs.lint.result == 'success') ||
+       (needs.check.outputs.has-lint == 'false' && needs.lint.result == 'skipped')) &&
+      ((needs.check.outputs.has-build == 'true' && needs.build.result == 'success') ||
+       (needs.check.outputs.has-build == 'false' && needs.build.result == 'skipped')) &&
       needs.check.outputs.has-work == 'true'
     strategy:
       fail-fast: false
@@ -1021,12 +1067,14 @@ jobs:
             ${{ toJSON(fromJSON('{"oci-build-image":[".build/fixtures/invalid-platform.oci.tar",".build/fixtures/failed-run.oci.tar"],"oci-merge-image-index":[".build/fixtures/untrusted-index.json"],"workflow-new-build-receipt":[".build/fixtures/rejected-build.json"]}')[matrix.image] || fromJSON('[]')) }}
       - name: Generate SPDX from the exact candidate archive
         if: matrix.rebuild || matrix.scan
+        continue-on-error: true
         uses: ./oci/new-sbom
         with:
           source: oci-archive:.build/${{ matrix.image }}/${{ matrix.arch }}/${{ matrix.rebuild && 'image' || 'scan' }}.oci.tar
           output: .build/${{ matrix.image }}/${{ matrix.arch }}/sbom.spdx.json
       - name: Capture candidate package symbols and file hashes
         if: matrix.rebuild || matrix.scan
+        continue-on-error: true
         uses: ./oci/new-sbom
         env:
           SYFT_GOLANG_CAPTURE_SYMBOLS: all
@@ -1039,14 +1087,14 @@ jobs:
         if: matrix.rebuild || matrix.scan
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
-          name: build-workflow-new-vulnerability-review-${{ matrix.arch }}-${{ github.run_id }}
+          name: ${{ contains(fromJSON(needs.check.outputs.matrix).include.*.image, 'workflow-new-vulnerability-review') && format('build-workflow-new-vulnerability-review-{0}-{1}', matrix.arch, github.run_id) || format('reviewer-{0}-{1}', matrix.arch, github.run_id) }}
           path: .build/reviewer/${{ matrix.arch }}
       - name: Verify source reviewer archive
         if: matrix.rebuild || matrix.scan
         uses: ./workflow/test-build-artifact
         with:
-          archive: .build/reviewer/${{ matrix.arch }}/image.oci.tar
-          receipt: .build/reviewer/${{ matrix.arch }}/build.json
+          archive: .build/reviewer/${{ matrix.arch }}/${{ contains(fromJSON(needs.check.outputs.matrix).include.*.image, 'workflow-new-vulnerability-review') && 'image.oci.tar' || 'reviewer.oci.tar' }}
+          receipt: .build/reviewer/${{ matrix.arch }}/${{ contains(fromJSON(needs.check.outputs.matrix).include.*.image, 'workflow-new-vulnerability-review') && 'build.json' || 'reviewer-build.json' }}
           image: workflow-new-vulnerability-review
           architecture: ${{ matrix.arch }}
           revision: ${{ github.sha }}
@@ -1055,7 +1103,7 @@ jobs:
         if: matrix.rebuild || matrix.scan
         uses: ./workflow/test-candidate-runtime
         with:
-          archive: .build/reviewer/${{ matrix.arch }}/image.oci.tar
+          archive: .build/reviewer/${{ matrix.arch }}/${{ contains(fromJSON(needs.check.outputs.matrix).include.*.image, 'workflow-new-vulnerability-review') && 'image.oci.tar' || 'reviewer.oci.tar' }}
           image: workflow-new-vulnerability-review
           architecture: ${{ matrix.arch }}
           revision: ${{ github.sha }}
@@ -1065,7 +1113,7 @@ jobs:
         id: reviewer
         uses: ./workflow/import-candidate-image
         with:
-          archive: .build/reviewer/${{ matrix.arch }}/image.oci.tar
+          archive: .build/reviewer/${{ matrix.arch }}/${{ contains(fromJSON(needs.check.outputs.matrix).include.*.image, 'workflow-new-vulnerability-review') && 'image.oci.tar' || 'reviewer.oci.tar' }}
           repository: workflow-new-vulnerability-review
           host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Prepare source reviewer action
@@ -1077,6 +1125,7 @@ jobs:
           destination: .candidate-actions/workflow/new-vulnerability-review
       - name: Derive evidence-backed vulnerability review
         if: matrix.rebuild || matrix.scan
+        continue-on-error: true
         uses: ./.candidate-actions/workflow/new-vulnerability-review
         with:
           archive: .build/${{ matrix.image }}/${{ matrix.arch }}/${{ matrix.rebuild && 'image' || 'scan' }}.oci.tar
@@ -1085,6 +1134,7 @@ jobs:
           evidence: .build/${{ matrix.image }}/${{ matrix.arch }}/review-evidence.json
       - name: Scan exact candidate at high severity
         if: matrix.rebuild || matrix.scan
+        continue-on-error: true
         uses: ./workflow/test-reviewed-vulnerabilities
         with:
           sbom: .build/${{ matrix.image }}/${{ matrix.arch }}/sbom.syft.json
@@ -1140,8 +1190,13 @@ jobs:
     needs: [check, lint, build, test]
     if: >-
       always() && !cancelled() && needs.check.result == 'success' &&
-      needs.lint.result == 'success' &&
-      ((needs.check.outputs.mode == 'prepare' && ((needs.build.result == 'success' && needs.test.result == 'success') || needs.check.outputs.has-work == 'false') && needs.check.outputs.release-changed == 'true') ||
+      ((needs.check.outputs.has-lint == 'true' && needs.lint.result == 'success') ||
+       (needs.check.outputs.has-lint == 'false' && needs.lint.result == 'skipped')) &&
+      ((needs.check.outputs.has-build == 'true' && needs.build.result == 'success') ||
+       (needs.check.outputs.has-build == 'false' && needs.build.result == 'skipped')) &&
+      ((needs.check.outputs.has-work == 'true' && needs.test.result == 'success') ||
+       (needs.check.outputs.has-work == 'false' && needs.test.result == 'skipped')) &&
+      ((needs.check.outputs.mode == 'prepare' && needs.check.outputs.release-changed == 'true') ||
        needs.check.outputs.mode == 'release')
     runs-on: ubuntu-24.04
     permissions:

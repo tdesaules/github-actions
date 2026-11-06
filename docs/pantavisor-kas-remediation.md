@@ -335,17 +335,19 @@ reports 7 critical and 143 high matches, with the same 45 distinct advisories an
 no blocking curl finding.
 
 Both development histories are now consolidated on `main`. The old published
-reviewer ignores the optional backport policy. During bootstrap, the workflow
-therefore builds the full native matrix and downloads the source reviewer's
-archive and receipt from the same run. Every scan verifies its checksum,
+reviewer ignores the optional backport policy. The workflow now selects changed
+images and builds only the source reviewer as an additional scan dependency on
+both native architectures. When the reviewer is already selected, its normal
+build supplies the archive; otherwise the first selected image per architecture
+produces a separate reviewer artifact. Every scan verifies its checksum,
 architecture and revision, qualifies its runtime and invokes it as a Docker
 action through the private candidate registry. Release still requires the entire
 test matrix, including the reviewer's own negative tests and vulnerability scan.
 
 After publishing this reviewer and pinning its verified multi-platform digest,
-remove the source-reviewer preparation steps, restore the published action call
-and restore `steps.sources.outputs.full` for dynamic matrix selection. This
-bootstrap has not yet been exercised on GitHub. Completing it does not resolve
+remove the source-reviewer dependency and preparation steps and restore the
+published action call. Dynamic selection already uses `steps.sources.outputs.full`.
+The incremental dependency routing still needs hosted verification. Completing it does not resolve
 the remaining KAS dependency vulnerabilities.
 
 ## Hosted native evidence from run 41892997468
