@@ -64,3 +64,12 @@ the report. Consumer workflows keep the cold default. Provenance binds source
 and deploy outputs. Files are staged under `artifacts/ci/deploy` before removing
 this invocation's build directory; `artifacts/ci/build-report.json` records
 duration, status and disk space. An unpublished candidate is not a consumer pin.
+
+Core's identity comes from `build/component.json` root `name`; k0s uses
+`profiles.base.name`. Both are checked against the selected project.
+A temporary KAS overlay bounds zstd and xz compression to two workers, matching
+the hosted compilation profile. `PARALLEL_MAKE` alone does not limit RPM payload
+compression. KAS requires concatenated files in the same repository, so this
+overlay lives in generated `artifacts/ci` files and is verified Git-ignored
+before use. Producer source files stay unchanged; the report records
+`compressionThreads: 2`. Diagnostic resumptions are never labelled cold builds.

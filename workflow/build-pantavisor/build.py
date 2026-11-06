@@ -23,17 +23,30 @@ if shutil.disk_usage(root).free < 8 * 1024**3:
 os.environ.update(KAS_WORK_DIR=str(root), KAS_BUILD_DIR=str(build))
 os.environ.pop('DOWNLOAD_CACHE', None)
 os.environ.pop('SSTATE_CACHE', None)
-command = ['kas', 'build', str(root / 'kas/ci.yml')]
 git_home = tempfile.TemporaryDirectory(prefix='pantavisor-kas-git-')
+(root / 'artifacts/ci').mkdir(parents=True, exist_ok=True)
+# KAS concatenated configurations must share a repository. Keep this generated
+# overlay in ignored build artifacts, never among the producer's source files.
+runtime_home = tempfile.TemporaryDirectory(prefix='kas-action-', dir=root / 'artifacts/ci')
+runtime_config = Path(runtime_home.name) / 'compression.yml'
+# BB_NUMBER_THREADS/PARALLEL_MAKE do not bound RPM's per-package zstd workers.
+# Match the two-worker hosted profile without changing producer source files.
+runtime_config.write_text(json.dumps({
+    'header': {'version': 16},
+    'local_conf_header': {'zzz_action_compression': 'ZSTD_THREADS = "2"\nXZ_THREADS = "2"\n'},
+}))
+command = ['kas', 'build', str(root / 'kas/ci.yml') + ':' + str(runtime_config)]
 git_config = Path(git_home.name) / 'gitconfig'
 import subprocess
+subprocess.run(['git', 'check-ignore', '--quiet', str(runtime_config)], check=True)
 subprocess.run(['git', 'config', '--file', str(git_config), '--add', 'safe.directory', str(root)], check=True)
 subprocess.run(['git', 'config', '--file', str(git_config), '--add', 'safe.directory', '/work'], check=True)
 # KAS deliberately filters GIT_CONFIG_* variables. Its supported config input
 # carries narrowly scoped checkout trust through its temporary HOME instead.
 os.environ['GITCONFIG_FILE'] = str(git_config)
 started = time.monotonic()
-report = {'project': project, 'cold': cold, 'initialFreeBytes': shutil.disk_usage(root).free, 'success': False}
+report = {'project': project, 'cold': cold, 'compressionThreads': 2,
+          'initialFreeBytes': shutil.disk_usage(root).free, 'success': False}
 try:
     sys.path.insert(0, str(root))
     if project == 'system':
@@ -60,4 +73,5 @@ try:
 finally:
     report.update(durationSeconds=round(time.monotonic() - started, 3), finalFreeBytes=shutil.disk_usage(root).free)
     (root / 'artifacts/ci/build-report.json').write_text(json.dumps(report, sort_keys=True) + '\n')
+    runtime_home.cleanup()
     git_home.cleanup()
