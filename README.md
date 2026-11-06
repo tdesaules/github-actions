@@ -3,11 +3,19 @@
 Actions **Docker natives** (`runs.using: docker`) pour les contrôles, le lint,
 les opérations OCI et les cycles de release. L'action Buildah utilise un lanceur
 composite avec le profil Docker qualifié sur les runners hébergés.
-Aucun socket moteur monté dans les conteneurs, aucune installation de
+Les opérations ne requièrent pas de montage explicite du socket moteur ; le runner
+Docker GitHub peut néanmoins le monter implicitement. Aucune installation de
 Buildah/Skopeo/Syft/Grype/Cosign sur le runner consommateur. Le lanceur Buildah
 utilise Docker et Python 3, présents sur les runners Ubuntu GitHub.
 
 ## État du premier lot
+
+La [politique actuelle](docs/ci-policy-transition.md) privilégie `scratch` pour
+les outils autonomes et autorise les distributions maintenues pour les builders
+complets. Les rapports sécurité sont consultatifs ; les tests fonctionnels,
+l'intégrité des artefacts et la publication restent bloquants. La qualification
+locale du [builder KAS Fedora](docs/pantavisor-fedora-qualification.md) est distincte
+de sa publication et de l'activation des consommateurs.
 
 La [migration Pantavisor](docs/pantavisor-migration.md) ajoute les actions KAS,
 composants, QEMU et releases indépendantes. Le
@@ -44,7 +52,7 @@ le nouveau contrat et son état de qualification.
 | [`oci/new-image-signature`](oci/new-image-signature/README.md) | Cosign `sign` | Signature par digest |
 | [`oci/test-image-signature`](oci/test-image-signature/README.md) | Cosign `verify` | Rapport JSON |
 | [`oci/new-sbom`](oci/new-sbom/README.md) | Syft `scan` | SPDX JSON ou CycloneDX JSON |
-| [`oci/test-vulnerabilities`](oci/test-vulnerabilities/README.md) | Grype `sbom:` | Rapport JSON et statut du seuil |
+| [`oci/test-vulnerabilities`](oci/test-vulnerabilities/README.md) | Grype `sbom:` | Rapport JSON ; mode `none` dans le catalogue |
 
 Chaque `action.yml` documente l'intégralité des inputs et outputs. Les arguments
 sont construits sans shell et sans `eval`. Chaque image exécute une opération

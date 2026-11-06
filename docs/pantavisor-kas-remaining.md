@@ -1,5 +1,10 @@
 # KAS remaining security findings — 2026-11-06
 
+Historical Debian baseline, before the Fedora experiment and advisory-security
+policy. The counts and former publication gate below are preserved as evidence,
+not the current Fedora result. See [the policy transition](ci-policy-transition.md)
+and [the current builder](../workflow/build-pantavisor/README.md).
+
 ## Result
 
 No additional package correction is available in the selected maintained Trixie

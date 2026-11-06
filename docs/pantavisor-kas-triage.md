@@ -1,5 +1,9 @@
 # KAS advisory triage — 2026-11-05
 
+Historical Debian evidence. Its package/fingerprint-bound reviews are not Fedora
+exclusions. The former blocking policy described below is superseded by the
+[advisory-security contract](ci-policy-transition.md).
+
 ## Current baseline update
 
 The [critical exposure assessment](pantavisor-kas-critical-exposure.md) found

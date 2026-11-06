@@ -1,62 +1,66 @@
 # Build Pantavisor
 
-Builds `kas/ci.yml` for `core`, `k0s` or `system` inside the action. The build
-operation does not invoke a container engine or require socket access,
-privileged mode or host sysctl changes. KAS 5.5 and
-the Debian Trixie build-tool runtime are extracted from the pinned upstream
-multi-platform `latest-debian-trixie` snapshot, pinned by digest rather than
-following the mutable tag, with explicit Debian security package updates. Compilers
-are required runtime dependencies of this build action.
+Builds `kas/ci.yml` for `core`, `k0s` or `system` inside the action, without invoking
+a container engine or requiring privileged mode, socket access or host sysctls.
 
-Git LFS 3.8.1 is built from checksum-verified upstream source with the catalogue's
-Go toolchain and explicit x/crypto and x/net fixes. The distro Git LFS package is replaced,
-not copied alongside it. Its module identity and license remain in the image.
-Update its source version and checksum together. The collector resolves virtual
-package providers and follows the selected Python interpreter's library version.
-The UTF-8 locale is regenerated after the libc/locales updates.
+## Runtime choice
 
-System compilers and libraries are supplied by Debian, not rebuilt in this
-action. The collector retains only the required package dependency closure,
-including ownership/checksum metadata so scans recognize distribution backports.
-Historical source-backport scripts remain in the repository but are not invoked
-by the current Containerfile. Their exact-version/file-hash review rules do not
-apply to unmodified distribution packages.
+The candidate uses the official Fedora 45 multi-platform base pinned at
+`sha256:5ad386251aa5d0111754dff91a930acc1a928afe7bafc46762024e096ab9bbb0`.
+Fedora supplies the system compiler and libraries as binary RPM packages.
+The full distribution runtime is intentional: a Yocto builder needs Python,
+shells, Git, compilers and development utilities. Keeping RPM ownership and
+dependency management is simpler than manually copying a closure into scratch.
+Fedora minimal is an alternative to measure, not an assumed security improvement.
 
-See [the remediation evidence](../../docs/pantavisor-kas-remediation.md) for
-local test coverage and the remaining publication gates. Native ARM64 hosted
-qualification is required; AMD64 results do not establish ARM64 qualification.
+KAS 5.5 and its Python dependencies are pinned in `requirements.txt`, installed
+as binary wheels in `/opt/kas`. Fedora's Python 3.13 package preserves the
+interpreter series of the previous working BitBake baseline instead of using
+the distribution's newer default interpreter. Fedora 45 is outside the pinned Yocto host validation
+list: version smoke tests alone do not establish build compatibility.
 
-curl and both TLS libraries use Debian security version `8.14.1-2+deb13u7`.
-Its HTTP/2 upload correction for CVE-2026-92392 is absent from the numerically
-newer `8.21.0-2~bpo13+1` backport. No backports or unstable repository is enabled.
-`scripts/test-pantavisor-curl.py --curl-version 8.14.1 --no-http3` exercises HTTPS,
-certificate and hostname rejection, the Git GnuTLS ABI and KAS checkout (supply
-`--reference` for the candidate image). HTTP/3 is not required by this baseline.
-See the [critical exposure assessment](../../docs/pantavisor-kas-critical-exposure.md)
-for this deliberate branch-security tradeoff and the remaining conditional risks.
+Git LFS 3.8.1 retains its checked module checksum, explicit x/crypto, x/net and
+klauspost/compress 1.20.2 fixes, and license. The venv uses pip 26.2.0. The action
+and Git LFS are built with Fedora's packaged
+Go toolchain. No system compiler/library is rebuilt. Historical Debian collectors
+and source-backport scripts remain for evidence but are not invoked.
 
-The security refresh is not a clean-scan claim. Debian stable still has open
-advisories, including GCC's
-[CVE-2026-102010](https://security-tracker.debian.org/tracker/CVE-2026-102010).
-The `high` gate remains blocking; no blanket exclusions are added for toolchains,
-distribution packages or missing fixes. Trixie is also outside the validated host
-list of the currently pinned Yocto sources, so its compatibility requires actual
-build evidence rather than just a successful KAS version command.
+The image digest pins the parent, not the mutable Fedora update repositories.
+RPM updates are resolved at construction; SBOMs record exact installed versions.
+Publication must use the exact tested archives, never a reconstruction.
 
-Runs non-root as the checkout owner, with `/work` pointing to that checkout.
-This is not a claim of complete sandbox isolation: the standard GitHub Docker
-action runner can mount its engine socket and inject an Actions runtime token.
-Effective UID/GID access to those resources needs hosted verification; clearing
-supplemental groups alone does not establish that the primary group lacks access.
+## Qualification
+
+`scripts/test-pantavisor-curl.py --curl-version 8.21.0 --no-gnutls --no-http3`
+tests HTTPS, certificate/hostname rejection, Git and KAS checkout against an
+isolated server (provide `--reference` and `--platform`). Fedora Git uses the
+OpenSSL libcurl backend, unlike the former Debian GnuTLS variant. The TLS trust
+bundle is `/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem`.
+
+The pinned curl `8.21.0-9.fc45` changelog explicitly records CVE-2026-92392's
+cleanup-order correction. The first Fedora 44 experiment had few scanner matches
+but did not establish that fix, so it was superseded rather than declared safe.
+
+Debian-specific reviews do not apply to Fedora packages. Preserve raw scanner
+findings and actual tool errors; the catalogue's security policy is advisory.
+Local native AMD64 and emulated ARM64 checks, cold consumer builds, hosted native
+qualification, publication and consumer activation are separate evidence stages.
+See [Fedora qualification](../../docs/pantavisor-fedora-qualification.md) for exact
+local scan/runtime evidence and pending cold/hosted checks,
+[architecture](../../docs/architecture.md) for runtime and security policy,
+and [historical remediation evidence](../../docs/pantavisor-kas-remediation.md)
+for the superseded Debian baseline.
+
+## Build contract
+
+The wrapper starts as root to create `/work` and writable output directories,
+then drops to the checkout owner's UID/GID and clears supplemental groups.
+This is not complete sandbox isolation: GitHub can mount its engine socket and
+inject service tokens; effective access still needs hosted measurement.
+
 Existing build/staged-output directories are refused by default. `cold: 'false'`
-allows explicit diagnostic recovery of a build tree, never overwriting a staged
-export; the report records that it was not a cold build. The consumer workflows
-keep the cold default. Producer provenance binds
-the source before construction to the deploy files after success. Deploy files
-are staged under `artifacts/ci/deploy` before this invocation's build tree is
-removed. `artifacts/ci/build-report.json` records duration, status and free disk.
-
-The package database is retained for vulnerability scanning. The CI overlay must
-limit concurrency and discard compressed sstate only after relocation hooks.
-The hosted Docker sandbox and full cold builds must pass before release. The
-bootstrap `:unpublished` image is not a consumer reference.
+permits diagnostic recovery without overwriting an export and is recorded in
+the report. Consumer workflows keep the cold default. Provenance binds source
+and deploy outputs. Files are staged under `artifacts/ci/deploy` before removing
+this invocation's build directory; `artifacts/ci/build-report.json` records
+duration, status and disk space. An unpublished candidate is not a consumer pin.

@@ -16,7 +16,9 @@ parser.add_argument('--reference', required=True)
 parser.add_argument('--platform', default='linux/amd64')
 parser.add_argument('--curl-version', default='8.23.0')
 parser.add_argument('--http3', action=argparse.BooleanOptionalAction, default=True,
-                    help='require HTTP/3 (enabled for the historical curl backport)')
+                     help='require HTTP/3 (enabled for the historical curl backport)')
+parser.add_argument('--gnutls', action=argparse.BooleanOptionalAction, default=True,
+                    help='also verify the Debian GnuTLS libcurl ABI; Fedora Git uses OpenSSL')
 args = parser.parse_args()
 
 
@@ -90,12 +92,14 @@ with tempfile.TemporaryDirectory(prefix='kas-curl-') as directory:
     try:
         container('/usr/bin/python3', '-c',
                   'import ctypes, sys\n'
-                  'for name, backend in [("libcurl.so.4", b"OpenSSL"), ("libcurl-gnutls.so.4", b"GnuTLS")]:\n'
+                  'libraries = [("libcurl.so.4", b"OpenSSL")]\n'
+                  'if sys.argv[2] == "true": libraries.append(("libcurl-gnutls.so.4", b"GnuTLS"))\n'
+                  'for name, backend in libraries:\n'
                   ' lib = ctypes.CDLL(name)\n'
                   ' lib.curl_version.restype = ctypes.c_char_p\n'
                   ' version = lib.curl_version()\n'
                   ' assert ("libcurl/" + sys.argv[1]).encode() in version and backend in version, version\n',
-                  args.curl_version)
+                  args.curl_version, str(args.gnutls).lower())
         version = container('/usr/bin/curl', '--version').stdout
         assert f'curl {args.curl_version} ' in version and f'libcurl/{args.curl_version} ' in version, version
         features = ('OpenSSL/', 'HTTP2', 'GSS-API', 'IDN', 'PSL')
@@ -110,7 +114,7 @@ with tempfile.TemporaryDirectory(prefix='kas-curl-') as directory:
             result = container('/usr/bin/curl', '--noproxy', '*', *trust,
                                f'https://{host}:{port}/payload', check=False)
             assert result.returncode == 60, (host, result.returncode, result.stderr)
-        # This exercises Git's existing CURL_GNUTLS_3 ABI, not just dlopen.
+        # Exercise Git's actual libcurl backend, not just dlopen.
         clone = container('/bin/sh', '-ec',
                           'git -c http.sslCAInfo=/fixtures/ca.pem clone "$1" /tmp/clone >&2; '
                           'git -C /tmp/clone rev-parse HEAD; cat /tmp/clone/payload',
@@ -120,13 +124,19 @@ with tempfile.TemporaryDirectory(prefix='kas-curl-') as directory:
                              f'https://localhost:{port}/repository.git', check=False)
         assert rejected.returncode != 0 and 'certificate' in rejected.stderr.lower(), rejected.stderr
         checkout = container('/bin/sh', '-ec',
-                             'cat /fixtures/ca.pem >> /etc/ssl/certs/ca-certificates.crt; '
+                              'cat /fixtures/ca.pem >> "${SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}"; '
                              'mkdir /tmp/kas; export KAS_WORK_DIR=/tmp/kas '
                              'KAS_BUILD_DIR=/tmp/kas-build; '
                              'kas checkout --skip setup_environ --skip write_bbconfig /fixtures/kas.yml >&2; '
                              'git -C /tmp/kas/repo rev-parse HEAD')
         assert checkout.stdout.strip() == revision, checkout.stdout
-        print(f'PASS: curl {args.curl_version}, HTTPS redirect, CA/hostname rejection, Git GnuTLS clone, CA rejection and KAS checkout; HTTP/3 required={args.http3}')
+        lfs = container('/bin/sh', '-ec',
+                        'mkdir /tmp/lfs; cd /tmp/lfs; git init -q; '
+                        'printf "verified LFS payload\\n" | git-lfs clean > /tmp/lfs-pointer; '
+                        'git-lfs pointer --check --strict --file=/tmp/lfs-pointer; '
+                        'git-lfs smudge < /tmp/lfs-pointer')
+        assert lfs.stdout == 'verified LFS payload\n', lfs.stdout
+        print(f'PASS: curl {args.curl_version}, HTTPS redirect, CA/hostname rejection, Git clone, CA rejection, KAS checkout and offline LFS round trip; HTTP/3 required={args.http3}; GnuTLS required={args.gnutls}')
     finally:
         server.shutdown()
         server.server_close()

@@ -1,5 +1,11 @@
 # KAS runtime security refresh
 
+The Debian strategy below is historical. The current candidate retains an
+allowlisted Fedora distribution rather than copying Debian into scratch;
+see [the builder README](../workflow/build-pantavisor/README.md) and
+[the security-policy transition](ci-policy-transition.md). Historical scan
+counts and blocked-release statements are not current Fedora qualification.
+
 ## Current strategy (2026-11-05)
 
 Use Siemens' recent `latest-debian-trixie` image pinned to multi-platform digest

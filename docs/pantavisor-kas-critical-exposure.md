@@ -1,5 +1,9 @@
 # KAS critical findings: exposure assessment
 
+This records the former Debian runtime and security gate. Caller-prerequisite
+analysis remains useful, but the [current Fedora candidate](../workflow/build-pantavisor/README.md)
+and [advisory reporting policy](ci-policy-transition.md) require their own results.
+
 ## Scope and decisions
 
 This assessment starts from the seven advisory IDs responsible for the 22
