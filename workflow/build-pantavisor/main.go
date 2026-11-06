@@ -19,7 +19,9 @@ func run() error {
 	if *project != "core" && *project != "k0s" && *project != "system" {
 		return fmt.Errorf("project must be core, k0s or system")
 	}
-	if *cold != "true" && *cold != "false" { return fmt.Errorf("cold must be true or false") }
+	if *cold != "true" && *cold != "false" {
+		return fmt.Errorf("cold must be true or false")
+	}
 	if err := pantavisor.Project(*directory); err != nil {
 		return err
 	}
@@ -87,6 +89,18 @@ func run() error {
 	return workflow.Output("deploy-directory", "artifacts/ci/deploy")
 }
 func main() {
+	// Docker actions start this executable as PID 1. A long BitBake build
+	// creates orphaned descendants that os/exec cannot reap on its own.
+	// Hand PID 1 to the distribution's init, keeping /entrypoint as the
+	// image interface. Its child has a different PID, so this happens once.
+	if os.Getpid() == 1 {
+		init := "/usr/libexec/catatonit/catatonit"
+		args := append([]string{init, "--", "/entrypoint"}, os.Args[1:]...)
+		if err := syscall.Exec(init, args, os.Environ()); err != nil {
+			fmt.Fprintln(os.Stderr, "start build process reaper:", err)
+			os.Exit(1)
+		}
+	}
 	if len(os.Args) == 2 && os.Args[1] == "--tool-version" {
 		if err := pantavisor.Run("perl", "-e", `use Thread::Queue; use Data::Dumper; use File::Compare; use File::Copy; use FindBin; use open ":std";`); err != nil {
 			fmt.Fprintln(os.Stderr, err)

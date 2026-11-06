@@ -114,9 +114,18 @@ and fresh cold qualification must be recorded separately before promotion.
 Native KAS configuration dumps accepted the repository-local overlay for all
 three checkouts and retained their original hosted configuration. The actual
 Core retry's generated `local.conf` also contains both two-worker limits.
-A sequential validation batch runs Core/System diagnostic resumptions
-(`cold: false`), followed by a fresh k0s cold build, with the repository-local
-overlay image. Results are pending; these builds are not yet qualified.
+The sequential validation batch completed with the repository-local overlay:
+
+| Project | Cold | Duration (seconds) | Result |
+| --- | --- | --- | --- |
+| Core | No | 1606.328 | Build and output staging passed |
+| System | No | 1423.363 | Build and output staging passed |
+| k0s | Yes | 1842.707 | opkg-utils RPM payload creation failed with EAGAIN |
+
+The k0s failure command explicitly used `w3T2.zstdio`; it attempted 1958 tasks
+with none reused. Compression bounds reduce resource usage but do not fully
+resolve the late-build failure. Core/System successes are diagnostic resumptions,
+not cold qualification.
 
 The corrected image passed local runtime/negative/permission fixtures,
 HTTPS/Git/KAS/LFS checks and the installed k0s metadata helper on AMD64 and
@@ -137,6 +146,62 @@ The retry builder's fixed image ID is
 the corrected AMD64 archive configuration. These scans still do not replace
 successful consumer builds or hosted qualification.
 
+### PID-1 lifecycle defect
+
+The Go entrypoint waited for its direct Python child but did not reap adopted,
+terminated descendants. A synthetic producer fixture exercised the actual image
+entrypoint under a 128-task limit, without invoking KAS or building firmware:
+
+| Same bounded image | Spawned orphan children | Zombies | Sampled peak tasks | Exit |
+| --- | --- | --- | --- | --- |
+| Default entrypoint as PID 1 | 119 of 160 | 118 | 127 | 1; cgroup limit hit |
+| Podman `--init` control | 160 of 160 | 0 | 13 | 0 |
+
+Twenty isolated replays of the failed opkg-utils RPM script, including ten under
+pseudo, also passed without PID-limit hits. These results establish the wrapper's
+reaping defect and distinguish it from a permanently broken package task. The
+original full-build containers' zombie counts were not retained; instrumented
+cold builds remain necessary to confirm the complete causal chain.
+
+The init candidate installs Fedora's `catatonit-0.2.1-6.fc45`. When PID 1, the Go
+entrypoint reexecutes that fixed init with `/entrypoint` as its child; the image's
+public entrypoint remains unchanged. The child performs the existing UID/GID drop.
+This avoids a custom Go wait loop racing with `os/exec`, and needs no engine
+`--init` flag or increased PID limit. The durable local fixture is
+`workflow/build-pantavisor/test-init.py`; it passed with the image alone on AMD64
+and emulated ARM64, including propagation of an invalid-project failure. The
+fixture tracks every orphan PID until reaped and leaves no surviving children.
+
+| Init candidate check | AMD64 | ARM64 (emulated) |
+| --- | --- | --- |
+| Orphans created/reaped | 160 / 160 | 160 / 160 |
+| Sampled peak tasks under the 128-task cap | 9 | 12 |
+| Remaining children / zombies | 0 / 0 | 0 / 0 |
+| Invalid-project exit propagated | 1 | 1 |
+| HTTPS/Git/KAS/LFS and archive tool-version checks | Passed | Passed |
+| Raw Grype matches / exclusions | 0 / 0 | 0 / 0 |
+
+k0s then completed an instrumented diagnostic resumption in **575.647 seconds**
+(`cold: false`). Catatonit was observed as PID 1; sampled peak task count was **126**,
+peak transient zombie count **1**, final zombie count **0**, and recorded PID /
+memory limit-hit and OOM counters remained zero. This is not a cold result.
+
+| Architecture | Init candidate manifest digest |
+| --- | --- |
+| AMD64 | `sha256:aca6d457eaf57b4e673aa36d6fa99ecb29bd4fbc0e241ddde4238854e377155a` |
+| ARM64 | `sha256:fa5bf5f343869bd0f2aa5cc4962af721a8fd34dcdc2153b0a2eac70f980ef57c` |
+
+| Architecture | Init candidate archive SHA-256 |
+| --- | --- |
+| AMD64 | `f8e7f4247b61a6235aff08bb160f06cd95d7235b57f0b898653578c20adf0960` |
+| ARM64 | `7b7c9ae430b37667573f2ed9bf1a9a0715112a44aee65cca7b79cd917699b40a` |
+
+Fresh Core, k0s and System cold builds are now running sequentially from new
+checkouts of the same producer commits, with resource sampling. Their fixed
+AMD64 image ID is `b3118610aae23f9c0ef3821e421b2bd7f7a801bafcf0641b693ef9a91e535e9a`,
+matching the scanned init archive. Full cold, hosted and platform qualification
+remain pending.
+
 Native hosted AMD64/ARM64 Docker-action execution, publication and consumer
 activation remain outstanding. Security reporting is now advisory under the
 [new policy](ci-policy-transition.md); functional failures still block release.
@@ -155,5 +220,15 @@ activation remain outstanding. Security reporting is now advisory under the
 - `.build/kas-fedora45-k0s-cold/`: separate fresh k0s retry with the corrected wrapper.
 - `/tmp/opencode/kas-fedora45-limits2/`: corrected-image builds and qualification
   artifacts, separate from the initial image and rejected outside-repository overlay.
+- `/tmp/opencode/kas-init-probe/`: synthetic PID-1 comparison, not firmware output.
+- `.build/kas-fedora45-k0s-cold/source/artifacts/rpm-replay-results.json`:
+  isolated RPM replays with and without pseudo.
+- `/tmp/opencode/kas-fedora45-init/{amd64,arm64}/`: init fixture, runtime, TLS,
+  exact archives, SBOMs and raw scans for the init candidate.
+- `.build/kas-fedora45-k0s-cold/init-resume-resources.jsonl` and `init-resume.log`:
+  successful instrumented k0s diagnostic; `pre-init-cold-build-report.json`
+  retains its failed bounded-only cold attempt.
+- `.build/kas-fedora45-init-cold/`: fresh cold checkouts, fixed builder/source
+  identities, resource samples and final reports for the init candidate.
 - `/tmp/opencode/kas-fedora/`: superseded Fedora 44 experiment, retained for
   comparison rather than promoted as final qualification.

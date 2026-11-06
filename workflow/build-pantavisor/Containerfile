@@ -31,12 +31,13 @@ COPY workflow/build-pantavisor/requirements.txt /opt/pantavisor/requirements.txt
 # hadolint ignore=DL3041
 RUN dnf upgrade -y --refresh \
     && dnf install -y --setopt=install_weak_deps=False \
-    bash bzip2 ca-certificates chrpath cpio curl-8.21.0-9.fc45 diffstat diffutils file findutils \
+    bash bzip2 ca-certificates catatonit-0.2.1-6.fc45 chrpath cpio curl-8.21.0-9.fc45 diffstat diffutils file findutils \
     gawk gcc gcc-c++ git glibc-langpack-en gzip hostname lz4 make patch \
     perl perl-Data-Dumper perl-File-Compare perl-File-Copy perl-FindBin perl-Thread-Queue \
     pigz pkgconf-pkg-config procps-ng python3.13 rpcgen rsync socat tar texinfo \
     unzip util-linux wget which xz zstd \
     && dnf clean all \
+    && test -x /usr/libexec/catatonit/catatonit \
     && python3.13 -m venv /opt/kas \
     && /opt/kas/bin/pip install --no-cache-dir --only-binary=:all: --upgrade pip==26.2.0 \
     && /opt/kas/bin/pip install --no-cache-dir --only-binary=:all: -r /opt/pantavisor/requirements.txt \

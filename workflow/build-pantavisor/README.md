@@ -53,8 +53,11 @@ for the superseded Debian baseline.
 
 ## Build contract
 
-The wrapper starts as root to create `/work` and writable output directories,
-then drops to the checkout owner's UID/GID and clears supplemental groups.
+When started as PID 1, the Go entrypoint delegates process supervision to Fedora's
+packaged catatonit, which reaps orphaned descendants throughout long builds. Its
+Go child starts as root to create `/work` and writable output directories, then
+drops to the checkout owner's UID/GID and clears supplemental groups. The image
+interface remains `/entrypoint`; no engine `--init` option is required.
 This is not complete sandbox isolation: GitHub can mount its engine socket and
 inject service tokens; effective access still needs hosted measurement.
 
@@ -73,3 +76,9 @@ compression. KAS requires concatenated files in the same repository, so this
 overlay lives in generated `artifacts/ci` files and is verified Git-ignored
 before use. Producer source files stay unchanged; the report records
 `compressionThreads: 2`. Diagnostic resumptions are never labelled cold builds.
+
+Run `python3 workflow/build-pantavisor/test-init.py --reference <local-image>
+--platform linux/amd64 --output /tmp/opencode/init-result.json` for the local
+Podman lifecycle fixture (repeat with ARM64). It spawns 160 orphaned descendants
+under a 128-task cap, checks that none remain zombies, and checks child exit-code
+propagation. This uses synthetic producer inputs and is not a firmware build.
