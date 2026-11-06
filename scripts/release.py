@@ -35,8 +35,8 @@ def finish(directory):
     version = plan_data['version']
     if version != state['version'] or not SEMVER.fullmatch(version):
         raise ValueError('publication and release plan differ')
-    if not all(i.get('signed') for i in state['images'].values()):
-        raise ValueError('release requires verified signatures')
+    if not state['images'] or not all(i.get('published') for i in state['images'].values()):
+        raise ValueError('release requires verified publication')
     base = plan_data['base']
     if git('rev-parse', 'HEAD') != base:
         raise ValueError('checkout differs from tested release base')

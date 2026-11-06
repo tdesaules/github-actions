@@ -36,15 +36,19 @@ parcours keyless réel, qualifié lors du bootstrap et de la release stable `0.1
 ## Base Grype
 
 Le défaut est une mise à jour avant scan. Les rapports du pipeline enregistrent
-le statut de la base utilisée. Une indisponibilité de la base ou une violation
-du seuil fait échouer le scan : aucun rapport vide n'est fabriqué pour réussir.
+le statut de la base utilisée. Une indisponibilité de la base fait échouer
+l'opération, avec continuation au niveau du step sécurité : aucun rapport vide
+n'est fabriqué pour réussir et le résultat reste `error`, jamais `clean`.
 `update-database: false` exige une base valide déjà accessible ; le répertoire
 peut être configuré par `GRYPE_DB_CACHE_DIR` dans un emplacement partagé du job.
 Le schedule rescanne les deux variantes publiées et actualise la base.
 
-Le seuil est `high` par défaut. Un rapport reste exploitable après un échec de
-seuil et est archivé avec `if: always()`. Des images constructibles peuvent donc
-être refusées à la publication en raison de vulnérabilités.
+Les scans du catalogue n'utilisent plus de seuil de sortie. Les findings, erreurs
+et opérations non exécutées sont [consultatifs](ci-policy-transition.md), visibles
+dans les rapports et résumés. Les tests fonctionnels des outils (dont les fixtures
+positives/négatives), l'intégrité et la provenance restent bloquants. Le wrapper
+OCI conserve son défaut historique `high` pour compatibilité externe ; les appels
+du catalogue sélectionnent explicitement `fail-on: none`.
 
 Les tests unitaires ne remplacent ni les builds réels, ni les tests GitHub, ni
 les signatures vérifiées. Voir [validation.md](validation.md) pour l'état observé.

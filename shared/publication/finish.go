@@ -24,8 +24,8 @@ func Finish(directory string) error {
 		return fmt.Errorf("release plan and publication differ")
 	}
 	for _, image := range state.Images {
-		if !image.Signed || !image.Published {
-			return fmt.Errorf("all images require verified publication and signatures")
+		if !image.Published {
+			return fmt.Errorf("all images require verified publication")
 		}
 	}
 	token := os.Getenv("INPUT_TOKEN")

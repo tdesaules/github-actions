@@ -5,7 +5,7 @@ inputs:
     description: Existing SBOM path
     required: true
   fail-on:
-    description: negligible, low, medium, high or critical
+    description: Legacy exit threshold; none reports findings without a severity gate
     default: high
   update-database:
     description: Update the database before scanning; false requires a valid cached database

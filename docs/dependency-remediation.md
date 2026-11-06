@@ -7,11 +7,14 @@ via Go, applique les versions correctives explicites et utilise le compilateur
 Go épinglé par digest dans chaque Containerfile.
 Buildah utilise CGO et une liaison statique musl : son initialisation des
 namespaces dépend d'un constructeur C. Les autres outils sont compilés sans CGO.
-Les images finales restent `scratch`.
+Les outils autonomes privilégient `scratch` ; les environnements complets peuvent
+conserver une distribution autorisée selon [leurs besoins](architecture.md).
 
 Les rapports conservent le SBOM SPDX, le SBOM Syft avec les symboles Go, les
-métadonnées de la base Grype et le résultat JSON complet. Le seuil bloquant reste
-`high`.
+métadonnées de la base Grype et le résultat JSON complet. La politique actuelle
+est [consultative](ci-policy-transition.md) : les alertes high/critical et erreurs
+d'outils restent visibles, sans conditionner la publication. Les blocages relatés
+ci-dessous décrivent les anciennes exécutions, pas la politique actuelle.
 
 ## Blocage de publication du 30 octobre 2026
 

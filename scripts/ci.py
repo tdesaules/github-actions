@@ -7,12 +7,26 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 
 from oci_archive import inspect_archive
 
 ROOT = Path(__file__).resolve().parents[1]
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$")
 IMAGE = re.compile(r"^(?:  image|        BUILDER_IMAGE): docker://([^\s]+)$", re.M)
+BASES = {'scratch', 'quay.io/fedora/fedora-minimal', 'quay.io/fedora/fedora',
+         'docker.io/library/alpine', 'docker.io/chainguard/wolfi-base',
+         'docker.io/redhat/ubi10-micro', 'docker.io/redhat/ubi10-minimal'}
+
+
+def validate_base(reference, stages, name):
+    if reference in stages or reference == 'scratch':
+        return
+    if not re.search(r'@sha256:[a-f0-9]{64}$', reference):
+        raise ValueError(f'{name}: unpinned external base/donor {reference}')
+    repository = reference.split('@')[0].split(':')[0]
+    if repository not in BASES:
+        print(f'WARNING: {name}: base/donor outside allowlist: {reference}; migration required', file=sys.stderr)
 
 
 def git(*args):
@@ -148,17 +162,30 @@ def main():
     if args.command == "validate":
         for name, directory in owners.items():
             text = (ROOT / directory / "Containerfile").read_text()
-            if "FROM scratch AS final" not in text:
-                raise ValueError(f"{name}: final stage must use scratch")
+            final = False
             stages = set()
             for line in text.splitlines():
                 if line.startswith('FROM '):
                     words = line.split()
-                    if words[1] != 'scratch' and words[1] not in stages and '@sha256:' not in words[1]:
-                        raise ValueError(f"{name}: unpinned base")
+                    validate_base(words[1], stages, name)
                     if len(words) == 4 and words[2].upper() == 'AS':
                         stages.add(words[3])
-        print(f"Validated {len(actions)} action/image contracts and {len(owners)} scratch image definitions")
+                        final = words[3] == 'final'
+                    else:
+                        raise ValueError(f"{name}: require named stages")
+                if line.startswith('COPY '):
+                    for field in line.split()[1:]:
+                        if field.startswith('--from='):
+                            validate_base(field.removeprefix('--from='), stages, name)
+                if line.startswith('RUN '):
+                    for field in line.split()[1:]:
+                        if field.startswith('--mount='):
+                            for option in field.removeprefix('--mount=').split(','):
+                                if option.startswith('from='):
+                                    validate_base(option.removeprefix('from='), stages, name)
+            if not final:
+                raise ValueError(f"{name}: last stage must be named final")
+        print(f"Validated {len(actions)} action/image contracts and {len(owners)} image definitions")
         return
     event = os.environ.get("GITHUB_EVENT_NAME", "push")
     ref = os.environ.get("GITHUB_REF", "refs/heads/main")

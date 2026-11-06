@@ -2,10 +2,14 @@
 
 Refreshes Grype's database explicitly, records its exact snapshot metadata and
 scans the candidate SBOM using the independently generated review configuration.
-The threshold remains `high` and is not configurable by this qualification action.
-Retains the Grype report on threshold failure. Temporary database caches are not
-included in qualification artifacts.
+Findings do not set a severity exit gate. Tool/database/configuration errors keep
+their real failing exit status; the workflow makes this dedicated step advisory.
+The raw report and `<output>.status.json` retain counts, subject digest and errors.
+Temporary database caches are not included in qualification artifacts.
 
 Inputs: `sbom`, `config`, `output`, `database-metadata`. Paths must be distinct;
-CLI flags override `INPUT_*`. The fixed Go/Grype scratch image was published in
-`1.2.0` and gates qualification in the test job.
+an empty `config` explicitly requests an unreviewed scan with no exclusions.
+An explicitly supplied missing/invalid configuration remains a real error.
+CLI flags override `INPUT_*`. The fixed Go/Grype scratch runtime is built from an
+allowlisted Fedora builder. Source bootstrap activates the reporting contract
+until a new published digest replaces the older threshold-gated action image.

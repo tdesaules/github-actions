@@ -13,6 +13,10 @@ func TestCatalogRejectsInvalidOwnershipAndStages(t *testing.T) {
 		valid                  bool
 	}{
 		{"valid", "check-test-fixture", "FROM scratch AS final\n", true},
+		{"distribution runtime", "check-test-fixture", "FROM quay.io/fedora/fedora:44@sha256:" + strings.Repeat("a", 64) + " AS tools\nFROM tools AS final\n", true},
+		{"unpinned runtime", "check-test-fixture", "FROM quay.io/fedora/fedora:44 AS final\n", false},
+		{"unpinned donor", "check-test-fixture", "FROM scratch AS final\nCOPY --from=example.invalid/tool:latest /tool /tool\n", false},
+		{"unpinned mount", "check-test-fixture", "FROM scratch AS final\nRUN --mount=type=bind,from=example.invalid/tool:latest,target=/tool true\n", false},
 		{"wrong owner", "other", "FROM scratch AS final\n", false},
 		{"unpinned base", "check-test-fixture", "FROM alpine:latest AS build\nFROM scratch AS final\n", false},
 		{"nonfinal scratch", "check-test-fixture", "FROM scratch AS final\nFROM final AS runtime\n", false},

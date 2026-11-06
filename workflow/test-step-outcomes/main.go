@@ -16,9 +16,7 @@ func run() error {
 	if flag.NArg() != 0 {
 		return fmt.Errorf("unexpected arguments")
 	}
-	var steps map[string]struct {
-		Outcome string `json:"outcome"`
-	}
+	var steps map[string]stepOutcome
 	var names, paths []string
 	if err := json.Unmarshal([]byte(*outcomes), &steps); err != nil || steps == nil {
 		return fmt.Errorf("outcomes must be a JSON object")
@@ -39,6 +37,9 @@ func run() error {
 		if _, err := os.Lstat(path); !os.IsNotExist(err) {
 			return fmt.Errorf("failed operation left an output or inaccessible path: %s", path)
 		}
+	}
+	if err := reportSecurity(steps); err != nil {
+		return err
 	}
 	return workflow.Output("verified", true)
 }

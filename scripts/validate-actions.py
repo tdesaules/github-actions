@@ -51,7 +51,7 @@ def validate(path):
     elif runs.get("using") != "docker" or not runs.get("image", "").startswith("docker://"):
         raise ValueError(f"{path}: must be a native prebuilt Docker action")
     environment_inputs = set(runs.get('env', {}).values())
-    if not builder and not composite and runs.get('args') != ['--'+name+'=${{ inputs.'+name+' }}' for name in data.get('inputs', {}) if '${{ inputs.'+name+' }}' not in environment_inputs]:
+    if not builder and not composite and runs.get('args', []) != ['--'+name+'=${{ inputs.'+name+' }}' for name in data.get('inputs', {}) if '${{ inputs.'+name+' }}' not in environment_inputs]:
         raise ValueError(f'{path}: each input must be forwarded as an explicit named argument')
     for filename in (() if composite else ('Containerfile', 'main.go')):
         if not (path.parent / filename).is_file():

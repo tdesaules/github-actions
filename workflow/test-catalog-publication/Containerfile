@@ -1,0 +1,20 @@
+FROM quay.io/fedora/fedora:44@sha256:b3e011d47e686a89781495c9a87bc80349af742965e5d51e79cd51711982e4a2 AS build
+RUN dnf install -y golang-1.26.10-1.fc44 && dnf clean all
+ENV GOTOOLCHAIN=local
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/catalog/ ./shared/catalog/
+COPY shared/publication/ ./shared/publication/
+COPY shared/runtime/ ./shared/runtime/
+COPY shared/workflow/ ./shared/workflow/
+COPY workflow/test-catalog-publication/ ./workflow/test-catalog-publication/
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/test-catalog-publication
+FROM quay.io/fedora/fedora:44@sha256:b3e011d47e686a89781495c9a87bc80349af742965e5d51e79cd51711982e4a2 AS final
+# Retain the package-managed Git/Skopeo runtime and RPM ownership metadata.
+# hadolint ignore=DL3041
+RUN dnf install -y --setopt=install_weak_deps=False git skopeo && dnf clean all
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=build /entrypoint /entrypoint
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="workflow-test-catalog-publication" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

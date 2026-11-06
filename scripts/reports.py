@@ -13,7 +13,7 @@ SYFT = "docker.io/anchore/syft:v1.54.1@sha256:3eb5379ba7b409c3f4069b686110527af0
 GRYPE = "docker.io/anchore/grype:v0.120.1@sha256:e4a44ef45d285b829ce6efe2642980329661bd2d18eab5fc539138d4adaebbbe"
 
 
-def reports(directory, source='oci-archive:/reports/image.oci.tar', platform=None,
+def _reports(directory, source='oci-archive:/reports/image.oci.tar', platform=None,
             database_directory=None, update_database=True):
     bind = mount(directory.resolve(), "/reports")
     platform_args = ['--platform', platform] if platform else []
@@ -35,7 +35,31 @@ def reports(directory, source='oci-archive:/reports/image.oci.tar', platform=Non
     # JSON is a YAML subset. The report retains ignoredMatches and their reason.
     (directory / 'grype-reviewed.json').write_text(json.dumps(configuration, indent=2)+'\n')
     (directory / 'review-evidence.json').write_text(json.dumps(evidence, indent=2)+'\n')
-    run(*command, "sbom:/reports/sbom.syft.json", '--config', '/reports/grype-reviewed.json', "--fail-on", os.environ.get("FAIL_ON", "high"), "-o", "json", "--file", "/reports/grype.json")
+    run(*command, "sbom:/reports/sbom.syft.json", '--config', '/reports/grype-reviewed.json', "-o", "json", "--file", "/reports/grype.json")
+
+
+def reports(directory, source='oci-archive:/reports/image.oci.tar', platform=None,
+            database_directory=None, update_database=True):
+    """Advisory reports never replace the caller's functional qualification."""
+    result = {'status': 'error', 'source': source, 'platform': platform}
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        _reports(directory, source, platform, database_directory, update_database)
+        matches = json.loads((directory / 'grype.json').read_text())['matches']
+        result['status'] = 'findings' if matches else 'clean'
+        counts = {}
+        for match in matches:
+            severity = match['vulnerability']['severity']
+            counts[severity] = counts.get(severity, 0) + 1
+        result['severity_counts'] = counts
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
+        result['reason'] = str(error)
+    try:
+        (directory / 'security-status.json').write_text(json.dumps(result, indent=2) + '\n')
+    except OSError as error:
+        result['report_error'] = str(error)
+    print(json.dumps(result))
+    return result
 
 
 if __name__ == "__main__":

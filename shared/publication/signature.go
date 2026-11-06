@@ -20,7 +20,58 @@ func References(image *Image) []string {
 
 var requestOIDCToken = action.OIDCToken
 
-func Sign(directory string) error {
+type signatureResult struct {
+	Reference string `json:"subject_digest"`
+	Operation string `json:"operation"`
+	Status    string `json:"status"`
+	Reason    string `json:"reason,omitempty"`
+}
+
+// ValidateTagCatalog is functional provenance validation, independent of Cosign.
+func ValidateTagCatalog(tag string) (State, error) {
+	state := State{Images: map[string]*Image{}}
+	if !SemVer.MatchString(tag) {
+		return state, fmt.Errorf("release tag must be SemVer without v")
+	}
+	head, err := Revision()
+	if err != nil {
+		return state, err
+	}
+	target, err := workflow.Git("rev-parse", "--verify", "--end-of-options", "refs/tags/"+tag+"^{commit}")
+	if err != nil {
+		return state, err
+	}
+	if strings.TrimSpace(target) != head {
+		return state, fmt.Errorf("release tag differs from checkout")
+	}
+	if _, err = workflow.Git("merge-base", "--is-ancestor", "HEAD", "origin/main"); err != nil {
+		return state, err
+	}
+	owners, err := catalog.Discover()
+	if err != nil {
+		return state, err
+	}
+	for _, owner := range owners {
+		if !catalog.Pinned.MatchString(owner.Reference) {
+			return state, fmt.Errorf("unpublished release image")
+		}
+		raw, err := Raw(owner.Reference)
+		if err != nil {
+			return state, err
+		}
+		if Hash(raw) != strings.Split(owner.Reference, "@")[1] {
+			return state, fmt.Errorf("release image digest mismatch")
+		}
+		children, err := Children(raw)
+		if err != nil {
+			return state, err
+		}
+		state.Images[owner.Name] = &Image{Reference: owner.Reference, Platforms: children, Published: true}
+	}
+	return state, nil
+}
+
+func Sign(directory string) (result error) {
 	cleanup, err := Auth()
 	if err != nil {
 		return err
@@ -34,6 +85,20 @@ func Sign(directory string) error {
 	if err != nil {
 		return err
 	}
+	reports := map[string]*signatureResult{}
+	for _, image := range state.Images {
+		for _, reference := range References(image) {
+			reports[reference] = &signatureResult{Reference: reference, Operation: "cosign sign", Status: "not_run"}
+			if image.Reused {
+				reports[reference].Reason = "Reused digest; signing not requested"
+			}
+		}
+	}
+	defer func() {
+		if err := catalog.Write(filepath.Join(directory, "signing-status.json"), reports); result == nil {
+			result = err
+		}
+	}()
 	for _, owner := range owners {
 		image := state.Images[owner.Name]
 		if !image.Published {
@@ -43,6 +108,9 @@ func Sign(directory string) error {
 			continue
 		}
 		for _, reference := range References(image) {
+			report := reports[reference]
+			report.Status = "error"
+			report.Reason = "Signing did not complete; see step diagnostics"
 			token, err := requestOIDCToken()
 			if err != nil {
 				return err
@@ -56,11 +124,12 @@ func Sign(directory string) error {
 			if err != nil {
 				return err
 			}
+			report.Status, report.Reason = "signed", ""
 		}
 	}
 	return nil
 }
-func Verify(directory, tag, repository string) error {
+func Verify(directory, tag, repository string) (result error) {
 	if !regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`).MatchString(repository) {
 		return fmt.Errorf("invalid repository")
 	}
@@ -75,39 +144,9 @@ func Verify(directory, tag, repository string) error {
 		return err
 	}
 	if tag != "" {
-		if !SemVer.MatchString(tag) {
-			return fmt.Errorf("release tag must be SemVer without v")
-		}
-		head, err := Revision()
+		state, err = ValidateTagCatalog(tag)
 		if err != nil {
 			return err
-		}
-		target, err := workflow.Git("rev-parse", "--verify", "--end-of-options", "refs/tags/"+tag+"^{commit}")
-		if err != nil {
-			return err
-		}
-		if strings.TrimSpace(target) != head {
-			return fmt.Errorf("release tag differs from checkout")
-		}
-		if _, err = workflow.Git("merge-base", "--is-ancestor", "HEAD", "origin/main"); err != nil {
-			return err
-		}
-		for _, owner := range owners {
-			if !catalog.Pinned.MatchString(owner.Reference) {
-				return fmt.Errorf("unpublished release image")
-			}
-			raw, err := Raw(owner.Reference)
-			if err != nil {
-				return err
-			}
-			if Hash(raw) != strings.Split(owner.Reference, "@")[1] {
-				return fmt.Errorf("release image digest mismatch")
-			}
-			children, err := Children(raw)
-			if err != nil {
-				return err
-			}
-			state.Images[owner.Name] = &Image{Reference: owner.Reference, Platforms: children, Published: true}
 		}
 	} else {
 		state, err = Load(directory)
@@ -122,12 +161,25 @@ func Verify(directory, tag, repository string) error {
 		}
 	}
 	identity := "https://github.com/" + repository + "/.github/workflows/main.yml@refs/heads/main"
+	reports := map[string]*signatureResult{}
+	for _, image := range state.Images {
+		for _, reference := range References(image) {
+			reports[reference] = &signatureResult{Reference: reference, Operation: "cosign verify", Status: "not_run"}
+		}
+	}
+	defer func() {
+		if err := catalog.Write(filepath.Join(directory, "verification-status.json"), reports); result == nil {
+			result = err
+		}
+	}()
 	for _, owner := range owners {
 		image := state.Images[owner.Name]
 		if !image.Published {
 			return fmt.Errorf("cannot verify unpublished image")
 		}
 		for _, reference := range References(image) {
+			report := reports[reference]
+			report.Status, report.Reason = "error", "Verification did not complete; see step diagnostics"
 			cmd := exec.Command("cosign", "verify", "--output=json", "--certificate-identity", identity, "--certificate-oidc-issuer", "https://token.actions.githubusercontent.com", reference)
 			cmd.Stderr = os.Stderr
 			data, err := cmd.Output()
@@ -141,6 +193,7 @@ func Verify(directory, tag, repository string) error {
 			if err = os.WriteFile(path, data, 0644); err != nil {
 				return err
 			}
+			report.Status, report.Reason = "verified", ""
 		}
 		image.Signed = true
 		if tag == "" {

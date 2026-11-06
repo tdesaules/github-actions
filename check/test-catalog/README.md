@@ -1,7 +1,10 @@
 # Test Catalog
 
 Validates the catalogue directly in Go: independent image ownership, pinned
-base images, a Go entrypoint per action and a last stage of `scratch AS final`.
+base images, a Go entrypoint per action and a last stage named `final`.
+Prefer scratch for self-contained tools; retain an allowlisted distribution for
+complete build environments. Existing unlisted bases/donors produce explicit
+migration warnings, not an assertion of policy compliance.
 Discovery reads action metadata from the source tree, without a central manifest.
 Explicit `:unpublished` action references allow qualification before publication.
 Published references must contain an immutable SHA-256 digest.

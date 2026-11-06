@@ -125,11 +125,11 @@ def test(image, version):
             # An actual database download and scan, not a mocked successful report.
             run(ENGINE, 'run', '--rm', '-v', mount(workspace, '/fixtures'), SYFT,
                 'scan', 'oci-archive:/fixtures/fixture.oci.tar', '-o', 'spdx-json=/fixtures/sbom.json')
-            container(ref, "test-vulnerabilities", workspace, {"sbom": "sbom.json", "output": "reports with spaces/grype.json"})
+            container(ref, "test-vulnerabilities", workspace, {"sbom": "sbom.json", "fail-on": "none", "output": "reports with spaces/grype.json"})
             assert "matches" in json.loads((workspace / "reports with spaces/grype.json").read_text())
             workspace.chmod(0o1777)
             container(ref, 'test-vulnerabilities', workspace,
-                      {'sbom': 'sbom.json', 'output': 'nonroot-grype.json'}, extra=['--user=65532:65532'])
+                      {'sbom': 'sbom.json', 'fail-on': 'none', 'output': 'nonroot-grype.json'}, extra=['--user=65532:65532'])
             assert 'matches' in json.loads((workspace / 'nonroot-grype.json').read_text())
             negative(ref, "test-vulnerabilities", workspace, {"sbom": "missing.json", "fail-on": "invalid"})
         elif image == "oci-new-image-signature":

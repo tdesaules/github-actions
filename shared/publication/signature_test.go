@@ -1,6 +1,7 @@
 package publication
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,6 +50,23 @@ func TestSignatureStages(t *testing.T) {
 			requestOIDCToken = func() (string, error) { return "fixture-identity", nil }
 			t.Cleanup(func() { requestOIDCToken = old })
 			err = Sign(directory)
+			var signing map[string]signatureResult
+			if data, readErr := os.ReadFile(filepath.Join(directory, "signing-status.json")); readErr != nil || json.Unmarshal(data, &signing) != nil {
+				t.Fatal("missing per-digest signing outcomes", readErr)
+			}
+			signed := 0
+			for _, result := range signing {
+				if result.Status == "signed" {
+					signed++
+				}
+			}
+			wantSigned := 3
+			if scenario == "reused" || scenario == "unpublished" || scenario == "signing-fails" {
+				wantSigned = 0
+			}
+			if signed != wantSigned {
+				t.Fatalf("signed=%d want=%d: %+v", signed, wantSigned, signing)
+			}
 			calls, _ := os.ReadFile(log)
 			if strings.Contains(string(calls), "fixture-identity") {
 				t.Fatal("token leaked into argv")

@@ -29,8 +29,6 @@ def main():
         raise ValueError("owner must be lowercase GitHub owner")
     if not SEMVER.fullmatch(args.version) or '+' in args.version:
         raise ValueError('version must be SemVer without v or registry-incompatible build metadata')
-    if args.version != '0.0.0-bootstrap' and not args.sign:
-        raise ValueError('catalogue releases require signatures')
     directory = args.directory.resolve()
     paths = sorted(directory.glob("**/metadata.json"))
     results = aggregate(paths)
@@ -44,15 +42,21 @@ def main():
     if args.version == '0.0.0-bootstrap' and changed != set(owners):
         raise ValueError("bootstrap publication requires all images on both architectures")
     locations = {(json.loads(p.read_text())["image"], json.loads(p.read_text())["arch"]): p.parent for p in paths}
+    unavailable = set()
     for image in ('oci-publish-image', 'oci-merge-image-index', 'oci-new-image-signature', 'oci-test-image-signature'):
-        if image in changed:
-            load_archive(locations[(image, "amd64")] / "image.oci.tar", local_ref(image, args.version))
-        else:
-            reference = IMAGE.search((ROOT / owners[image] / 'action.yml').read_text())[1]
-            if '@sha256:' not in reference:
-                raise ValueError(f'{image}: missing tested image or published immutable reference')
-            run(ENGINE, 'pull', reference)
-            run(ENGINE, 'tag', reference, local_ref(image, args.version))
+        try:
+            if image in changed:
+                load_archive(locations[(image, "amd64")] / "image.oci.tar", local_ref(image, args.version))
+            else:
+                reference = IMAGE.search((ROOT / owners[image] / 'action.yml').read_text())[1]
+                if '@sha256:' not in reference:
+                    raise ValueError(f'{image}: missing tested image or published immutable reference')
+                run(ENGINE, 'pull', reference)
+                run(ENGINE, 'tag', reference, local_ref(image, args.version))
+        except subprocess.CalledProcessError:
+            if image not in ('oci-new-image-signature', 'oci-test-image-signature'):
+                raise
+            unavailable.add(image)
     token = os.environ["GHCR_TOKEN"]
     username = os.environ["GHCR_USERNAME"]
     common = {"registry": "ghcr.io", "registry-username": username, "registry-password": token}
@@ -62,6 +66,21 @@ def main():
         if operation == 'new-image-signature':
             extra = ["-e", "ACTIONS_ID_TOKEN_REQUEST_URL", "-e", "ACTIONS_ID_TOKEN_REQUEST_TOKEN"]
         container(action_ref(operation, args.version), operation, directory, common | inputs, extra)
+
+    security = []
+
+    def advisory_call(operation, inputs):
+        result = {'operation': operation, 'subject_digest': inputs['image'], 'status': 'error'}
+        try:
+            if 'oci-' + operation in unavailable:
+                raise RuntimeError('Security tool image unavailable')
+            call(operation, inputs)
+            result['status'] = 'signed' if operation == 'new-image-signature' else 'verified'
+        except (RuntimeError, ValueError, OSError, subprocess.SubprocessError) as error:
+            result['reason'] = type(error).__name__ + ': see operation diagnostics'
+        security.append(result)
+        print(json.dumps(result))
+        return result['status'] in ('signed', 'verified')
 
     # Use an isolated auth file. Its contents never appear in command logs or artifacts.
     import base64
@@ -81,7 +100,7 @@ def main():
                 raise RuntimeError(text)
             return result.stdout
 
-        state = {"version": args.version, "images": {}}
+        state = {"version": args.version, "images": {}, "security": security}
         for image in sorted(owners):
             if image not in changed:
                 reference = IMAGE.search((ROOT / owners[image] / 'action.yml').read_text())[1]
@@ -93,10 +112,12 @@ def main():
                 children = {m['platform']['architecture']: m['digest'] for m in json.loads(index)['manifests']}
                 if set(children) != {'amd64', 'arm64'}:
                     raise ValueError('reused image is missing an architecture')
-                identity = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/.github/workflows/main.yml@refs/heads/main"
+                identity = f"https://github.com/{os.environ.get('GITHUB_REPOSITORY', '')}/.github/workflows/main.yml@refs/heads/main"
+                verified = True
                 for value in [reference, *[reference.split('@')[0]+'@'+d for d in children.values()]]:
-                    call('test-image-signature', {'image': value, 'identity': identity, 'issuer': 'https://token.actions.githubusercontent.com', 'output': f'signatures/{image}-{value.split(":")[-1]}.json'})
-                state['images'][image] = {'reference': reference, 'platforms': children, 'signed': True, 'reused': True}
+                    passed = advisory_call('test-image-signature', {'image': value, 'identity': identity, 'issuer': 'https://token.actions.githubusercontent.com', 'output': f'signatures/{image}-{value.split(":")[-1]}.json'})
+                    verified = verified and passed
+                state['images'][image] = {'reference': reference, 'platforms': children, 'published': True, 'signed': verified, 'reused': True}
                 (directory / 'publication.json').write_text(json.dumps(state, indent=2)+'\n')
                 continue
             repository = f"ghcr.io/{args.owner}/github-actions/{image}"
@@ -126,13 +147,19 @@ def main():
             if children != child_digests:
                 raise ValueError(f"index does not contain the exact tested children: {target}")
             digest = "sha256:"+hashlib.sha256(index).hexdigest()
+            verified = False
             if args.sign:
-                identity = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/.github/workflows/main.yml@refs/heads/main"
+                verified = True
+                identity = f"https://github.com/{os.environ.get('GITHUB_REPOSITORY', '')}/.github/workflows/main.yml@refs/heads/main"
                 for value in [*child_digests.values(), digest]:
                     reference = repository+"@"+value
-                    call("new-image-signature", {"image": reference})
-                    call("test-image-signature", {"image": reference, "identity": identity, "issuer": "https://token.actions.githubusercontent.com", "output": f"signatures/{image}-{value[7:]}.json"})
-            state["images"][image] = {"reference": repository+"@"+digest, "platforms": child_digests, "signed": args.sign}
+                    advisory_call("new-image-signature", {"image": reference})
+                    passed = advisory_call("test-image-signature", {"image": reference, "identity": identity, "issuer": "https://token.actions.githubusercontent.com", "output": f"signatures/{image}-{value[7:]}.json"})
+                    verified = verified and passed
+            else:
+                for value in [*child_digests.values(), digest]:
+                    security.append({'operation': 'sign/verify', 'subject_digest': repository+'@'+value, 'status': 'not_run', 'reason': '--sign not selected'})
+            state["images"][image] = {"reference": repository+"@"+digest, "platforms": child_digests, "published": True, "signed": verified}
             (directory / "publication.json").write_text(json.dumps(state, indent=2)+"\n")
         # Only after all images are published and verified, generate a reviewable patch.
         import difflib

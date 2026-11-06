@@ -1,4 +1,8 @@
-FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS build
+FROM quay.io/fedora/fedora:44@sha256:b3e011d47e686a89781495c9a87bc80349af742965e5d51e79cd51711982e4a2 AS build
+# Supporting RPMs follow the signed Fedora repository; the Go compiler is pinned.
+# hadolint ignore=DL3041
+RUN dnf install -y golang-1.26.10-1.fc44 git ca-certificates && dnf clean all
+ENV GOTOOLCHAIN=local
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY shared/catalog/ ./shared/catalog/
@@ -6,12 +10,14 @@ COPY shared/review/ ./shared/review/
 COPY shared/workflow/ ./shared/workflow/
 COPY maintenance/test-catalog-vulnerabilities/main.go ./maintenance/test-catalog-vulnerabilities/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./maintenance/test-catalog-vulnerabilities
-FROM ghcr.io/tdesaules/github-actions/oci-test-vulnerabilities@sha256:22c73b1ac3c57a61820442b4947e6ab42de6c524cc6fb1e074948b128dd91745 AS runtime
 FROM build AS patched-grype
 COPY shared/runtime/ ./shared/runtime/
 RUN sh shared/runtime/compile-grype.sh
 FROM scratch AS final
-COPY --from=runtime / /
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=patched-grype /runtime/ /
+COPY --from=patched-grype /tool-source/LICENSE /usr/share/licenses/grype/LICENSE
+COPY --from=build /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /etc/ssl/certs/ca-certificates.crt
 COPY --from=patched-grype /tool /usr/bin/grype
 COPY --from=build /entrypoint /entrypoint
 ENV PATH=/usr/bin HOME=/tmp

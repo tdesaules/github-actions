@@ -34,7 +34,7 @@ class RecoveryTests(unittest.TestCase):
         self.git('push', 'origin', 'main')
         self.base = self.git('rev-parse', 'HEAD')
         (self.artifacts/'release-plan.json').write_text(json.dumps({'base': self.base, 'version': '0.1.0'}))
-        (self.artifacts/'publication.json').write_text(json.dumps({'version': '0.1.0', 'images': {'oci-build-image': {'signed': True}}}))
+        (self.artifacts/'publication.json').write_text(json.dumps({'version': '0.1.0', 'images': {'oci-build-image': {'published': True, 'signed': False}}}))
         (self.artifacts/'action-digests.patch').write_text('')
 
     @staticmethod

@@ -160,7 +160,7 @@ func TestPrepareRejectsUnsafeArtifacts(t *testing.T) {
 	}
 }
 func TestAtomicReleaseAndRecovery(t *testing.T) {
-	for _, scenario := range []string{"success", "advanced-main", "rejected-push"} {
+	for _, scenario := range []string{"success", "unsigned", "unpublished", "advanced-main", "rejected-push"} {
 		t.Run(scenario, func(t *testing.T) {
 			directory, base := fixture(t)
 			if err := Prepare(directory, "fixture", filepath.Join(directory, "release-plan.json")); err != nil {
@@ -171,8 +171,8 @@ func TestAtomicReleaseAndRecovery(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, image := range state.Images {
-				image.Signed = true
-				image.Published = true
+				image.Signed = scenario != "unsigned"
+				image.Published = scenario != "unpublished"
 			}
 			if err = Save(directory, state); err != nil {
 				t.Fatal(err)
@@ -200,7 +200,7 @@ func TestAtomicReleaseAndRecovery(t *testing.T) {
 			t.Setenv("PATH", tools+string(os.PathListSeparator)+os.Getenv("PATH"))
 			t.Setenv("INPUT_TOKEN", "local-fixture-token")
 			err = Finish(directory)
-			if scenario == "success" {
+			if scenario == "success" || scenario == "unsigned" {
 				if err != nil {
 					t.Fatal(err)
 				}

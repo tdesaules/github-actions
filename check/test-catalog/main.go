@@ -12,6 +12,19 @@ import (
 var imageLine = regexp.MustCompile(`(?m)^(?:  image|        BUILDER_IMAGE): docker://([^\s]+)$`)
 var digest = regexp.MustCompile(`@sha256:[a-f0-9]{64}$`)
 
+var allowedBases = map[string]bool{
+	"quay.io/fedora/fedora-minimal": true, "quay.io/fedora/fedora": true,
+	"docker.io/library/alpine": true, "docker.io/chainguard/wolfi-base": true,
+	"docker.io/redhat/ubi10-micro": true, "docker.io/redhat/ubi10-minimal": true,
+}
+
+func reportBase(reference, directory string) {
+	repository := strings.Split(strings.Split(reference, "@")[0], ":")[0]
+	if reference != "scratch" && !allowedBases[repository] {
+		fmt.Fprintf(os.Stderr, "WARNING: %s: base/donor %s is outside the base allowlist; migration required\n", directory, reference)
+	}
+}
+
 func validate(root string) error {
 	owners := map[string]string{}
 	for _, family := range []string{"oci", "check", "lint", "workflow", "maintenance"} {
@@ -55,6 +68,36 @@ func validate(root string) error {
 			final := false
 			for _, line := range strings.Split(string(container), "\n") {
 				fields := strings.Fields(line)
+				if len(fields) > 0 && strings.EqualFold(fields[0], "RUN") {
+					for _, field := range fields[1:] {
+						if strings.HasPrefix(field, "--mount=") {
+							for _, option := range strings.Split(strings.TrimPrefix(field, "--mount="), ",") {
+								if strings.HasPrefix(option, "from=") {
+									source := strings.TrimPrefix(option, "from=")
+									if !stages[source] {
+										if !digest.MatchString(source) {
+											return fmt.Errorf("%s: unpinned image-backed mount %s", directory, source)
+										}
+										reportBase(source, directory)
+									}
+								}
+							}
+						}
+					}
+				}
+				if len(fields) > 0 && strings.EqualFold(fields[0], "COPY") {
+					for _, field := range fields[1:] {
+						if strings.HasPrefix(field, "--from=") {
+							source := strings.TrimPrefix(field, "--from=")
+							if !stages[source] {
+								if !digest.MatchString(source) {
+									return fmt.Errorf("%s: unpinned external donor %s", directory, source)
+								}
+								reportBase(source, directory)
+							}
+						}
+					}
+				}
 				if len(fields) == 0 || !strings.EqualFold(fields[0], "FROM") {
 					continue
 				}
@@ -65,18 +108,21 @@ func validate(root string) error {
 				if base != "scratch" && !stages[base] && !digest.MatchString(base) {
 					return fmt.Errorf("%s: unpinned base %s", directory, base)
 				}
+				if !stages[base] {
+					reportBase(base, directory)
+				}
 				stages[fields[3]] = true
-				final = base == "scratch" && fields[3] == "final"
+				final = fields[3] == "final"
 			}
 			if !final {
-				return fmt.Errorf("%s: last stage must be FROM scratch AS final", directory)
+				return fmt.Errorf("%s: last stage must be named final", directory)
 			}
 		}
 	}
 	if len(owners) == 0 {
 		return fmt.Errorf("no container actions found")
 	}
-	fmt.Printf("Validated %d independent scratch image definitions\n", len(owners))
+	fmt.Printf("Validated %d independent image definitions; base-policy warnings are reported separately\n", len(owners))
 	return nil
 }
 

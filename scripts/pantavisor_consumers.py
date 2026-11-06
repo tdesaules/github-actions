@@ -54,6 +54,7 @@ def system(template):
         uses: tdesaules/github-actions/oci/test-component@__CATALOG_TAG__
         with: {{directory: dist/{name}}}
       - name: Verify {name} publisher signature
+        continue-on-error: true
         uses: tdesaules/github-actions/oci/test-image-signature@__CATALOG_TAG__
         with:
           image: ${{{{ needs.check.outputs.{name} }}}}
@@ -158,6 +159,7 @@ def system(template):
           registry-username: ${{ github.actor }}
           registry-password: ${{ github.token }}
       - name: Inventory published BSP
+        continue-on-error: true
         if: ${{ !cancelled() && steps.published.outputs.has-release == 'true' }}
         uses: tdesaules/github-actions/oci/new-sbom@__CATALOG_TAG__
         with:

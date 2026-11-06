@@ -1,4 +1,8 @@
-FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS build
+FROM quay.io/fedora/fedora:44@sha256:b3e011d47e686a89781495c9a87bc80349af742965e5d51e79cd51711982e4a2 AS build
+# Supporting RPMs follow signed Fedora updates; publication never rebuilds them.
+# hadolint ignore=DL3041
+RUN dnf install -y golang-1.26.10-1.fc44 curl tar gzip && dnf clean all
+ENV GOTOOLCHAIN=local
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY shared/catalog/ ./shared/catalog/
@@ -6,15 +10,24 @@ COPY shared/publication/ ./shared/publication/
 COPY shared/runtime/ ./shared/runtime/
 COPY shared/workflow/ ./shared/workflow/
 COPY workflow/complete-release/main.go ./workflow/complete-release/main.go
-RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/complete-release \
-    && apk add --no-cache git=2.54.0-r0
-COPY shared/collect-binaries.sh /collect-binaries.sh
-RUN sh /collect-binaries.sh /usr/bin/git /bin/sh /usr/libexec/git-core/git-remote-http
-FROM ghcr.io/tdesaules/github-actions/workflow-new-release-plan@sha256:a48c968e989fc4def8703d229ce29eec52532522f1750fa60e3d6ac4fe12d5da AS runtime
-FROM scratch AS final
-COPY --from=runtime / /
-COPY --from=build /runtime/ /
-COPY --from=build /usr/libexec/git-core/ /usr/libexec/git-core/
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/complete-release
+# Upstream release asset SHA-256 values verified through GitHub's release API.
+RUN case "$(uname -m)" in \
+    x86_64) target=x86_64; sum=fa21e2fc70046fcfd0e43e5e4613873ab799aff3d9dc8559c00d31b270e417d0 ;; \
+    aarch64) target=aarch64; sum=4be21b21ec9699af4d330b224aeba8a41d41d8f5b351ca2da8a9ea2bdc36380f ;; \
+    *) exit 1 ;; esac \
+    && curl --fail --location --retry 3 "https://github.com/orhun/git-cliff/releases/download/v2.14.2/git-cliff-2.14.2-${target}-unknown-linux-musl.tar.gz" -o /tmp/cliff.tar.gz \
+    && printf '%s  /tmp/cliff.tar.gz\n' "$sum" > /tmp/cliff.sha256 \
+    && sha256sum -c /tmp/cliff.sha256 \
+    && mkdir /cliff && tar -xzf /tmp/cliff.tar.gz --strip-components=1 -C /cliff
+FROM quay.io/fedora/fedora:44@sha256:b3e011d47e686a89781495c9a87bc80349af742965e5d51e79cd51711982e4a2 AS final
+# Retain signed-repository updates and their RPM ownership metadata.
+# hadolint ignore=DL3041
+RUN dnf install -y --setopt=install_weak_deps=False git ca-certificates && dnf clean all
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=build /cliff/git-cliff /usr/local/bin/git-cliff
+COPY --from=build /cliff/LICENSE-APACHE /usr/share/licenses/git-cliff/LICENSE-APACHE
+COPY --from=build /cliff/LICENSE-MIT /usr/share/licenses/git-cliff/LICENSE-MIT
 COPY --from=build /entrypoint /entrypoint
 ENV PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp GIT_TERMINAL_PROMPT=0
 # Commits verified metadata in the runner checkout.

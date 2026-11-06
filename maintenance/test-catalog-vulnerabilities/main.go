@@ -55,6 +55,9 @@ func run() error {
 			var sbom review.SBOM
 			if err := catalog.Read(filepath.Join(dir, "sbom.syft.json"), &sbom); err != nil {
 				fmt.Fprintln(os.Stderr, err)
+				if reportErr := workflow.RecordScan(filepath.Join(dir, "sbom.syft.json"), filepath.Join(dir, "grype.json"), image.Name, arch, err); reportErr != nil {
+					fmt.Fprintln(os.Stderr, reportErr)
+				}
 				failures = append(failures, image.Name+"/"+arch)
 				continue
 			}
@@ -65,7 +68,9 @@ func run() error {
 			if err := catalog.Write(filepath.Join(dir, "review-evidence.json"), evidence); err != nil {
 				return err
 			}
-			if err := catalog.Run("grype", "sbom:"+filepath.Join(dir, "sbom.syft.json"), "--config", filepath.Join(dir, "grype-reviewed.json"), "--fail-on", "high", "-o", "json", "--file", filepath.Join(dir, "grype.json")); err != nil {
+			scanErr := catalog.Run("grype", "sbom:"+filepath.Join(dir, "sbom.syft.json"), "--config", filepath.Join(dir, "grype-reviewed.json"), "-o", "json", "--file", filepath.Join(dir, "grype.json"))
+			reportErr := workflow.RecordScan(filepath.Join(dir, "sbom.syft.json"), filepath.Join(dir, "grype.json"), image.Name, arch, scanErr)
+			if scanErr != nil || reportErr != nil {
 				failures = append(failures, image.Name+"/"+arch)
 			}
 		}

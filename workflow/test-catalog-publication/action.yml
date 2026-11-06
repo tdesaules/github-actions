@@ -1,0 +1,20 @@
+name: Test catalog publication
+description: Validate release tag provenance and exact published index/platform references without signature gating
+inputs:
+  tag:
+    description: Existing SemVer release tag matching the checkout
+    required: true
+  registry-username:
+    description: Optional registry username
+    default: ''
+  registry-password:
+    description: Optional registry read token
+    default: ''
+runs:
+  using: docker
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-catalog-publication:unpublished
+  env:
+    INPUT_REGISTRY-USERNAME: ${{ inputs.registry-username }}
+    INPUT_REGISTRY-PASSWORD: ${{ inputs.registry-password }}
+  args:
+    - --tag=${{ inputs.tag }}

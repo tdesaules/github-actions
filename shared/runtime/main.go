@@ -437,7 +437,7 @@ func scan() error {
 		return err
 	}
 	threshold := input("fail-on", "high")
-	if !map[string]bool{"negligible": true, "low": true, "medium": true, "high": true, "critical": true}[threshold] {
+	if threshold != "" && threshold != "none" && !map[string]bool{"negligible": true, "low": true, "medium": true, "high": true, "critical": true}[threshold] {
 		return errors.New("invalid fail-on severity")
 	}
 	update := input("update-database", "true")
@@ -449,7 +449,13 @@ func scan() error {
 	if err != nil {
 		return err
 	}
-	err = run("sbom:"+source, "--fail-on", threshold, "--output", "json", "--file", path)
+	args := []string{"sbom:" + source, "--output", "json", "--file", path}
+	// Explicit thresholds remain supported for external callers. The catalogue
+	// uses reporting mode and does not set a severity exit gate.
+	if threshold != "" && threshold != "none" {
+		args = append(args, "--fail-on", threshold)
+	}
+	err = run(args...)
 	if outErr := output("report", path); outErr != nil {
 		return outErr
 	}

@@ -1,12 +1,12 @@
 name: Test reviewed vulnerabilities
-description: Scan an evidence-reviewed candidate SBOM at high severity and retain the database snapshot
+description: Report candidate vulnerabilities without severity gating and retain database evidence
 inputs:
   sbom:
     description: Syft JSON candidate SBOM
     required: true
   config:
-    description: Evidence-derived Grype configuration
-    required: true
+    description: Evidence-derived Grype configuration; empty scans without exclusions
+    default: ''
   output:
     description: Grype JSON report path
     required: true

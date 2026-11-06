@@ -40,6 +40,10 @@ jobs:
       matrix:
         runner: ${{ inputs.qualify-runner && fromJSON('["ubuntu-24.04", "ubuntu-24.04-arm"]') || fromJSON('["ubuntu-24.04"]') }}
     runs-on: ${{ matrix.runner }}
+    services:
+      candidate-registry:
+        image: ghcr.io/tdesaules/github-actions/workflow-start-test-registry@sha256:c6732ab79e17ac5e6f51bbb58a3f95425dc60c345ca1ecf8b9a2b8933be2a976
+        ports: ['5000/tcp']
     permissions:
       contents: read
       actions: read
@@ -80,9 +84,16 @@ jobs:
           before: ${{ github.event.before }}
           after: ${{ github.sha }}
           full: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}
+      - name: Bootstrap policy-aware catalog validator
+        if: ${{ !cancelled() && steps.sources.outputs.catalog-changed == 'true' }}
+        uses: ./workflow/prepare-source-action
+        with:
+          directory: check/test-catalog
+          image: check-test-catalog
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Test catalog
         if: ${{ !cancelled() && steps.sources.outputs.catalog-changed == 'true' }}
-        uses: ./check/test-catalog
+        uses: ./.source-actions/check/test-catalog
       - name: Test Python
         if: ${{ !cancelled() && steps.sources.outputs.python-changed == 'true' }}
         uses: ./check/test-python
@@ -257,6 +268,8 @@ jobs:
       # also produces its scan helper. If selected itself, the normal steps above
       # own that archive. Never force unrelated catalogue images to rebuild.
       - name: Build source reviewer dependency
+        timeout-minutes: 30
+        continue-on-error: true
         if: >-
           matrix.image == fromJSON(needs.check.outputs.matrix).include[0].image &&
           !contains(fromJSON(needs.check.outputs.matrix).include.*.image, 'workflow-new-vulnerability-review')
@@ -271,6 +284,8 @@ jobs:
           labels: '{"org.opencontainers.image.revision":"${{ github.sha }}"}'
           output: reviewer.oci.tar
       - name: Record source reviewer dependency receipt
+        id: reviewer-receipt
+        continue-on-error: true
         if: steps.reviewer-archive.outcome == 'success'
         uses: ./workflow/new-build-receipt
         with:
@@ -282,7 +297,8 @@ jobs:
           revision: ${{ github.sha }}
           version: ${{ env.VERSION }}
       - name: Transfer source reviewer dependency
-        if: steps.reviewer-archive.outcome == 'success'
+        continue-on-error: true
+        if: steps.reviewer-receipt.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: reviewer-${{ matrix.arch }}-${{ github.run_id }}
@@ -450,6 +466,19 @@ jobs:
           repository: ${{ github.repository }}
           tag: invalid
           token: unused-fixture-token
+      - name: Reject an invalid catalog publication tag
+        if: matrix.image == 'workflow-test-catalog-publication'
+        id: invalid-catalog-tag
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/test-catalog-publication
+        with:
+          tag: v1.0.0
+      - name: Assert catalog publication rejection
+        if: matrix.image == 'workflow-test-catalog-publication'
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: '["invalid-catalog-tag"]'
       - name: Reject unwritable catalogue SBOM output
         if: matrix.image == 'maintenance-new-catalog-sboms'
         id: invalid-catalog-sbom
@@ -1042,6 +1071,7 @@ jobs:
         if: matrix.image == 'oci-test-vulnerabilities'
         uses: ./.candidate-actions/oci/test-vulnerabilities
         with:
+          fail-on: none
           sbom: .build/fixtures/sbom.json
           output: .build/fixtures/reports with spaces/grype.json
       - name: Test native signing disabled path
@@ -1066,6 +1096,8 @@ jobs:
           absent-files: >-
             ${{ toJSON(fromJSON('{"oci-build-image":[".build/fixtures/invalid-platform.oci.tar",".build/fixtures/failed-run.oci.tar"],"oci-merge-image-index":[".build/fixtures/untrusted-index.json"],"workflow-new-build-receipt":[".build/fixtures/rejected-build.json"]}')[matrix.image] || fromJSON('[]')) }}
       - name: Generate SPDX from the exact candidate archive
+        timeout-minutes: 15
+        id: security-spdx
         if: matrix.rebuild || matrix.scan
         continue-on-error: true
         uses: ./oci/new-sbom
@@ -1073,6 +1105,8 @@ jobs:
           source: oci-archive:.build/${{ matrix.image }}/${{ matrix.arch }}/${{ matrix.rebuild && 'image' || 'scan' }}.oci.tar
           output: .build/${{ matrix.image }}/${{ matrix.arch }}/sbom.spdx.json
       - name: Capture candidate package symbols and file hashes
+        timeout-minutes: 15
+        id: security-sbom
         if: matrix.rebuild || matrix.scan
         continue-on-error: true
         uses: ./oci/new-sbom
@@ -1084,13 +1118,17 @@ jobs:
           format: syft-json
           output: .build/${{ matrix.image }}/${{ matrix.arch }}/sbom.syft.json
       - name: Download source reviewer archive
+        id: security-review-download
+        continue-on-error: true
         if: matrix.rebuild || matrix.scan
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: ${{ contains(fromJSON(needs.check.outputs.matrix).include.*.image, 'workflow-new-vulnerability-review') && format('build-workflow-new-vulnerability-review-{0}-{1}', matrix.arch, github.run_id) || format('reviewer-{0}-{1}', matrix.arch, github.run_id) }}
           path: .build/reviewer/${{ matrix.arch }}
       - name: Verify source reviewer archive
-        if: matrix.rebuild || matrix.scan
+        id: security-review-integrity
+        continue-on-error: true
+        if: (matrix.rebuild || matrix.scan) && steps.security-review-download.outcome == 'success'
         uses: ./workflow/test-build-artifact
         with:
           archive: .build/reviewer/${{ matrix.arch }}/${{ contains(fromJSON(needs.check.outputs.matrix).include.*.image, 'workflow-new-vulnerability-review') && 'image.oci.tar' || 'reviewer.oci.tar' }}
@@ -1100,7 +1138,9 @@ jobs:
           revision: ${{ github.sha }}
           version: ${{ env.VERSION }}
       - name: Qualify source reviewer runtime
-        if: matrix.rebuild || matrix.scan
+        id: security-review-runtime
+        continue-on-error: true
+        if: (matrix.rebuild || matrix.scan) && steps.security-review-integrity.outcome == 'success'
         uses: ./workflow/test-candidate-runtime
         with:
           archive: .build/reviewer/${{ matrix.arch }}/${{ contains(fromJSON(needs.check.outputs.matrix).include.*.image, 'workflow-new-vulnerability-review') && 'image.oci.tar' || 'reviewer.oci.tar' }}
@@ -1109,22 +1149,27 @@ jobs:
           revision: ${{ github.sha }}
           output: .build/reviewer/${{ matrix.arch }}/runtime-tests.json
       - name: Transfer source reviewer to private registry
-        if: matrix.rebuild || matrix.scan
-        id: reviewer
+        if: (matrix.rebuild || matrix.scan) && steps.security-review-runtime.outcome == 'success'
+        id: security-review-transfer
+        continue-on-error: true
         uses: ./workflow/import-candidate-image
         with:
           archive: .build/reviewer/${{ matrix.arch }}/${{ contains(fromJSON(needs.check.outputs.matrix).include.*.image, 'workflow-new-vulnerability-review') && 'image.oci.tar' || 'reviewer.oci.tar' }}
           repository: workflow-new-vulnerability-review
           host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Prepare source reviewer action
-        if: matrix.rebuild || matrix.scan
+        id: security-review-prepare
+        continue-on-error: true
+        if: (matrix.rebuild || matrix.scan) && steps.security-review-transfer.outcome == 'success'
         uses: ./workflow/new-candidate-action
         with:
           directory: workflow/new-vulnerability-review
-          image: ${{ steps.reviewer.outputs.image }}
+          image: ${{ steps.security-review-transfer.outputs.image }}
           destination: .candidate-actions/workflow/new-vulnerability-review
       - name: Derive evidence-backed vulnerability review
-        if: matrix.rebuild || matrix.scan
+        timeout-minutes: 15
+        id: security-review
+        if: (matrix.rebuild || matrix.scan) && steps.security-review-prepare.outcome == 'success' && steps.security-sbom.outcome == 'success'
         continue-on-error: true
         uses: ./.candidate-actions/workflow/new-vulnerability-review
         with:
@@ -1132,15 +1177,53 @@ jobs:
           sbom: .build/${{ matrix.image }}/${{ matrix.arch }}/sbom.syft.json
           output: .build/${{ matrix.image }}/${{ matrix.arch }}/grype-reviewed.json
           evidence: .build/${{ matrix.image }}/${{ matrix.arch }}/review-evidence.json
-      - name: Scan exact candidate at high severity
-        if: matrix.rebuild || matrix.scan
+      - name: Bootstrap reporting-only scanner
+        timeout-minutes: 30
+        id: security-scanner-bootstrap
+        if: (matrix.rebuild || matrix.scan) && steps.security-sbom.outcome == 'success'
         continue-on-error: true
-        uses: ./workflow/test-reviewed-vulnerabilities
+        uses: ./workflow/prepare-source-action
+        with:
+          directory: workflow/test-reviewed-vulnerabilities
+          image: workflow-test-reviewed-vulnerabilities
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Report exact candidate vulnerabilities
+        id: security-scan
+        timeout-minutes: 15
+        if: (matrix.rebuild || matrix.scan) && steps.security-sbom.outcome == 'success' && steps.security-scanner-bootstrap.outcome == 'success'
+        continue-on-error: true
+        uses: ./.source-actions/workflow/test-reviewed-vulnerabilities
+        env:
+          SECURITY_COMPONENT: ${{ matrix.image }}
+          SECURITY_ARCHITECTURE: ${{ matrix.arch }}
         with:
           sbom: .build/${{ matrix.image }}/${{ matrix.arch }}/sbom.syft.json
-          config: .build/${{ matrix.image }}/${{ matrix.arch }}/grype-reviewed.json
+          config: ${{ steps.security-review.outcome == 'success' && format('.build/{0}/{1}/grype-reviewed.json', matrix.image, matrix.arch) || '' }}
           output: .build/${{ matrix.image }}/${{ matrix.arch }}/grype.json
           database-metadata: .build/${{ matrix.image }}/${{ matrix.arch }}/grype-db.json
+      - name: Bootstrap advisory security summary
+        timeout-minutes: 15
+        id: security-summary-bootstrap
+        if: always() && (matrix.rebuild || matrix.scan)
+        continue-on-error: true
+        uses: ./workflow/prepare-source-action
+        with:
+          directory: workflow/test-step-outcomes
+          image: workflow-test-step-outcomes
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Summarize advisory security outcomes
+        timeout-minutes: 5
+        if: always() && (matrix.rebuild || matrix.scan) && steps.security-summary-bootstrap.outcome == 'success'
+        continue-on-error: true
+        uses: ./.source-actions/workflow/test-step-outcomes
+        env:
+          SECURITY_SUBJECT: ${{ steps.candidate.outputs.image || matrix.reference }}
+          SECURITY_COMPONENT: ${{ matrix.image }}
+          SECURITY_ARCHITECTURE: ${{ matrix.arch }}
+          SECURITY_REPORT: .build/${{ matrix.image }}/${{ matrix.arch }}/grype.json
+          SECURITY_OUTPUT: .build/${{ matrix.image }}/${{ matrix.arch }}/security-status.json
+        with:
+          outcomes: ${{ toJSON(steps) }}
       - name: Recheck archive integrity after qualification
         if: matrix.rebuild
         uses: ./workflow/test-build-artifact
@@ -1161,7 +1244,7 @@ jobs:
           revision: ${{ github.sha }}
           version: ${{ env.VERSION }}
           output: .build/${{ matrix.image }}/${{ matrix.arch }}/metadata.json
-      - name: Upload archive and reports including failure diagnostics
+      - name: Upload exact archive and functional receipts
         if: always() && matrix.rebuild
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -1169,11 +1252,13 @@ jobs:
           overwrite: true
           path: |
             .build/${{ matrix.image }}/${{ matrix.arch }}/image.oci.tar
-            .build/${{ matrix.image }}/${{ matrix.arch }}/*.json
+            .build/${{ matrix.image }}/${{ matrix.arch }}/build.json
+            .build/${{ matrix.image }}/${{ matrix.arch }}/metadata.json
           if-no-files-found: error
           include-hidden-files: true
       - name: Retain native test diagnostics
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: test-${{ matrix.image }}-${{ matrix.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -1199,6 +1284,10 @@ jobs:
       ((needs.check.outputs.mode == 'prepare' && needs.check.outputs.release-changed == 'true') ||
        needs.check.outputs.mode == 'release')
     runs-on: ubuntu-24.04
+    services:
+      candidate-registry:
+        image: ghcr.io/tdesaules/github-actions/workflow-start-test-registry@sha256:c6732ab79e17ac5e6f51bbb58a3f95425dc60c345ca1ecf8b9a2b8933be2a976
+        ports: ['5000/tcp']
     permissions:
       contents: write
       actions: read
@@ -1212,7 +1301,24 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Reject premature release tags
+      - name: Bootstrap tag publication validator
+        if: needs.check.outputs.mode == 'release'
+        uses: ./workflow/prepare-source-action
+        with:
+          directory: workflow/test-catalog-publication
+          image: workflow-test-catalog-publication
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Validate tag provenance and exact published catalog
+        if: needs.check.outputs.mode == 'release'
+        uses: ./.source-actions/workflow/test-catalog-publication
+        with:
+          tag: ${{ github.ref_name }}
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ github.token }}
+      - name: Report release tag signatures
+        id: security-signatures-verify-tag
+        timeout-minutes: 15
+        continue-on-error: true
         if: needs.check.outputs.mode == 'release'
         uses: ./workflow/test-catalog-signatures
         with:
@@ -1220,7 +1326,7 @@ jobs:
           tag: ${{ github.ref_name }}
           registry-username: ${{ github.actor }}
           registry-password: ${{ github.token }}
-      - name: Publish verified GitHub Release
+      - name: Publish functionally qualified GitHub Release
         if: needs.check.outputs.mode == 'release'
         uses: ./workflow/new-github-release
         with:
@@ -1264,23 +1370,69 @@ jobs:
           registry-username: ${{ github.actor }}
           registry-password: ${{ github.token }}
       - name: Sign newly published platform and index digests
+        id: security-signatures-sign
+        timeout-minutes: 20
+        continue-on-error: true
         if: needs.check.outputs.mode == 'prepare'
         uses: ./workflow/new-catalog-signatures
         with:
           registry-username: ${{ github.actor }}
           registry-password: ${{ github.token }}
       - name: Verify new and reused image signatures
+        id: security-signatures-verify
+        timeout-minutes: 20
+        continue-on-error: true
         if: needs.check.outputs.mode == 'prepare'
         uses: ./workflow/test-catalog-signatures
         with:
           repository: ${{ github.repository }}
           registry-username: ${{ github.actor }}
           registry-password: ${{ github.token }}
+      - name: Bootstrap functional release finalization
+        if: needs.check.outputs.mode == 'prepare'
+        uses: ./workflow/prepare-source-action
+        with:
+          directory: workflow/complete-release
+          image: workflow-complete-release
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Commit pins and atomically push release tag
         if: needs.check.outputs.mode == 'prepare'
-        uses: ./workflow/complete-release
+        uses: ./.source-actions/workflow/complete-release
         with:
           token: ${{ steps.app.outputs.token }}
+      - name: Bootstrap release security summary
+        id: security-summary-bootstrap
+        timeout-minutes: 15
+        if: always()
+        continue-on-error: true
+        uses: ./workflow/prepare-source-action
+        with:
+          directory: workflow/test-step-outcomes
+          image: workflow-test-step-outcomes
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Summarize release security outcomes
+        timeout-minutes: 5
+        if: always() && steps.security-summary-bootstrap.outcome == 'success'
+        continue-on-error: true
+        uses: ./.source-actions/workflow/test-step-outcomes
+        env:
+          SECURITY_SUBJECT: ${{ github.sha }}
+          SECURITY_OUTPUT: .build/publication/security-status.json
+        with:
+          outcomes: ${{ toJSON(steps) }}
+      - name: Retain release security diagnostics
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-security-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .build/publication/security-status.json
+            .build/publication/signing-status.json
+            .build/publication/verification-status.json
+            .build/publication/signatures/*.json
+          if-no-files-found: warn
+          include-hidden-files: true
       - name: Retain publication journal and digest patch
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -1289,7 +1441,6 @@ jobs:
           path: |
             .build/publication/publication.json
             .build/publication/action-digests.patch
-            .build/publication/signatures/*.json
             .build/publication/indexes/*.json
             .build/publication/release-plan.json
           if-no-files-found: warn
@@ -1298,6 +1449,10 @@ jobs:
   maintenance:
     if: github.event_name == 'schedule' || inputs.maintenance
     runs-on: ubuntu-24.04
+    services:
+      candidate-registry:
+        image: ghcr.io/tdesaules/github-actions/workflow-start-test-registry@sha256:c6732ab79e17ac5e6f51bbb58a3f95425dc60c345ca1ecf8b9a2b8933be2a976
+        ports: ['5000/tcp']
     permissions:
       contents: read
       packages: read
@@ -1307,10 +1462,26 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - name: Generate SBOMs for both published architectures
+        timeout-minutes: 120
+        id: security-sboms
+        continue-on-error: true
         uses: ./maintenance/new-catalog-sboms
-      - name: Scan catalogue with refreshed vulnerability database
+      - name: Bootstrap maintenance scanner
+        timeout-minutes: 30
+        id: security-scanner-bootstrap
         if: '!cancelled()'
-        uses: ./maintenance/test-catalog-vulnerabilities
+        continue-on-error: true
+        uses: ./workflow/prepare-source-action
+        with:
+          directory: maintenance/test-catalog-vulnerabilities
+          image: maintenance-test-catalog-vulnerabilities
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Scan catalogue with refreshed vulnerability database
+        timeout-minutes: 60
+        id: security-catalog-scan
+        continue-on-error: true
+        if: ${{ !cancelled() && steps.security-scanner-bootstrap.outcome == 'success' }}
+        uses: ./.source-actions/maintenance/test-catalog-vulnerabilities
       - name: Select documentation links
         if: '!cancelled()'
         id: documents
@@ -1330,8 +1501,29 @@ jobs:
           repository: ${{ github.repository }}
           token: ${{ secrets.RENOVATE_TOKEN }}
           dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.renovate-dry-run }}
+      - name: Bootstrap maintenance security summary
+        id: security-summary-bootstrap
+        timeout-minutes: 15
+        if: always()
+        continue-on-error: true
+        uses: ./workflow/prepare-source-action
+        with:
+          directory: workflow/test-step-outcomes
+          image: workflow-test-step-outcomes
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Summarize maintenance security outcomes
+        timeout-minutes: 5
+        if: always() && steps.security-summary-bootstrap.outcome == 'success'
+        continue-on-error: true
+        uses: ./.source-actions/workflow/test-step-outcomes
+        env:
+          SECURITY_SUBJECT: ${{ github.sha }}
+          SECURITY_OUTPUT: .build/maintenance/security-status.json
+        with:
+          outcomes: ${{ toJSON(steps) }}
       - name: Upload maintenance reports
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: maintenance-${{ github.run_id }}

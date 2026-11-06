@@ -2,13 +2,23 @@
 
 ## Images minimales
 
-Chaque opération possède son action, son exécutable Go et son image multistage
-terminée par `FROM scratch`. Les outils OCI sont reconstruits depuis leurs sources
-amont épinglées. Les certificats, configurations, bibliothèques et auxiliaires
-nécessaires sont copiés explicitement. Buildah utilise une liaison statique musl
-avec CGO. Les actions de tests Go/Python et Renovate embarquent les compilateurs,
-interpréteurs ou shells nécessaires à leur fonction ; `scratch` ne signifie pas
-absence de runtime. Les linters sont sous `lint/`, les suites sous `check/`.
+Chaque opération possède son action, son exécutable Go et son image multistage.
+Privilégier `scratch` pour les outils autonomes dont les dépendances complètes
+s'y prêtent. Pour un environnement de compilation nécessitant shell, Python,
+Git et compilateurs, conserver une distribution maintenue et sa gestion des
+paquets plutôt que reconstruire manuellement cet environnement dans scratch.
+Les compilateurs sont alors des dépendances d'exécution légitimes de l'action.
+Les linters sont sous `lint/`, les suites sous `check/`.
+
+Les bases autorisées, pour tous les stages et donneurs externes, sont
+`quay.io/fedora/fedora-minimal`, `quay.io/fedora/fedora`, `scratch`,
+`docker.io/library/alpine`, `docker.io/chainguard/wolfi-base`,
+`docker.io/redhat/ubi10-micro` et `docker.io/redhat/ubi10-minimal`.
+Choisir selon compatibilité, maintenance sécurité puis taille ; une base minimale
+ne garantit pas moins de CVE après installation des dépendances. Résoudre les
+digests et architectures réels. Conserver les licences et métadonnées de paquets.
+Les anciens donneurs hors liste restent une dette de migration signalée, pas
+des bases implicitement approuvées. Le dernier stage est nommé `final`.
 
 Les labels titre/source/licence sont présents. Les versions outil sont celles
 des Containerfiles ; elles ne sont pas les versions du catalogue ou des images
@@ -51,7 +61,8 @@ et architecture, jamais un output matriciel partagé.
 
 1. Créer `oci/<verbe-approuvé>-<nom>/action.yml` et son README.
 2. Ajouter son propre Containerfile multi-stage avec bases épinglées et étape
-   finale scratch. Son image se nomme `oci-<verbe-approuvé>-<nom>`.
+   finale adaptée aux besoins et nommée `final`. Son image se nomme
+   `oci-<verbe-approuvé>-<nom>`.
 3. Ajouter son `main.go` fixant l'opération et ses arguments autorisés, sans
    sélecteur d'opération à l'exécution ni interprétation de commande.
 4. Ajouter fixtures positives/négatives et tests de scripts, d'image et d'action.
@@ -62,3 +73,24 @@ et architecture, jamais un output matriciel partagé.
 Les contrôles `check` possèdent chacun leur image et leur exécutable ciblé.
 Les formats BitBake, Yocto, C, patches et templates LXC ne
 sont pas annoncés comme lintés par le socle OCI.
+
+## Sécurité consultative
+
+SBOM, Grype, revues, signatures et vérifications de signatures produisent des
+rapports consultatifs, y compris en cas d'erreur d'outil. `high` est une priorité
+de présentation, pas un seuil d'échec du catalogue. Les résultats réels utilisent
+`steps.<id>.outcome`, jamais la conclusion rendue verte par `continue-on-error`.
+Une erreur ou une opération non exécutée n'est pas un résultat sain.
+
+Builds, tests fonctionnels, identité source/plateforme, intégrité des archives et
+publication restent bloquants. `tested: true` signifie qualification fonctionnelle.
+`workflow/test-catalog-publication` contrôle les tags/indexes indépendamment de
+Cosign. Une publication peut comporter des alertes ou ne pas être signée : le
+journal et le résumé doivent le dire. Les diagnostics sécurité sont transférés
+séparément des archives/reçus obligatoires.
+
+Le pont temporaire `workflow/prepare-source-action` exécute les versions source
+de la validation et du reporting tant que leurs nouvelles images ne sont pas
+publiées. Il vérifie les archives et prépare des références immuables dans un
+registre de job. Supprimer ses appels après publication et épinglage des vrais
+digests ; ne pas confondre ce bootstrap avec l'activation des consommateurs.

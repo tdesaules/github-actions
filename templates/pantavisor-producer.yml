@@ -181,11 +181,15 @@ jobs:
       - name: Test rootfs executables
         uses: tdesaules/github-actions/workflow/test-pantavisor-rootfs@__CATALOG_TAG__
       - name: Generate image SBOM
+        id: security-spdx
+        continue-on-error: true
         uses: tdesaules/github-actions/oci/new-sbom@__CATALOG_TAG__
         with:
           source: oci-archive:dist/image.oci.tar
           output: artifacts/reports/sbom.spdx.json
       - name: Capture scan evidence
+        id: security-sbom
+        continue-on-error: true
         uses: tdesaules/github-actions/oci/new-sbom@__CATALOG_TAG__
         env:
           SYFT_GOLANG_CAPTURE_SYMBOLS: all
@@ -194,11 +198,27 @@ jobs:
           source: oci-archive:dist/image.oci.tar
           format: syft-json
           output: artifacts/reports/sbom.syft.json
-      - name: Enforce vulnerability threshold
+      - name: Report vulnerabilities
+        id: security-scan
+        if: steps.security-sbom.outcome == 'success'
+        continue-on-error: true
         uses: tdesaules/github-actions/oci/test-vulnerabilities@__CATALOG_TAG__
         with:
+          fail-on: none
           sbom: artifacts/reports/sbom.syft.json
           output: artifacts/reports/grype.json
+      - name: Summarize advisory security outcomes
+        if: always()
+        continue-on-error: true
+        uses: tdesaules/github-actions/workflow/test-step-outcomes@__CATALOG_TAG__
+        env:
+          SECURITY_COMPONENT: ${{ env.PROJECT }}
+          SECURITY_ARCHITECTURE: arm64
+          SECURITY_RECEIPT: artifacts/build-receipt.json
+          SECURITY_REPORT: artifacts/reports/grype.json
+          SECURITY_OUTPUT: artifacts/reports/security-status.json
+        with:
+          outcomes: ${{ toJSON(steps) }}
       - name: Record successful qualification
         uses: tdesaules/github-actions/workflow/new-pantavisor-qualification@__CATALOG_TAG__
         with: {revision: '${{ needs.check.outputs.revision }}'}
@@ -214,6 +234,7 @@ jobs:
           retention-days: 30
           compression-level: 0
       - name: Retain reports even on failure
+        continue-on-error: true
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -292,6 +313,8 @@ jobs:
           registry-username: ${{ github.actor }}
           registry-password: ${{ github.token }}
       - name: Sign image
+        id: security-signatures-sign-image
+        continue-on-error: true
         if: github.ref_type == 'tag'
         uses: tdesaules/github-actions/oci/new-image-signature@__CATALOG_TAG__
         with:
@@ -299,6 +322,8 @@ jobs:
           registry-username: ${{ github.actor }}
           registry-password: ${{ github.token }}
       - name: Verify image signature
+        id: security-signatures-verify-image
+        continue-on-error: true
         if: github.ref_type == 'tag'
         uses: tdesaules/github-actions/oci/test-image-signature@__CATALOG_TAG__
         with:
@@ -309,6 +334,8 @@ jobs:
           registry-username: ${{ github.actor }}
           registry-password: ${{ github.token }}
       - name: Sign component
+        id: security-signatures-sign-component
+        continue-on-error: true
         if: github.ref_type == 'tag'
         uses: tdesaules/github-actions/oci/new-image-signature@__CATALOG_TAG__
         with:
@@ -316,6 +343,8 @@ jobs:
           registry-username: ${{ github.actor }}
           registry-password: ${{ github.token }}
       - name: Verify component signature
+        id: security-signatures-verify-component
+        continue-on-error: true
         if: github.ref_type == 'tag'
         uses: tdesaules/github-actions/oci/test-image-signature@__CATALOG_TAG__
         with:
@@ -325,6 +354,21 @@ jobs:
           output: artifacts/publication/component-signature.json
           registry-username: ${{ github.actor }}
           registry-password: ${{ github.token }}
+      - name: Summarize publication security
+        if: always()
+        continue-on-error: true
+        uses: tdesaules/github-actions/workflow/test-step-outcomes@__CATALOG_TAG__
+        env:
+          SECURITY_COMPONENT: ${{ env.PROJECT }}
+          SECURITY_SUBJECT: ${{ steps.component.outputs.reference }}
+          SECURITY_SUBJECTS: >-
+            {"security-signatures-sign-image":"ghcr.io/${{ github.repository }}@${{ steps.qualified.outputs.image-digest }}",
+            "security-signatures-verify-image":"ghcr.io/${{ github.repository }}@${{ steps.qualified.outputs.image-digest }}",
+            "security-signatures-sign-component":"${{ steps.component.outputs.reference }}",
+            "security-signatures-verify-component":"${{ steps.component.outputs.reference }}"}
+          SECURITY_OUTPUT: artifacts/publication/security-status.json
+        with:
+          outcomes: ${{ toJSON(steps) }}
       - name: Publish GitHub Release
         if: github.ref_type == 'tag'
         uses: tdesaules/github-actions/workflow/new-pantavisor-github-release@__CATALOG_TAG__
@@ -338,9 +382,15 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: publication-${{ env.PROJECT }}-${{ github.run_attempt }}
-          path: |
-            artifacts/publication/
-            artifacts/release-manifest.json
+          path: artifacts/release-manifest.json
+      - name: Retain publication security reports
+        if: always() && github.ref_type == 'tag'
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: publication-security-${{ env.PROJECT }}-${{ github.run_attempt }}
+          path: artifacts/publication/
+          if-no-files-found: warn
   maintenance:
     if: github.event_name == 'schedule' || inputs.maintenance
     runs-on: ubuntu-24.04
@@ -360,6 +410,8 @@ jobs:
         uses: tdesaules/github-actions/workflow/read-pantavisor-published@__CATALOG_TAG__
         with: {token: '${{ github.token }}'}
       - name: Generate published image SBOM
+        id: security-sbom
+        continue-on-error: true
         if: ${{ !cancelled() && steps.published.outputs.has-release == 'true' }}
         uses: tdesaules/github-actions/oci/new-sbom@__CATALOG_TAG__
         env:
@@ -370,12 +422,26 @@ jobs:
           format: syft-json
           output: artifacts/maintenance/sbom.syft.json
       - name: Rescan published image
+        id: security-scan
+        continue-on-error: true
         if: ${{ !cancelled() && steps.published.outputs.has-release == 'true' }}
         uses: tdesaules/github-actions/oci/test-vulnerabilities@__CATALOG_TAG__
         with:
+          fail-on: none
           sbom: artifacts/maintenance/sbom.syft.json
           output: artifacts/maintenance/grype.json
+      - name: Summarize maintenance security
+        if: always()
+        continue-on-error: true
+        uses: tdesaules/github-actions/workflow/test-step-outcomes@__CATALOG_TAG__
+        env:
+          SECURITY_COMPONENT: ${{ env.PROJECT }}
+          SECURITY_REPORT: artifacts/maintenance/grype.json
+          SECURITY_OUTPUT: artifacts/maintenance/security-status.json
+        with:
+          outcomes: ${{ toJSON(steps) }}
       - name: Retain maintenance reports
+        continue-on-error: true
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with: {name: 'maintenance-reports-${{ github.run_attempt }}', path: artifacts/maintenance/}

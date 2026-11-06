@@ -52,7 +52,7 @@ class ReleaseTests(unittest.TestCase):
             git('push', 'origin', 'main')
             base = git('rev-parse', 'HEAD')
             (artifacts/'release-plan.json').write_text(json.dumps({'base': base, 'version': '0.1.0'}))
-            (artifacts/'publication.json').write_text(json.dumps({'version': '0.1.0', 'images': {'buildah': {'signed': True}}}))
+            (artifacts/'publication.json').write_text(json.dumps({'version': '0.1.0', 'images': {'buildah': {'published': True, 'signed': False}}}))
             (artifacts/'action-digests.patch').write_text('')
             original_run = subprocess.run
 
