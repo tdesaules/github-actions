@@ -199,12 +199,33 @@ memory limit-hit and OOM counters remained zero. This is not a cold result.
 Fresh Core, k0s and System cold builds are now running sequentially from new
 checkouts of the same producer commits, with resource sampling. Their fixed
 AMD64 image ID is `b3118610aae23f9c0ef3821e421b2bd7f7a801bafcf0641b693ef9a91e535e9a`,
-matching the scanned init archive. Full cold, hosted and platform qualification
-remain pending.
+matching the scanned init archive. Full cold and platform qualification remain
+pending.
 
-Native hosted AMD64/ARM64 Docker-action execution, publication and consumer
-activation remain outstanding. Security reporting is now advisory under the
+Publication and consumer activation remain outstanding. Security reporting is now advisory under the
 [new policy](ci-policy-transition.md); functional failures still block release.
+
+## Hosted incremental qualification
+
+[Run 42230534480](https://github.com/tdesaules/github-actions/actions/runs/42230534480)
+completed successfully on `f06aa2599674f25970c9b8db1a5900f593e0e62f`:
+six successful jobs (check, lint, native AMD64/ARM64 KAS builds and tests), with
+release and maintenance intentionally skipped.
+
+Both architecture reports were downloaded and inspected, independently of the
+green job conclusions. SBOM generation, reviewer preparation/evaluation and
+Grype execution all succeeded; each raw scan contains **zero matches and zero
+ignored matches**. The advisory security policy did not conceal scanner failures.
+
+This was an incremental KAS run, not a full-catalogue qualification. Checks for
+unselected action implementations were skipped. The native runtime and invalid
+KAS-project checks ran; the separate synthetic orphan-lifecycle fixture and full
+consumer builds were not executed by this hosted workflow. Their local evidence
+and pending cold results remain separate.
+
+The preceding full run `42207227780` was cancelled after 241 successful jobs,
+50 cancelled jobs and one skipped job, with no recorded failed job. It must not
+be treated as completed catalogue qualification.
 
 ## Evidence locations
 
@@ -230,5 +251,7 @@ activation remain outstanding. Security reporting is now advisory under the
   retains its failed bounded-only cold attempt.
 - `.build/kas-fedora45-init-cold/`: fresh cold checkouts, fixed builder/source
   identities, resource samples and final reports for the init candidate.
+- `/tmp/opencode/ci-42230534480/`: hosted native KAS diagnostics, security outcome
+  summaries, SBOMs and Grype reports for both architectures.
 - `/tmp/opencode/kas-fedora/`: superseded Fedora 44 experiment, retained for
   comparison rather than promoted as final qualification.
