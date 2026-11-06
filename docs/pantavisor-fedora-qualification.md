@@ -218,9 +218,9 @@ recorded PID-limit, memory-limit and OOM counters stayed zero. Transient zombie
 samples are not persistent accumulation and are reported rather than hidden.
 
 These are complete local cold compilation/output-staging results on an AMD64
-builder targeting the consumers' ARM64 outputs. They do not establish native
-ARM64 cold-build execution, QEMU/platform qualification, publication or consumer
-workflow activation.
+builder targeting the consumers' ARM64 outputs. Native ARM64 cold-build execution,
+publication and consumer workflow activation remain separate. Local platform
+qualification is recorded below.
 
 Publication and consumer activation remain outstanding. Security reporting is now advisory under the
 [new policy](ci-policy-transition.md); functional failures still block release.
@@ -246,6 +246,37 @@ fixture and successful cold-build evidence above remain separate.
 The preceding full run `42207227780` was cancelled after 241 successful jobs,
 50 cancelled jobs and one skipped job, with no recorded failed job. It must not
 be treated as completed catalogue qualification.
+
+## Local platform qualification from the new cold outputs
+
+Core/k0s component and System BSP packaging consumed the staged, provenance-bound
+outputs of the successful init-enabled cold builds, without rebuilding. Both
+platform bundles were assembled from those exports. ARM64 binary smoke checks
+passed for Core and k0s, using the dedicated rootfs action and user-mode QEMU.
+
+The dedicated platform action then ran QEMU **10.2.2** on the AMD64 host against
+both assembled ARM64 profiles. All seven requested scenarios passed per profile:
+`missing-system`, `unreadable-system`, `missing-store`, `invalid-env`, `normal`,
+`powercut`, and `dedicated-recovery`. The normal scenario additionally checks
+clock synchronization, health, a changed boot ID after reboot, and transition
+into recovery. Recovery verifies persistent storage is not mounted and that the
+serial console executes a command.
+
+For k0s, API/node readiness, deployment/client readiness, service DNS/routing,
+cross-pod HTTP and persistent-volume data were checked before and after reboot.
+The post-reboot persistence token was recovered successfully. These are local VM
+results, not physical-board or activated-consumer workflow execution.
+
+| Profile | Result entries | Bundle descriptor SHA-256 | Public results SHA-256 |
+| --- | --- | --- | --- |
+| base | 8 (7 scenarios + reboot) | `914d7542f071b6886067fac0ba0c65c45d8302da8111c9e069eda49e748490a3` | `875fc9030e57e4eff31ef900777d3ff5d8b9a299b68867197134c21bb50a5c92` |
+| k0s | 9 (7 scenarios + reboot + persistence) | `e784109e14bb3c54f207851dd3abb920981417437eb2fdc85bef2c3425f603e8` | `10115a64cc15e9b65d359c20677c12a272c2f68efc36a3e6799ea1d596481cbc` |
+
+The packaging, assembly and QEMU tools were existing local candidate images;
+their exact image IDs are retained in `tool-images.json`. Their use here does
+not replace native qualification of the complete current catalogue. Only public
+JSON/console reports are qualification evidence; SSH keys, disks, rendered device
+state and private fixture directories must not be uploaded.
 
 ## Evidence locations
 
@@ -273,5 +304,9 @@ be treated as completed catalogue qualification.
   identities, resource samples and final reports for the init candidate.
 - `/tmp/opencode/ci-42230534480/`: hosted native KAS diagnostics, security outcome
   summaries, SBOMs and Grype reports for both architectures.
+- `.build/fedora-platform-qualification/`: exact tool image IDs, packaging,
+  assembly, ARM64 binary smoke and QEMU action logs.
+- `.build/kas-fedora45-init-cold/system/source/artifacts/public-reports-fedora-{base,k0s}/`:
+  public QEMU environment, console and scenario reports for the fresh bundles.
 - `/tmp/opencode/kas-fedora/`: superseded Fedora 44 experiment, retained for
   comparison rather than promoted as final qualification.
