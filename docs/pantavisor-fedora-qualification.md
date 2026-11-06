@@ -160,8 +160,9 @@ entrypoint under a 128-task limit, without invoking KAS or building firmware:
 Twenty isolated replays of the failed opkg-utils RPM script, including ten under
 pseudo, also passed without PID-limit hits. These results establish the wrapper's
 reaping defect and distinguish it from a permanently broken package task. The
-original full-build containers' zombie counts were not retained; instrumented
-cold builds remain necessary to confirm the complete causal chain.
+original full-build containers' zombie counts were not retained. Subsequent
+instrumented cold builds below validate the corrected lifecycle without claiming
+a retrospective process census for the failed containers.
 
 The init candidate installs Fedora's `catatonit-0.2.1-6.fc45`. When PID 1, the Go
 entrypoint reexecutes that fixed init with `/entrypoint` as its child; the image's
@@ -196,11 +197,30 @@ memory limit-hit and OOM counters remained zero. This is not a cold result.
 | AMD64 | `f8e7f4247b61a6235aff08bb160f06cd95d7235b57f0b898653578c20adf0960` |
 | ARM64 | `7b7c9ae430b37667573f2ed9bf1a9a0715112a44aee65cca7b79cd917699b40a` |
 
-Fresh Core, k0s and System cold builds are now running sequentially from new
-checkouts of the same producer commits, with resource sampling. Their fixed
+Fresh Core, k0s and System cold builds completed successfully, sequentially from
+new checkouts of the same producer commits, with resource sampling. Their fixed
 AMD64 image ID is `b3118610aae23f9c0ef3821e421b2bd7f7a801bafcf0641b693ef9a91e535e9a`,
-matching the scanned init archive. Full cold and platform qualification remain
-pending.
+matching the scanned init archive. All reports record `cold: true`,
+`compressionThreads: 2` and `success: true`.
+
+| Project | Producer revision | Duration (seconds) | Sampled peak tasks | Sampled peak transient zombies | Verified deploy files |
+| --- | --- | --- | --- | --- | --- |
+| Core | `082dec4aff18c4d4af1bc5fc4bdf771ce95d01bc` | 2723.984 | 126 | 1 | 5 |
+| k0s | `f2886670a1d97760706bc8aa1ea37d3917fdc902` | 2346.346 | 126 | 2 | 4 |
+| System | `289f097477ddc2824e10f593d40da59dece53c2e` | 2810.417 | 256 | 13 | 2 |
+
+Every staged deploy file was rehashed and matched `build-provenance.json`.
+Provenance records match the captured clean source revisions. BitBake reports
+3331 successful tasks for Core, 2729 for k0s and 3337 for System, with zero tasks
+reused in every run. Initial sstate summaries show zero local or mirror hits.
+Catatonit was observed as PID 1. All three final samples have zero zombies;
+recorded PID-limit, memory-limit and OOM counters stayed zero. Transient zombie
+samples are not persistent accumulation and are reported rather than hidden.
+
+These are complete local cold compilation/output-staging results on an AMD64
+builder targeting the consumers' ARM64 outputs. They do not establish native
+ARM64 cold-build execution, QEMU/platform qualification, publication or consumer
+workflow activation.
 
 Publication and consumer activation remain outstanding. Security reporting is now advisory under the
 [new policy](ci-policy-transition.md); functional failures still block release.
@@ -220,8 +240,8 @@ ignored matches**. The advisory security policy did not conceal scanner failures
 This was an incremental KAS run, not a full-catalogue qualification. Checks for
 unselected action implementations were skipped. The native runtime and invalid
 KAS-project checks ran; the separate synthetic orphan-lifecycle fixture and full
-consumer builds were not executed by this hosted workflow. Their local evidence
-and pending cold results remain separate.
+consumer builds were not executed by this hosted workflow. The local synthetic
+fixture and successful cold-build evidence above remain separate.
 
 The preceding full run `42207227780` was cancelled after 241 successful jobs,
 50 cancelled jobs and one skipped job, with no recorded failed job. It must not
