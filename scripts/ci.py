@@ -103,7 +103,11 @@ def changed_paths(before, after):
     return [p.decode() for p in data.split(b"\0") if p]
 
 
-def mode(event, ref):
+def mode(event, ref, qualification=False):
+    if qualification:
+        if event != 'workflow_dispatch' or ref != 'refs/heads/main':
+            raise ValueError('full qualification must be dispatched on main')
+        return 'qualification'
     if event == "schedule":
         return "maintenance"
     if event == "workflow_dispatch":
@@ -189,10 +193,10 @@ def main():
         return
     event = os.environ.get("GITHUB_EVENT_NAME", "push")
     ref = os.environ.get("GITHUB_REF", "refs/heads/main")
-    pipeline_mode = mode(event, ref)
+    pipeline_mode = mode(event, ref, os.environ.get('QUALIFY_CATALOG') == 'true')
     after = os.environ.get("GITHUB_SHA") or git("rev-parse", "HEAD")
     paths = args.paths
-    full = pipeline_mode == "prepare"
+    full = pipeline_mode in ("prepare", "qualification")
     plan_path = ROOT / '.build/publication/release-plan.json'
     if pipeline_mode == 'prepare' and plan_path.exists():
         plan = json.loads(plan_path.read_text())
@@ -215,7 +219,7 @@ def main():
                 full = True
         if not full:
             paths = changed_paths(before, after)
-    matrix = select(paths, full) if pipeline_mode in ("development", "prepare") else {"include": []}
+    matrix = select(paths, full) if pipeline_mode in ("development", "prepare", "qualification") else {"include": []}
     if pipeline_mode == 'prepare' and os.environ.get('ARTIFACT_RUN_ID'):
         # The workflow validates the source run before selecting this empty matrix.
         matrix = {'include': []}

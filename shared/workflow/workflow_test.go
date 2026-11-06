@@ -59,6 +59,7 @@ func TestIncrementalJobGates(t *testing.T) {
 		{"failed test", "prepare", true, true, true, "success", "success", "failure", false, true, true, false},
 		{"cancelled", "prepare", true, true, true, "success", "success", "success", true, false, false, false},
 		{"tag", "release", true, false, false, "success", "skipped", "skipped", false, false, false, true},
+		{"full qualification", "qualification", true, true, true, "success", "success", "success", false, true, true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			values := map[string]string{
@@ -74,6 +75,7 @@ func TestIncrementalJobGates(t *testing.T) {
 				expression = strings.Join(strings.Fields(expression), " ")
 				expression = strings.ReplaceAll(expression, "always()", "true")
 				expression = strings.ReplaceAll(expression, "cancelled()", strconv.FormatBool(tc.cancelled))
+				expression = strings.ReplaceAll(expression, "inputs.qualify-catalog", "false")
 				for key, value := range values {
 					expression = strings.ReplaceAll(expression, key, strconv.Quote(value))
 				}

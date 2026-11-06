@@ -18,6 +18,10 @@ on:
         description: Qualify published checks and the Buildah launcher on both hosted architectures
         type: boolean
         default: false
+      qualify-catalog:
+        description: Build and test the entire catalogue without publication; overrides other manual modes
+        type: boolean
+        default: false
       artifact-run-id:
         description: Reuse tested archives from a successful run at this exact main commit
         type: string
@@ -29,16 +33,16 @@ permissions:
   contents: read
 
 concurrency:
-  group: oci-workflow-${{ github.event_name == 'workflow_dispatch' && 'publication' || github.ref }}
+  group: oci-workflow-${{ inputs.qualify-catalog && 'qualification' || github.event_name == 'workflow_dispatch' && 'publication' || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   check:
-    if: github.event_name != 'schedule' && !inputs.maintenance
+    if: github.event_name != 'schedule' && (!inputs.maintenance || inputs.qualify-catalog)
     strategy:
       fail-fast: false
       matrix:
-        runner: ${{ inputs.qualify-runner && fromJSON('["ubuntu-24.04", "ubuntu-24.04-arm"]') || fromJSON('["ubuntu-24.04"]') }}
+        runner: ${{ inputs.qualify-runner && !inputs.qualify-catalog && fromJSON('["ubuntu-24.04", "ubuntu-24.04-arm"]') || fromJSON('["ubuntu-24.04"]') }}
     runs-on: ${{ matrix.runner }}
     services:
       candidate-registry:
@@ -48,7 +52,7 @@ jobs:
       contents: read
       actions: read
     outputs:
-      mode: ${{ steps.select.outputs.mode }}
+      mode: ${{ inputs.qualify-catalog && 'qualification' || steps.select.outputs.mode }}
       matrix: ${{ steps.select.outputs.matrix }}
       test-registry-image: ${{ steps.select.outputs.test-registry-image }}
       has-work: ${{ steps.select.outputs.has-work }}
@@ -102,7 +106,7 @@ jobs:
         uses: ./check/test-go
       - name: Plan semantic release
         id: plan
-        if: github.event_name == 'workflow_dispatch' && !inputs.qualify-runner
+        if: github.event_name == 'workflow_dispatch' && !inputs.qualify-runner && !inputs.qualify-catalog
         uses: ./workflow/new-release-plan
       - name: Retain release plan
         if: steps.plan.outputs.release-changed == 'true'
@@ -113,7 +117,7 @@ jobs:
           include-hidden-files: true
       - name: Validate publication artifact source
         id: resume
-        if: github.event_name == 'workflow_dispatch' && inputs.artifact-run-id != ''
+        if: github.event_name == 'workflow_dispatch' && !inputs.qualify-catalog && inputs.artifact-run-id != ''
         uses: ./workflow/test-artifact-source
         with:
           run-id: ${{ inputs.artifact-run-id }}
@@ -123,7 +127,7 @@ jobs:
           token: ${{ github.token }}
       - name: Select mode and dynamic matrix
         id: select
-        if: '!inputs.qualify-runner'
+        if: '!inputs.qualify-runner || inputs.qualify-catalog'
         uses: ./workflow/get-image-matrix
         with:
           files: ${{ steps.sources.outputs.files }}
@@ -138,12 +142,12 @@ jobs:
         with:
           files: ${{ steps.sources.outputs.action-metadata-files }}
       - name: Create native runner fixtures
-        if: inputs.qualify-runner
+        if: inputs.qualify-runner && !inputs.qualify-catalog
         uses: ./workflow/new-test-fixtures
         with:
           directory: .build/qualification
       - name: Qualify the published Buildah launcher
-        if: inputs.qualify-runner
+        if: inputs.qualify-runner && !inputs.qualify-catalog
         uses: ./oci/build-image
         with:
           context: .build/qualification/fixture with spaces
@@ -153,7 +157,7 @@ jobs:
           platform: ${{ runner.arch == 'ARM64' && 'linux/arm64' || 'linux/amd64' }}
           output: .build/qualification/proof.oci.tar
       - name: Upload qualification evidence
-        if: always() && inputs.qualify-runner
+        if: always() && inputs.qualify-runner && !inputs.qualify-catalog
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: qualification-${{ matrix.runner }}
@@ -1274,7 +1278,7 @@ jobs:
   release:
     needs: [check, lint, build, test]
     if: >-
-      always() && !cancelled() && needs.check.result == 'success' &&
+      always() && !cancelled() && !inputs.qualify-catalog && needs.check.result == 'success' &&
       ((needs.check.outputs.has-lint == 'true' && needs.lint.result == 'success') ||
        (needs.check.outputs.has-lint == 'false' && needs.lint.result == 'skipped')) &&
       ((needs.check.outputs.has-build == 'true' && needs.build.result == 'success') ||
@@ -1447,7 +1451,7 @@ jobs:
           include-hidden-files: true
 
   maintenance:
-    if: github.event_name == 'schedule' || inputs.maintenance
+    if: (github.event_name == 'schedule' || inputs.maintenance) && !inputs.qualify-catalog
     runs-on: ubuntu-24.04
     services:
       candidate-registry:

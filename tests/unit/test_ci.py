@@ -17,6 +17,13 @@ SPEC.loader.exec_module(ci)
 
 
 class SelectionTests(unittest.TestCase):
+    def test_full_qualification_mode_is_read_only_and_main_bound(self):
+        self.assertEqual(ci.mode('workflow_dispatch', 'refs/heads/main', qualification=True), 'qualification')
+        for event, ref in [('push', 'refs/heads/main'), ('workflow_dispatch', 'refs/heads/feature'),
+                           ('workflow_dispatch', 'refs/tags/1.0.0')]:
+            with self.assertRaises(ValueError):
+                ci.mode(event, ref, qualification=True)
+
     def test_real_git_rename_and_deletion_with_spaces(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
