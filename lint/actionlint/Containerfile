@@ -15,7 +15,7 @@ COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=build /entrypoint /entrypoint
 COPY --from=build /tool /usr/bin/actionlint
 COPY --from=build /runtime/ /
-COPY --from=build /tool-source/LICENSE /usr/share/licenses/actionlint/LICENSE
+COPY --from=build /tool-source/LICENSE.txt /usr/share/licenses/actionlint/LICENSE
 # Entrypoint adopts the runner-owned GITHUB_OUTPUT UID before checking files.
 # hadolint ignore=DL3002
 USER 0:0
