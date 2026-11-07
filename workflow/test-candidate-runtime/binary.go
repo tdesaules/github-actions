@@ -212,7 +212,7 @@ func binaryCases(root *candidate.Root, image string, results *[]result) error {
 		bindings = append(bindings, map[string]any{"id": id, "arch": arch, "digest": digest, "sha256": sum, "archive": name})
 	}
 	marker := map[string]any{"schema_version": 1, "source_sha": source, "version": "1.0.0", "run_id": "123", "run_attempt": "1", "artifacts": bindings}
-	plan := map[string]any{"mode": "prepare", "source_sha": source, "version": "1.0.0", "has_release": true}
+	plan := map[string]any{"schema_version": 1, "mode": "prepare", "source_sha": source, "version": "1.0.0", "has_release": true}
 	if err := catalog.Write("/reports/binary-plan.json", plan); err != nil {
 		return err
 	}
