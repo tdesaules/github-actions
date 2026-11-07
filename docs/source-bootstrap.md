@@ -1,4 +1,18 @@
-# Temporary Rust/GTK catalog bootstrap
+# Rust/GTK catalog bootstrap retirement
+
+The catalog's 1.6.0 preparation run `42384772496` qualified native AMD64 and
+ARM64 images and published their tested archives. Action metadata now contains
+the observed registry digests. The workflow activates those published controls
+through ordinary action paths, including the selector, validators, fixture
+generator, runtime tester, Rust fixture builder, publisher and release finalizer.
+
+The temporary preparation helper and duplicate source-control execution paths
+have been removed. Workflow validation is strict, without source exceptions.
+Candidate `uses:` qualification and source fixtures remain for all eight new
+actions. A subsequent native hosted run must confirm this activated workflow;
+local validation alone does not establish hosted execution.
+
+## Historical bootstrap contract
 
 An unpublished action may name only its own `Containerfile`. Discovery derives
 `family-directory` and verifies the regular recipe's final-stage OCI title.
@@ -10,12 +24,11 @@ Catalog validation requires explicit `allow-source: 'true'` (local CLI:
 uses `ALLOW_SOURCE_ACTIONS=true`; release tags reject both exceptions. Normal
 validation remains digest-only. No placeholder registry digest or tag is created.
 
-The source bridges in `main.yml` bootstrap the changed selector, catalog and
+The former source bridges in `main.yml` bootstrapped the changed selector, catalog and
 metadata validators, artifact-reuse validator, fixture generator, runtime tester,
-publication planner and publisher using `prepare-source-action`. The existing
-source finalizer now replaces owned Containerfile metadata with the observed
-published digest. This prevents the old selector/publication controls from
-deadlocking first publication of new actions.
+publication planner and publisher using the retired preparation helper. The
+source finalizer replaced owned Containerfile metadata with the observed
+published digest, avoiding a first-publication deadlock in the older controls.
 
 ## Qualification
 
@@ -35,19 +48,12 @@ remote and dummy credentials. They verify exact asset bytes, idempotent uploads,
 bound artifact downloads, corruption rejection, and metadata/tag preparation.
 No cloud authentication or remote repository writes are used by these fixtures.
 
-## Removal condition
+## Activation verification
 
-After hosted qualification, publish the **unchanged tested archives** for both
-architectures and resolve their real registry/index digests. Pin all new actions
-and updated controls, including the finalizer, before enabling consumers. Then:
+Run strict catalog validation and native hosted qualification using the
+published controls. Confirm both architectures execute the candidate fixtures,
+including source permissions, negative inputs and exact-archive integrity checks.
+The six jobs retain separate construction, qualification and publication phases.
 
-1. Replace `.source-actions` invocations with their pinned ordinary action paths
-   and remove their corresponding `prepare-source-action` bridge steps.
-2. Remove `SOURCE_CONTROLS` and the duplicate published/source fixture/runtime
-   paths, keeping the now-published fixture generator and runtime tester.
-3. Remove `allow-source`/`ALLOW_SOURCE_ACTIONS` from workflow validation steps.
-4. Run strict catalog validation and another native hosted qualification using
-   the published controls; confirm the actual hosted run before consumer use.
-
-Existing unrelated reviewer/security/finalization bridges have their own prior
-publication dependencies. This change does not silently claim they are retired.
+The unrelated reviewer/security bridges retain their existing qualification
+dependencies.

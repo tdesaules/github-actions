@@ -188,25 +188,10 @@ func TestMigratedJobsUsePublishedActions(t *testing.T) {
 				t.Errorf("%s: host run step %v", job, step["name"])
 			}
 			uses, _ := step["uses"].(string)
-			// Temporary source controls have an explicit preceding qualification
-			// bridge. Remove this allowance with the documented source bridges.
-			if uses == "./workflow/prepare-source-action" {
-				continue
-			}
-			source := strings.HasPrefix(uses, "./.source-actions/")
-			if source {
-				directory := strings.TrimPrefix(uses, "./.source-actions/")
-				prepared := false
-				for _, earlier := range steps {
-					if earlier["uses"] == "./workflow/prepare-source-action" {
-						with, _ := earlier["with"].(map[string]any)
-						prepared = prepared || with["directory"] == directory
-					}
-				}
-				if !prepared {
-					t.Fatalf("%s: unqualified source control %s", job, uses)
-				}
-				uses = "./" + directory
+			with, _ := step["with"].(map[string]any)
+			env, _ := step["env"].(map[string]any)
+			if uses == "./workflow/prepare-source-action" || strings.HasPrefix(uses, "./.source-actions/") || with["allow-source"] != nil || env["ALLOW_SOURCE_ACTIONS"] != nil {
+				t.Fatalf("%s: retired source bootstrap in %v", job, step["name"])
 			}
 			candidate := job == "test" && strings.HasPrefix(uses, "./.candidate-actions/")
 			// Candidate actions preserve the source directory beneath this prefix.
@@ -237,7 +222,7 @@ func TestMigratedJobsUsePublishedActions(t *testing.T) {
 			// not the source's unpublished bootstrap reference. Runtime calls in
 			// every other job still require a real immutable published image.
 			pinned := regexp.MustCompile(`^docker://.+@sha256:[a-f0-9]{64}$`).MatchString(action.Runs.Image)
-			bootstrap := (candidate || source) && action.Runs.Image == "Containerfile"
+			bootstrap := candidate && action.Runs.Image == "Containerfile"
 			if action.Runs.Using != "docker" || !(pinned || bootstrap) {
 				t.Errorf("%s: %s must use a published Docker image", job, uses)
 			}
@@ -323,9 +308,15 @@ func TestBuildAndQualificationAreSeparate(t *testing.T) {
 			reviewerUse = i
 		}
 		switch step["uses"] {
-		case "./workflow/new-test-fixtures", "./.source-actions/workflow/new-test-fixtures":
+		case "./workflow/new-test-fixtures":
+			if fixtures >= 0 || step["id"] != "fixtures" || step["if"] != nil {
+				t.Fatal("one unconditional published fixture generator must supply candidate outputs")
+			}
 			fixtures = i
-		case "./workflow/test-candidate-runtime", "./.source-actions/workflow/test-candidate-runtime":
+		case "./workflow/test-candidate-runtime":
+			if runtime >= 0 || step["if"] != nil {
+				t.Fatal("one unconditional published runtime qualifier must test each matrix entry")
+			}
 			runtime = i
 		case "./workflow/test-reviewed-vulnerabilities":
 			scan = i

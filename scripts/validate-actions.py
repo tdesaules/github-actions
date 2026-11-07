@@ -48,12 +48,7 @@ def validate(path):
             if 'run' in step or not isinstance(step.get('uses'), str):
                 raise ValueError(f'{path}: orchestration composites must use actions')
             if step['uses'].startswith('./') and not (Path(step['uses']) / 'action.yml').is_file():
-                source = step['uses'].removeprefix('./.source-actions/')
-                generated = (os.environ.get('ALLOW_SOURCE_ACTIONS') == 'true'
-                             and step['uses'].startswith('./.source-actions/')
-                             and (Path(source) / 'action.yml').is_file())
-                if not generated:
-                    raise ValueError(f'{path}: missing local action {step["uses"]}')
+                raise ValueError(f'{path}: missing local action {step["uses"]}')
     elif runs.get("using") != "docker" or not (runs.get("image", "").startswith("docker://") or
             (os.environ.get("ALLOW_SOURCE_ACTIONS") == "true" and runs.get("image") == "Containerfile")):
         raise ValueError(f"{path}: must be a native prebuilt Docker action")

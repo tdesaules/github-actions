@@ -88,26 +88,9 @@ jobs:
           before: ${{ github.event.before }}
           after: ${{ github.sha }}
           full: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}
-      - name: Bootstrap current runtime qualification fixtures
-        if: ${{ !cancelled() && steps.sources.outputs.catalog-changed == 'true' }}
-        uses: ./workflow/prepare-source-action
-        with:
-          directory: workflow/test-candidate-runtime
-          image: workflow-test-candidate-runtime
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
-      - name: Bootstrap source-aware catalog validation
-        if: ${{ !cancelled() && steps.sources.outputs.catalog-changed == 'true' }}
-        uses: ./workflow/prepare-source-action
-        with:
-          directory: check/test-catalog
-          image: check-test-catalog
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
-          source-runtime: 'true'
       - name: Test catalog
         if: ${{ !cancelled() && steps.sources.outputs.catalog-changed == 'true' }}
-        uses: ./.source-actions/check/test-catalog
-        with:
-          allow-source: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: ./check/test-catalog
       - name: Test Python
         if: ${{ !cancelled() && steps.sources.outputs.python-changed == 'true' }}
         uses: ./check/test-python
@@ -125,35 +108,20 @@ jobs:
           name: release-plan
           path: .build/publication/release-plan.json
           include-hidden-files: true
-      - name: Bootstrap source-aware artifact reuse validation
-        if: github.event_name == 'workflow_dispatch' && !inputs.qualify-catalog && inputs.artifact-run-id != ''
-        uses: ./workflow/prepare-source-action
-        with:
-          directory: workflow/test-artifact-source
-          image: workflow-test-artifact-source
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Validate publication artifact source
         id: resume
         if: github.event_name == 'workflow_dispatch' && !inputs.qualify-catalog && inputs.artifact-run-id != ''
-        uses: ./.source-actions/workflow/test-artifact-source
+        uses: ./workflow/test-artifact-source
         with:
           run-id: ${{ inputs.artifact-run-id }}
           release-plan: ${{ steps.plan.outcome == 'success' && '.build/publication/release-plan.json' || '' }}
           repository: ${{ github.repository }}
           revision: ${{ github.sha }}
           token: ${{ github.token }}
-      # Temporary source bridge: remove after these control images are published and pinned.
-      - name: Bootstrap source-aware image selector
-        if: '!inputs.qualify-runner || inputs.qualify-catalog'
-        uses: ./workflow/prepare-source-action
-        with:
-          directory: workflow/get-image-matrix
-          image: workflow-get-image-matrix
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Select mode and dynamic matrix
         id: select
         if: '!inputs.qualify-runner || inputs.qualify-catalog'
-        uses: ./.source-actions/workflow/get-image-matrix
+        uses: ./workflow/get-image-matrix
         with:
           files: ${{ steps.sources.outputs.files }}
           full: ${{ steps.sources.outputs.full }}
@@ -161,18 +129,9 @@ jobs:
           ref: ${{ github.ref }}
           release-plan: ${{ steps.plan.outcome == 'success' && '.build/publication/release-plan.json' || '' }}
           reuse-artifacts: ${{ steps.resume.outcome == 'success' }}
-      - name: Bootstrap source-aware action metadata validator
-        if: ${{ !cancelled() && steps.sources.outputs.action-metadata-changed == 'true' }}
-        uses: ./workflow/prepare-source-action
-        with:
-          directory: check/test-action-metadata
-          image: check-test-action-metadata
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Validate action metadata
         if: ${{ !cancelled() && steps.sources.outputs.action-metadata-changed == 'true' }}
-        uses: ./.source-actions/check/test-action-metadata
-        env:
-          ALLOW_SOURCE_ACTIONS: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: ./check/test-action-metadata
         with:
           files: ${{ steps.sources.outputs.action-metadata-files }}
       - name: Create native runner fixtures
@@ -373,35 +332,14 @@ jobs:
       packages: read
     env:
       VERSION: ${{ needs.check.outputs.version }}-${{ github.run_id }}
-      SOURCE_CONTROLS: ${{ contains(fromJSON('["lint-rust-gtk","workflow-build-rust-gtk","workflow-test-rust-gtk","workflow-plan-rust-gtk-release","workflow-prepare-binary-release","workflow-read-binary-release","workflow-publish-binary-release","workflow-summarize-security","check-test-catalog","workflow-new-test-fixtures","workflow-test-candidate-runtime"]'), matrix.image) }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
           persist-credentials: false
-      # Temporary source bridges; retire after publishing and pinning these controls.
-      - name: Create runner-owned native fixture directories
-        uses: ./workflow/new-test-fixtures
-        with:
-          directory: .build/fixtures
-      - name: Bootstrap native fixture generator
-        if: env.SOURCE_CONTROLS == 'true'
-        uses: ./workflow/prepare-source-action
-        with:
-          directory: workflow/new-test-fixtures
-          image: workflow-new-test-fixtures
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
-      - name: Bootstrap native runtime qualifier
-        if: env.SOURCE_CONTROLS == 'true'
-        uses: ./workflow/prepare-source-action
-        with:
-          directory: workflow/test-candidate-runtime
-          image: workflow-test-candidate-runtime
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Create native test fixtures
         id: fixtures
-        if: env.SOURCE_CONTROLS == 'true'
-        uses: ./.source-actions/workflow/new-test-fixtures
+        uses: ./workflow/new-test-fixtures
         with:
           directory: .build/fixtures
       - name: Download untested build artifact
@@ -422,18 +360,6 @@ jobs:
           revision: ${{ github.sha }}
           version: ${{ env.VERSION }}
       - name: Test native runtime, negative fixtures and source permissions
-        if: env.SOURCE_CONTROLS == 'true'
-        uses: ./.source-actions/workflow/test-candidate-runtime
-        with:
-          archive: ${{ matrix.rebuild && format('.build/{0}/{1}/image.oci.tar', matrix.image, matrix.arch) || '' }}
-          archive-output: ${{ matrix.scan && !matrix.rebuild && format('.build/{0}/{1}/scan.oci.tar', matrix.image, matrix.arch) || '' }}
-          reference: ${{ matrix.reference }}
-          image: ${{ matrix.image }}
-          architecture: ${{ matrix.arch }}
-          revision: ${{ matrix.rebuild && github.sha || '' }}
-          output: .build/${{ matrix.image }}/${{ matrix.arch }}/runtime-tests.json
-      - name: Test published native runtime and negative fixtures
-        if: env.SOURCE_CONTROLS != 'true'
         uses: ./workflow/test-candidate-runtime
         with:
           archive: ${{ matrix.rebuild && format('.build/{0}/{1}/image.oci.tar', matrix.image, matrix.arch) || '' }}
@@ -460,8 +386,6 @@ jobs:
       - name: Test native catalog validation
         if: matrix.image == 'check-test-catalog'
         uses: ./.candidate-actions/check/test-catalog
-        with:
-          allow-source: 'true'
       - name: Lint native synthetic Rust application
         if: matrix.image == 'lint-rust-gtk'
         uses: ./.candidate-actions/lint/rust-gtk
@@ -496,17 +420,10 @@ jobs:
           version: 1.0.0
           source-sha: '0000000000000000000000000000000000000000'
           arch: ${{ matrix.arch }}
-      - name: Bootstrap Rust fixture builder
-        if: matrix.image == 'workflow-test-rust-gtk'
-        uses: ./workflow/prepare-source-action
-        with:
-          directory: workflow/build-rust-gtk
-          image: workflow-build-rust-gtk
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Prepare exact native Rust test archive
         if: matrix.image == 'workflow-test-rust-gtk'
         id: rust-fixture-build
-        uses: ./.source-actions/workflow/build-rust-gtk
+        uses: ./workflow/build-rust-gtk
         with:
           directory: .build/fixtures/rust-app with spaces
           output: .build/fixtures/rust-candidate
@@ -1560,36 +1477,15 @@ jobs:
         with:
           name: release-plan
           path: .build/publication
-      - name: Bootstrap source-aware publication planner
-        if: needs.check.outputs.mode == 'prepare'
-        uses: ./workflow/prepare-source-action
-        with:
-          directory: workflow/new-publication-plan
-          image: workflow-new-publication-plan
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
-      - name: Bootstrap source-aware catalog publisher
-        if: needs.check.outputs.mode == 'prepare'
-        uses: ./workflow/prepare-source-action
-        with:
-          directory: workflow/publish-catalog-images
-          image: workflow-publish-catalog-images
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
-      - name: Bootstrap source-aware release finalizer
-        if: needs.check.outputs.mode == 'prepare'
-        uses: ./workflow/prepare-source-action
-        with:
-          directory: workflow/complete-release
-          image: workflow-complete-release
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Validate exact-source publication artifacts
         if: needs.check.outputs.mode == 'prepare'
-        uses: ./.source-actions/workflow/new-publication-plan
+        uses: ./workflow/new-publication-plan
         with:
           owner: ${{ github.repository_owner }}
           release-plan: .build/publication/release-plan.json
       - name: Publish exact archives and verify remote digests
         if: needs.check.outputs.mode == 'prepare'
-        uses: ./.source-actions/workflow/publish-catalog-images
+        uses: ./workflow/publish-catalog-images
         with:
           registry-username: ${{ github.actor }}
           registry-password: ${{ github.token }}
@@ -1614,7 +1510,7 @@ jobs:
           registry-password: ${{ github.token }}
       - name: Commit pins and atomically push release tag
         if: needs.check.outputs.mode == 'prepare'
-        uses: ./.source-actions/workflow/complete-release
+        uses: ./workflow/complete-release
         with:
           token: ${{ steps.app.outputs.token }}
       - name: Summarize release security outcomes
