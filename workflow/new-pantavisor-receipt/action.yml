@@ -7,7 +7,7 @@ inputs:
   output: {description: Receipt outside the inventoried directory, default: artifacts/build-receipt.json}
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-pantavisor-receipt:unpublished
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-pantavisor-receipt@sha256:afde5d7bae8423da29922afc701ff26c681b9e097b894e4bc62ac8971c3a964c
   args:
     - --directory=${{ inputs.directory }}
     - --project=${{ inputs.project }}

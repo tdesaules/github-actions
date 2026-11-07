@@ -15,7 +15,7 @@ outputs:
     description: Generated SBOM path
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/oci-new-sbom@sha256:ba17965a3467c2ac220f09409ed1c5c3e54f54483e8021ed7ad4c0af9a52f938
+  image: docker://ghcr.io/tdesaules/github-actions/oci-new-sbom@sha256:c71cb00370788c8f30e04a182bc8609fe7623254a8281be08da6e85eeddd9577
   args:
     - --source=${{ inputs.source }}
     - --format=${{ inputs.format }}

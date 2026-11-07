@@ -6,6 +6,6 @@ outputs:
   revision: {description: Imported candidate commit}
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-import-pantavisor-candidate:unpublished
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-import-pantavisor-candidate@sha256:27632c4d0a75a63f0eb4e3a776d501b830b97e8f67a52e54724b7cfd61f38a12
   args:
     - --directory=${{ inputs.directory }}

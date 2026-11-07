@@ -55,7 +55,7 @@ outputs:
     description: Whether Python tests have work
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-changed-files@sha256:bb67ffb80cd18bbeafb3724dfde76196ff143de3055dd4bb625b872d48fea392
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-changed-files@sha256:e693342fe60f6d9c1f95f830179b29fb80cae818ff24c7a7a298c55ef0ca412c
   args:
     - --before=${{ inputs.before }}
     - --after=${{ inputs.after }}

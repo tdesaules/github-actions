@@ -8,7 +8,7 @@ outputs:
   image: {description: Published image reference when present}
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-read-pantavisor-published:unpublished
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-read-pantavisor-published@sha256:46844efdc08cec166191c243cb04f0df39d99b79579a6834e12f2e805743ea26
   env:
     INPUT_TOKEN: ${{ inputs.token }}
   args: []

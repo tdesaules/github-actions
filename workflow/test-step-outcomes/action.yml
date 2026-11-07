@@ -15,7 +15,7 @@ outputs:
     description: Whether all assertions passed
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-step-outcomes@sha256:6d5e2aebd26e63277e5113e11497ad6b8dacfc9289c67d91595dfdf545a66932
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-step-outcomes@sha256:ee64af500eb12848e29c9ef72e85bd7206fc1c311229a4fe3a765a9370070070
   args:
     - --outcomes=${{ inputs.outcomes }}
     - --expected-failures=${{ inputs.expected-failures }}

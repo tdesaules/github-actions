@@ -1,5 +1,89 @@
 # Changelog
 
+## 1.5.0
+
+- record 1.4.3 release and force-push recovery activation (d17231f)
+
+- add containerized build and release lifecycle (b21487f)
+
+- explain qualification and staged consumer activation (6f93a41)
+
+- isolate release fixtures from action directory input (ca0d9fe)
+
+- pin the multi-platform KAS image index (6a35e37)
+
+- refresh build dependencies and rebuild Git LFS (7bd902d)
+
+- record final cold build and architecture scan evidence (a9e8805)
+
+- retain Debian file ownership for vulnerability matching (c8e4709)
+
+- backport curl 8.23 with both TLS variants (fb90f8d)
+
+- verify native Debian backports by payload hashes (379e9a2)
+
+- bind curl advisory review to verified native backports (853e07b)
+
+- verify architecture-independent companion packages (060b6ae)
+
+- rebuild vulnerable runtime dependencies from pinned sources (09c2adf)
+
+- record verified KAS dependency backports (6b8c18d)
+
+- replace unavailable runtime image digest (9592032)
+
+- verify native Debian backports by payload hashes (7e3c56d)
+
+- verify architecture-independent companion packages (531b75c)
+
+- replace unavailable runtime image digest (79fcd76)
+
+- consolidate Pantavisor CI and backport review on main (08522d3)
+
+- provide sticky temporary directories in scratch actions (ea7bc18)
+
+- retain Debian ownership in minimal tool images (315ac73)
+
+- bootstrap scans with the verified source reviewer (8e9c101)
+
+- backport util-linux security corrections (e5be911)
+
+- verify native backport and util-linux evidence (d925fdf)
+
+- use the upstream-maintained Debian runtime (d092b60)
+
+- record cold Core qualification on the upstream runtime (40a95c3)
+
+- recognize eight verified curl backport fixes (c5ec8fc)
+
+- verify bounded applicability against OCI inventories (131934e)
+
+- record seven verified KAS applicability proofs (10e146f)
+
+- prefer the stable curl security update (4f54284)
+
+- record remaining security blockers and Core qualification (3ce8c0d)
+
+- restore incremental image selection (7a91847)
+
+- separate advisory security from functional qualification (889a22c)
+
+- retain maintained Fedora packages in the build runtime (175b486)
+
+- read k0s identity from its base profile (7c9f4c5)
+
+- bound compression workers with a repository-local overlay (9161e64)
+
+- reap orphaned build processes with packaged init (f06aa25)
+
+- record successful hosted incremental qualification (e90d8b2)
+
+- record successful cold builds for all consumers (625f5c0)
+
+- add publication-free full catalogue qualification (129dbc4)
+
+- record both QEMU platform qualifications (def168e)
+
 ## 1.4.3
 
 - close audit findings with verified hosted checksum updates (b148271)

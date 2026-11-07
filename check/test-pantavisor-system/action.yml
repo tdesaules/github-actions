@@ -6,6 +6,6 @@ inputs:
     default: .
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/check-test-pantavisor-system:unpublished
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-pantavisor-system@sha256:0a98174803c80bf0eace35288b6a300150d4204f02460db6d0079a4292413c8a
   args:
     - --directory=${{ inputs.directory }}

@@ -17,7 +17,7 @@ outputs:
     description: Candidate manifest digest preserved by the transfer
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-import-candidate-image@sha256:b36431a53fde5543bf8d695cd004a39c25e7a036ddafb86124c97da37741e44f
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-import-candidate-image@sha256:63b095cd8a7da75049de1955396faf5e82548f2da1d02f565716eaed9ab43263
   args:
     - --archive=${{ inputs.archive }}
     - --repository=${{ inputs.repository }}
