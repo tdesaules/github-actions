@@ -14,7 +14,8 @@ FROM quay.io/fedora/fedora:45@sha256:5db9683660938d440b057d412247ee245172b9724f4
 RUN dnf install -y rust-1.99.1-2.fc45 cargo-1.99.1-2.fc45 gcc openssl-devel pkgconf-pkg-config curl tar gzip ca-certificates && dnf clean all
 WORKDIR /lychee
 RUN curl --fail --silent --show-error --location https://codeload.github.com/lycheeverse/lychee/tar.gz/2bba271688c1abb1503097a064e6c3bc1d1b6a9b -o /source.tar.gz \
-    && echo '2cb80645547d76f0dc51f5236c1d4b6fce311717837ee6f9a2020a6f2c001470  /source.tar.gz' | sha256sum --check - \
+    && echo '2cb80645547d76f0dc51f5236c1d4b6fce311717837ee6f9a2020a6f2c001470  /source.tar.gz' > /source.sha256 \
+    && sha256sum --check /source.sha256 \
     && tar -xzf /source.tar.gz --strip-components=1 \
     && cargo build --locked --release --jobs 2 --bin lychee \
     && install -m 0755 target/release/lychee /usr/local/bin/lychee

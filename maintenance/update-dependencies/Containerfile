@@ -29,11 +29,11 @@ FROM dependencies AS tool
 RUN dnf install -y nodejs24-devel-24.18.0-4.fc45 gcc-c++ make python3 && dnf clean all
 WORKDIR /renovate-install
 COPY maintenance/update-dependencies/dependencies.renovate/package.json maintenance/update-dependencies/dependencies.renovate/package-lock.json ./
-RUN npm ci --ignore-scripts --omit=dev --no-audit --no-fund \
-    && cd node_modules/re2 \
-    && npm_config_nodedir=/usr ../.bin/node-gyp rebuild --jobs 2 \
-    && cd ../.. \
-    && mkdir -p /usr/local/renovate \
+RUN npm ci --ignore-scripts --omit=dev --no-audit --no-fund
+WORKDIR /renovate-install/node_modules/re2
+RUN npm_config_nodedir=/usr ../.bin/node-gyp rebuild --jobs 2
+WORKDIR /renovate-install
+RUN mkdir -p /usr/local/renovate \
     && cp -a node_modules/renovate/. /usr/local/renovate/ \
     && rm -rf node_modules/renovate \
     && cp -a node_modules /usr/local/renovate/ \
