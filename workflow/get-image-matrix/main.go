@@ -69,7 +69,45 @@ func discover() ([]component, error) {
 	return result, nil
 }
 
-func selectImages(components []component, paths []string, full bool) (matrix, error) {
+// rebuildHistory affects only images selected by the current diff. A missing
+// release baseline requires conservative construction, not an expanded selection.
+type rebuildHistory struct {
+	paths []string
+	all   bool
+}
+
+func sourcePath(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return ext != ".md" && ext != ".markdown" && filepath.Base(path) != "action.yml"
+}
+
+func unreleasedChanges(head string) (rebuildHistory, error) {
+	shallow, err := workflow.Git("rev-parse", "--is-shallow-repository")
+	if err != nil {
+		return rebuildHistory{}, err
+	}
+	if strings.TrimSpace(shallow) != "false" {
+		return rebuildHistory{}, fmt.Errorf("release-baseline selection requires complete Git history (fetch-depth: 0)")
+	}
+	tags, err := workflow.Git("tag", "--merged", head, "--sort=-version:refname")
+	if err != nil {
+		return rebuildHistory{}, err
+	}
+	for _, tag := range strings.Fields(tags) {
+		if !semver.MatchString(tag) || strings.ContainsAny(tag, "-+") {
+			continue
+		}
+		base, err := workflow.Git("rev-parse", "--verify", "--end-of-options", "refs/tags/"+tag+"^{commit}")
+		if err != nil {
+			return rebuildHistory{}, err
+		}
+		paths, err := workflow.Paths(strings.TrimSpace(base), head)
+		return rebuildHistory{paths: paths}, err
+	}
+	return rebuildHistory{all: true}, nil
+}
+
+func selectImages(components []component, paths []string, full bool, histories ...rebuildHistory) (matrix, error) {
 	r := matrix{Include: []job{}}
 	for _, c := range components {
 		dependencies, err := buildDependencies(c.directory)
@@ -79,6 +117,10 @@ func selectImages(components []component, paths []string, full bool) (matrix, er
 		selected, rebuild := full, full
 		scan := full
 		for _, p := range paths {
+			ext := strings.ToLower(filepath.Ext(p))
+			if ext == ".md" || ext == ".markdown" {
+				continue
+			}
 			if p == "grype-review.json" || strings.HasPrefix(p, "shared/review/") {
 				selected, scan = true, true
 			}
@@ -90,12 +132,8 @@ func selectImages(components []component, paths []string, full bool) (matrix, er
 			if err != nil {
 				return r, err
 			}
-			if affected {
+			if affected && sourcePath(p) {
 				selected, rebuild = true, true
-				continue
-			}
-			ext := strings.ToLower(filepath.Ext(p))
-			if ext == ".md" || ext == ".markdown" {
 				continue
 			}
 			if strings.HasPrefix(p, ".github/workflows/") || strings.HasPrefix(p, "scripts/") || strings.HasPrefix(p, "tasks/") || strings.HasPrefix(p, "tests/fixtures/") || p == "taskfile.yml" {
@@ -107,6 +145,21 @@ func selectImages(components []component, paths []string, full bool) (matrix, er
 		}
 		if !selected {
 			continue
+		}
+		for _, history := range histories {
+			rebuild = rebuild || history.all
+			for _, p := range history.paths {
+				if !sourcePath(p) {
+					continue
+				}
+				affected, err := dependencies.affected(p)
+				if err != nil {
+					return r, err
+				}
+				if affected || p == c.directory+"/Containerfile" || p == ".containerignore" || p == ".dockerignore" {
+					rebuild = true
+				}
+			}
 		}
 		rebuild = rebuild || c.reference == "" || strings.HasSuffix(c.reference, ":unpublished")
 		scan = scan || rebuild
@@ -206,7 +259,14 @@ func run() error {
 	}
 	m := matrix{Include: []job{}}
 	if mode == "development" || mode == "prepare" {
-		m, err = selectImages(components, paths, *full)
+		history := rebuildHistory{}
+		if !*full {
+			history, err = unreleasedChanges(head)
+			if err != nil {
+				return err
+			}
+		}
+		m, err = selectImages(components, paths, *full, history)
 		if err != nil {
 			return err
 		}

@@ -84,24 +84,43 @@ def pinned_metadata(path, reference):
     return IMAGE.sub(lambda match: match[0].replace(match[1], reference), text)
 
 
-def select(paths, full=False, root=ROOT):
+def source_path(path):
+    return Path(path).suffix.lower() not in ('.md', '.markdown') and Path(path).name != 'action.yml'
+
+
+def unreleased_changes(head, root=ROOT):
+    """Return source-baseline paths and conservative rebuild flag; never fetch."""
+    def local_git(*args):
+        return subprocess.check_output(['git', *args], cwd=root, text=True).strip()
+    if local_git('rev-parse', '--is-shallow-repository') != 'false':
+        raise ValueError('release-baseline selection requires complete Git history (fetch-depth: 0)')
+    for tag in local_git('tag', '--merged', head, '--sort=-version:refname').splitlines():
+        if not SEMVER.fullmatch(tag) or '-' in tag or '+' in tag:
+            continue
+        base = local_git('rev-parse', '--verify', '--end-of-options', 'refs/tags/' + tag + '^{commit}')
+        data = subprocess.check_output(['git', 'diff', '--name-only', '--no-renames', '-z', base, head, '--'], cwd=root)
+        return [p.decode() for p in data.split(b'\0') if p], False
+    return [], True
+
+
+def select(paths, full=False, root=ROOT, unreleased=(), rebuild_selected=False):
     actions, owners = discover(root)
     images, selected_actions = set(), set()
     if full:
         images.update(owners)
         selected_actions.update(actions)
     for path in paths:
+        if Path(path).suffix.lower() in ('.md', '.markdown'):
+            continue
         if path == 'grype-review.json' or path.startswith('shared/review/'):
             selected_actions.update(actions)
         if path in (".containerignore", ".dockerignore"):
             images.update(owners)
             selected_actions.update(actions)
         for directory, image in actions.items():
-            if path == directory + '/Containerfile' or build_dependency(root, directory, path):
+            if source_path(path) and (path == directory + '/Containerfile' or build_dependency(root, directory, path)):
                 images.add(image)
                 selected_actions.add(directory)
-                continue
-            if Path(path).suffix.lower() in ('.md', '.markdown'):
                 continue
             if path.startswith(('.github/workflows/', 'tests/fixtures/', 'scripts/', 'tasks/')) or path == 'taskfile.yml':
                 selected_actions.add(directory)
@@ -110,11 +129,13 @@ def select(paths, full=False, root=ROOT):
     for directory, image in actions.items():
         if image in images:
             selected_actions.add(directory)
-    # Tests of an action-only change use its pinned image, not a rebuilt image.
+    # Reuse metadata-only selections only when their source is still released.
     matrix = []
     for image in sorted({actions[a] for a in selected_actions} | images):
         _, reference = image_reference(root / owners[image] / 'action.yml')
-        rebuild = image in images or not reference or reference.endswith(':unpublished')
+        stale = any(source_path(path) and (path in (owners[image] + '/Containerfile', '.containerignore', '.dockerignore') or
+                    build_dependency(root, owners[image], path)) for path in unreleased)
+        rebuild = image in images or rebuild_selected or stale or not reference or reference.endswith(':unpublished')
         for arch in ("amd64", "arm64"):
             matrix.append({"image": image, "directory": owners[image], "arch": arch,
                            "runner": "ubuntu-24.04" if arch == "amd64" else "ubuntu-24.04-arm",
@@ -297,7 +318,10 @@ def main():
                 full = True
         if not full:
             paths = changed_paths(before, after)
-    matrix = select(paths, full) if pipeline_mode in ("development", "prepare", "qualification") else {"include": []}
+    matrix = {"include": []}
+    if pipeline_mode in ('development', 'prepare', 'qualification'):
+        unreleased, rebuild_selected = ([], False) if full else unreleased_changes(after)
+        matrix = select(paths, full, unreleased=unreleased, rebuild_selected=rebuild_selected)
     if pipeline_mode == 'prepare' and os.environ.get('ARTIFACT_RUN_ID'):
         # The workflow validates the source run before selecting this empty matrix.
         matrix = {'include': []}

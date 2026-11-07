@@ -17,6 +17,68 @@ SPEC.loader.exec_module(ci)
 
 
 class SelectionTests(unittest.TestCase):
+    def test_unreleased_sources_rebuild_only_current_selection(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*args):
+                return subprocess.check_output(['git', *args], cwd=root, stderr=subprocess.DEVNULL, text=True).strip()
+
+            def write(path, text):
+                target = root / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(text)
+
+            def commit():
+                git('add', '.')
+                git('commit', '-m', 'fixture')
+                return git('rev-parse', 'HEAD')
+
+            git('init', '-b', 'main')
+            git('config', 'user.name', 'Fixture')
+            git('config', 'user.email', 'fixture@example.invalid')
+            git('config', 'commit.gpgsign', 'false')
+            git('config', 'tag.gpgsign', 'false')
+            for name in ('a', 'b'):
+                write(f'lint/{name}/action.yml', f'runs:\n  image: docker://example/lint-{name}@sha256:' + 'a' * 64 + '\n')
+                write(f'lint/{name}/Containerfile', f'FROM scratch AS final\nCOPY shared/{name}/ /src/\nCOPY lint/{name}/ /action/\n')
+                write(f'shared/{name}/runtime.go', 'released\n')
+            commit()
+            git('tag', '1.9.0')
+            write('shared/b/runtime.go', 'included in latest release\n')
+            commit()
+            git('tag', '-a', '1.10.0', '-m', 'published')
+            write('shared/a/runtime.go', 'earlier unreleased change; previous run failed\n')
+            commit()
+            write('.github/workflows/main.yml', 'current workflow fix\n')
+            head = commit()
+            git('tag', '2.0.0-rc.1')
+            unmerged = git('commit-tree', 'HEAD^{tree}', '-m', 'unrelated release')
+            git('tag', '9.0.0', unmerged)
+            paths, conservative = ci.unreleased_changes(head, root)
+            self.assertFalse(conservative)
+            self.assertNotIn('shared/b/runtime.go', paths)
+            for current, expected in [
+                ('.github/workflows/main.yml', {'lint-a': True, 'lint-b': False}),
+                ('lint/a/action.yml', {'lint-a': True}),
+                ('lint/b/action.yml', {'lint-b': False}),
+                ('lint/a/README.md', {}),
+            ]:
+                jobs = ci.select([current], root=root, unreleased=paths, rebuild_selected=conservative)['include']
+                self.assertEqual(len(jobs), 2 * len(expected))
+                self.assertEqual({j['image']: j['rebuild'] for j in jobs}, expected)
+            jobs = ci.select(['lint/b/action.yml'], root=root, unreleased=['lint/b/action.yml', 'lint/b/README.md'])['include']
+            self.assertTrue(all(not j['rebuild'] for j in jobs))
+            git('tag', '-d', '1.9.0', '1.10.0', '2.0.0-rc.1', '9.0.0')
+            paths, conservative = ci.unreleased_changes(head, root)
+            self.assertTrue(conservative)
+            jobs = ci.select(['lint/b/action.yml'], root=root, unreleased=paths, rebuild_selected=conservative)['include']
+            self.assertEqual(len(jobs), 2)
+            self.assertTrue(all(j['rebuild'] for j in jobs))
+            (root / '.git/shallow').write_text(head + '\n')
+            with self.assertRaisesRegex(ValueError, 'complete Git history'):
+                ci.unreleased_changes(head, root)
+
     def test_full_qualification_mode_is_read_only_and_main_bound(self):
         self.assertEqual(ci.mode('workflow_dispatch', 'refs/heads/main', qualification=True), 'qualification')
         for event, ref in [('push', 'refs/heads/main'), ('workflow_dispatch', 'refs/heads/feature'),

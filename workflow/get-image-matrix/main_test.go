@@ -2,9 +2,104 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestUnreleasedSourcesOnlyRebuildCurrentSelection(t *testing.T) {
+	t.Chdir(t.TempDir())
+	git := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_AUTHOR_NAME=Fixture", "GIT_AUTHOR_EMAIL=fixture@example.invalid", "GIT_COMMITTER_NAME=Fixture", "GIT_COMMITTER_EMAIL=fixture@example.invalid")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	write := func(path, data string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(data), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	commit := func() string { git("add", "."); git("commit", "-m", "fixture"); return git("rev-parse", "HEAD") }
+	git("init", "-b", "main")
+	components := []component{}
+	for _, name := range []string{"a", "b"} {
+		directory := "lint/" + name
+		write(directory+"/Containerfile", "FROM scratch AS final\nCOPY shared/"+name+"/ /src/\nCOPY "+directory+"/ /action/\n")
+		write(directory+"/action.yml", "metadata\n")
+		write("shared/"+name+"/runtime.go", "released\n")
+		components = append(components, component{directory, "lint-" + name, "example/" + name + "@sha256:" + strings.Repeat("a", 64)})
+	}
+	commit()
+	git("tag", "1.9.0")
+	write("shared/b/runtime.go", "included in latest release\n")
+	commit()
+	git("tag", "-a", "1.10.0", "-m", "published")
+	write("shared/a/runtime.go", "earlier unreleased change; previous run failed\n")
+	commit()
+	write(".github/workflows/main.yml", "current workflow fix\n")
+	head := commit()
+	git("tag", "2.0.0-rc.1")
+	unmerged := git("commit-tree", "HEAD^{tree}", "-m", "unrelated release")
+	git("tag", "9.0.0", unmerged)
+	history, err := unreleasedChanges(head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if history.all || strings.Contains(strings.Join(history.paths, "\n"), "shared/b/runtime.go") {
+		t.Fatalf("wrong release baseline: %+v", history)
+	}
+	for _, tc := range []struct {
+		path string
+		want map[string]bool
+	}{
+		{".github/workflows/main.yml", map[string]bool{"lint-a": true, "lint-b": false}},
+		{"lint/a/action.yml", map[string]bool{"lint-a": true}},
+		{"lint/b/action.yml", map[string]bool{"lint-b": false}},
+		{"lint/a/README.md", map[string]bool{}},
+	} {
+		m, err := selectImages(components, []string{tc.path}, false, history)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(m.Include) != 2*len(tc.want) {
+			t.Fatalf("%s expanded selection: %+v", tc.path, m)
+		}
+		for _, job := range m.Include {
+			want, ok := tc.want[job.Image]
+			if !ok || job.Rebuild != want {
+				t.Fatalf("%s: %+v", tc.path, job)
+			}
+		}
+	}
+	metadataHistory := rebuildHistory{paths: []string{"lint/b/action.yml", "lint/b/README.md"}}
+	m, err := selectImages(components, []string{"lint/b/action.yml"}, false, metadataHistory)
+	if err != nil || len(m.Include) != 2 || m.Include[0].Rebuild {
+		t.Fatalf("metadata/docs-only history rebuilt copied action directory: %+v %v", m, err)
+	}
+	git("tag", "-d", "1.9.0", "1.10.0", "2.0.0-rc.1", "9.0.0")
+	history, err = unreleasedChanges(head)
+	if err != nil || !history.all {
+		t.Fatalf("missing baseline must be conservative: %+v %v", history, err)
+	}
+	m, err = selectImages(components, []string{"lint/b/action.yml"}, false, history)
+	if err != nil || len(m.Include) != 2 || !m.Include[0].Rebuild {
+		t.Fatalf("missing baseline expanded or reused selection: %+v %v", m, err)
+	}
+	write(".git/shallow", head+"\n")
+	if _, err := unreleasedChanges(head); err == nil {
+		t.Fatal("shallow history silently accepted")
+	}
+}
 
 func TestSelection(t *testing.T) {
 	t.Chdir(t.TempDir())
