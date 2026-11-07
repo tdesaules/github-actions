@@ -69,6 +69,14 @@ func lint(v rustgtk.Inputs) error {
 			return nil
 		}
 		switch {
+		case filepath.Ext(p) == ".json":
+			data, err := os.ReadFile(p)
+			if err != nil {
+				return err
+			}
+			if !json.Valid(data) {
+				return fmt.Errorf("%s is not valid JSON", p)
+			}
 		case strings.HasPrefix(p, "plugins/") && filepath.Ext(p) == ".mjs":
 			return rustgtk.Run("", nil, "node", "--check", p)
 		case filepath.Ext(p) == ".py":

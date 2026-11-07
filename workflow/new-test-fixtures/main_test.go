@@ -8,6 +8,7 @@ import (
 )
 
 func TestFixtureArchivesAreDeterministicAndArchitectureSpecific(t *testing.T) {
+	t.Setenv("GITHUB_OUTPUT", "")
 	root := t.TempDir()
 	old := failureBinary
 	oldSuccess := successBinary

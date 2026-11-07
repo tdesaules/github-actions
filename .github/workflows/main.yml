@@ -88,6 +88,13 @@ jobs:
           before: ${{ github.event.before }}
           after: ${{ github.sha }}
           full: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}
+      - name: Bootstrap current runtime qualification fixtures
+        if: ${{ !cancelled() && steps.sources.outputs.catalog-changed == 'true' }}
+        uses: ./workflow/prepare-source-action
+        with:
+          directory: workflow/test-candidate-runtime
+          image: workflow-test-candidate-runtime
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Bootstrap source-aware catalog validation
         if: ${{ !cancelled() && steps.sources.outputs.catalog-changed == 'true' }}
         uses: ./workflow/prepare-source-action
@@ -95,6 +102,7 @@ jobs:
           directory: check/test-catalog
           image: check-test-catalog
           host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+          source-runtime: 'true'
       - name: Test catalog
         if: ${{ !cancelled() && steps.sources.outputs.catalog-changed == 'true' }}
         uses: ./.source-actions/check/test-catalog

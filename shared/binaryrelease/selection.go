@@ -21,7 +21,7 @@ func runtimePath(path string) bool {
 
 func lintKinds(path string) []string {
 	kinds := []string{}
-	if runtimePath(path) && !strings.HasPrefix(path, ".github/workflows/") {
+	if (runtimePath(path) && !strings.HasPrefix(path, ".github/workflows/")) || (filepath.Ext(path) == ".json" && path != ".markdownlint.json") {
 		kinds = append(kinds, "rust-gtk")
 	}
 	ext := strings.ToLower(filepath.Ext(path))

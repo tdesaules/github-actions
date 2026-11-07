@@ -118,6 +118,22 @@ func TestCaseInsensitiveBumps(t *testing.T) {
 	}
 }
 
+func TestJSONConfigurationRequiresSyntaxLintWithoutBinaryRebuild(t *testing.T) {
+	before := fixtureRepo(t)
+	write(t, "renovate.json", "{invalid JSON\n")
+	source := commit(t, "ci: update dependency configuration")
+	p, err := MakePlan(PlanOptions{Event: "push", Ref: "refs/heads/main", SourceSHA: source, Before: before})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !p.HasLint || p.HasImages || p.HasTests {
+		t.Fatalf("unexpected selection: %#v", p)
+	}
+	if len(p.LintMatrix.Include) != 1 || p.LintMatrix.Include[0]["id"] != "rust-gtk" {
+		t.Fatalf("JSON configuration was not selected for syntax validation: %#v", p.LintMatrix)
+	}
+}
+
 func TestActionInputEnvironmentMappings(t *testing.T) {
 	for _, name := range []string{"plan-rust-gtk-release", "prepare-binary-release", "read-binary-release", "publish-binary-release"} {
 		var metadata struct {

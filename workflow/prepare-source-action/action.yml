@@ -10,6 +10,9 @@ inputs:
   host-port:
     description: Isolated candidate registry port
     required: true
+  source-runtime:
+    description: Use the already bootstrapped runtime qualifier for incompatible fixture contracts
+    default: 'false'
 runs:
   using: composite
   steps:
@@ -43,7 +46,17 @@ runs:
         revision: ${{ github.sha }}
         version: bootstrap
     - name: Qualify source runtime
+      if: inputs.source-runtime != 'true'
       uses: ./workflow/test-candidate-runtime
+      with:
+        archive: .build/bootstrap/${{ inputs.image }}/image.oci.tar
+        image: ${{ inputs.image }}
+        architecture: ${{ runner.arch == 'ARM64' && 'arm64' || 'amd64' }}
+        revision: ${{ github.sha }}
+        output: .build/bootstrap/${{ inputs.image }}/runtime.json
+    - name: Qualify source runtime with current fixtures
+      if: inputs.source-runtime == 'true'
+      uses: ./.source-actions/workflow/test-candidate-runtime
       with:
         archive: .build/bootstrap/${{ inputs.image }}/image.oci.tar
         image: ${{ inputs.image }}
