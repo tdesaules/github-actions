@@ -4,6 +4,9 @@ inputs:
   directory:
     description: Destination directory for generated fixtures
     required: true
+outputs:
+  rust-source-sha:
+    description: Deterministic synthetic Rust application source commit
 runs:
   using: docker
   image: docker://ghcr.io/tdesaules/github-actions/workflow-new-test-fixtures@sha256:46d18f2c00ada4eebc56dbf5b353e40c22d46e7533372c2aeff87d5ed239b636

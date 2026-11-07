@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/tdesaules/github-actions/shared/catalog"
 	"github.com/tdesaules/github-actions/shared/check"
 	"go.yaml.in/yaml/v3"
 )
@@ -47,7 +48,7 @@ func validate(path string) error {
 	}
 	for _, parameters := range []map[string]parameter{metadata.Inputs, metadata.Outputs} {
 		for name, parameter := range parameters {
-			if !regexp.MustCompile(`^[a-z][a-z0-9-]*$`).MatchString(name) || parameter.Description == "" {
+			if !regexp.MustCompile(`^[a-z][a-z0-9_-]*$`).MatchString(name) || parameter.Description == "" {
 				return fmt.Errorf("invalid or undocumented parameter %q", name)
 			}
 		}
@@ -57,7 +58,12 @@ func validate(path string) error {
 	switch metadata.Runs.Using {
 	case "docker":
 		if !strings.HasPrefix(metadata.Runs.Image, "docker://") {
-			return fmt.Errorf("native action must reference a prebuilt Docker image")
+			if os.Getenv("ALLOW_SOURCE_ACTIONS") != "true" || strings.HasPrefix(os.Getenv("GITHUB_REF"), "refs/tags/") {
+				return fmt.Errorf("native action must reference a prebuilt Docker image; source bootstrap requires ALLOW_SOURCE_ACTIONS=true")
+			}
+			if _, _, err := catalog.Reference(data, directory); err != nil {
+				return err
+			}
 		}
 		forwarded := map[string]bool{}
 		for _, value := range metadata.Runs.Args {

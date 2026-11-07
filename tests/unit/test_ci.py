@@ -52,9 +52,34 @@ class SelectionTests(unittest.TestCase):
 
     def test_shared_change_selects_both_architectures(self):
         jobs = ci.select(["shared/runtime/main.go"])["include"]
-        self.assertEqual(len(jobs), 2*len(ci.discover()[1]))
+        owners = ci.discover()[1]
+        expected = {name for name, directory in owners.items() if ci.build_dependency(ci.ROOT, directory, 'shared/runtime/main.go')}
+        self.assertEqual({j['image'] for j in jobs}, expected)
         self.assertTrue(all(j["rebuild"] for j in jobs))
         self.assertEqual({j["arch"] for j in jobs}, {"amd64", "arm64"})
+
+    def test_owned_source_bootstrap_requires_rebuild_and_matching_title(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            directory = root / 'lint/rust-gtk'
+            directory.mkdir(parents=True)
+            (directory / 'action.yml').write_text('runs:\n  using: docker\n  image: Containerfile\n')
+            recipe = directory / 'Containerfile'
+            recipe.write_text('FROM scratch AS final\nLABEL org.opencontainers.image.title="lint-rust-gtk"\nCOPY shared/rustgtk/ /src/\n')
+            for paths in (['lint/rust-gtk/action.yml'], ['shared/rustgtk/deleted.go']):
+                jobs = ci.select(paths, root=root)['include']
+                self.assertEqual(len(jobs), 2)
+                self.assertTrue(all(j['rebuild'] for j in jobs))
+            self.assertEqual(ci.select(['shared/unrelated/file.go'], root=root), {'include': []})
+            reference = 'ghcr.io/fixture/github-actions/lint-rust-gtk@sha256:' + 'a' * 64
+            pinned = ci.pinned_metadata(directory / 'action.yml', reference)
+            self.assertIn('  image: docker://' + reference + '\n', pinned)
+            self.assertNotIn('image: Containerfile', pinned)
+            with self.assertRaises(ValueError):
+                ci.pinned_metadata(directory / 'action.yml', 'ghcr.io/fixture/image:unpublished')
+            recipe.write_text('FROM scratch AS final\n# org.opencontainers.image.title="lint-rust-gtk"\n')
+            with self.assertRaises(ValueError):
+                ci.discover(root)
 
     def test_action_change_does_not_rebuild(self):
         jobs = ci.select(["oci/new-sbom/action.yml"])["include"]

@@ -1,0 +1,26 @@
+name: Publish binary release
+description: Publish source-bound qualified binary archives and checksums without replacement
+inputs:
+  repository:
+    description: GitHub owner/repository
+    required: true
+  tag:
+    description: Stable annotated release tag
+    required: true
+  qualified-directory:
+    description: Complete tag-retested receipt and archive directory
+    default: .build/qualified
+  token:
+    description: Token with contents write and actions read
+    required: true
+outputs:
+  tag:
+    description: Published release tag
+runs:
+  using: docker
+  image: Containerfile
+  env:
+    INPUT_REPOSITORY: ${{ inputs.repository }}
+    INPUT_TAG: ${{ inputs.tag }}
+    INPUT_QUALIFIED_DIRECTORY: ${{ inputs.qualified-directory }}
+    INPUT_TOKEN: ${{ inputs.token }}

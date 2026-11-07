@@ -63,7 +63,7 @@ func gitTest(t *testing.T, args ...string) string {
 	}
 	return strings.TrimSpace(string(data))
 }
-func fixture(t *testing.T) (string, string) {
+func fixture(t *testing.T, source ...bool) (string, string) {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("real Git regression requires git")
@@ -78,7 +78,11 @@ func fixture(t *testing.T) (string, string) {
 	if err := os.MkdirAll("check/test-fixture", 0755); err != nil {
 		t.Fatal(err)
 	}
-	for path, data := range map[string]string{"check/test-fixture/action.yml": "runs:\n  image: docker://ghcr.io/fixture/github-actions/check-test-fixture:unpublished\n", "check/test-fixture/Containerfile": "FROM scratch AS final\n", ".gitignore": ".build/\n"} {
+	metadata := "runs:\n  image: docker://ghcr.io/fixture/github-actions/check-test-fixture:unpublished\n"
+	if len(source) > 0 && source[0] {
+		metadata = "runs:\n  using: docker\n  image: Containerfile\n"
+	}
+	for path, data := range map[string]string{"check/test-fixture/action.yml": metadata, "check/test-fixture/Containerfile": "FROM scratch AS final\nLABEL org.opencontainers.image.title=\"check-test-fixture\"\n", ".gitignore": ".build/\n"} {
 		if err := os.WriteFile(path, []byte(data), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -160,9 +164,9 @@ func TestPrepareRejectsUnsafeArtifacts(t *testing.T) {
 	}
 }
 func TestAtomicReleaseAndRecovery(t *testing.T) {
-	for _, scenario := range []string{"success", "unsigned", "unpublished", "advanced-main", "rejected-push"} {
+	for _, scenario := range []string{"success", "source-bootstrap", "unsigned", "unpublished", "advanced-main", "rejected-push"} {
 		t.Run(scenario, func(t *testing.T) {
-			directory, base := fixture(t)
+			directory, base := fixture(t, scenario == "source-bootstrap")
 			if err := Prepare(directory, "fixture", filepath.Join(directory, "release-plan.json")); err != nil {
 				t.Fatal(err)
 			}
@@ -200,7 +204,7 @@ func TestAtomicReleaseAndRecovery(t *testing.T) {
 			t.Setenv("PATH", tools+string(os.PathListSeparator)+os.Getenv("PATH"))
 			t.Setenv("INPUT_TOKEN", "local-fixture-token")
 			err = Finish(directory)
-			if scenario == "success" || scenario == "unsigned" {
+			if scenario == "success" || scenario == "unsigned" || scenario == "source-bootstrap" {
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -208,6 +212,13 @@ func TestAtomicReleaseAndRecovery(t *testing.T) {
 				tag := gitTest(t, "--git-dir", remote, "rev-parse", "refs/tags/0.1.0")
 				if main != tag || main == base {
 					t.Fatal("refs not published atomically")
+				}
+				metadata, err := os.ReadFile("check/test-fixture/action.yml")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !strings.Contains(string(metadata), "  image: docker://"+state.Images["check-test-fixture"].Reference+"\n") {
+					t.Fatal("finalization did not pin the actual published source image")
 				}
 			} else {
 				if err == nil {

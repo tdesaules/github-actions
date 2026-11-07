@@ -7,9 +7,10 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/tdesaules/github-actions/shared/catalog"
 )
 
-var imageLine = regexp.MustCompile(`(?m)^(?:  image|        BUILDER_IMAGE): docker://([^\s]+)$`)
 var digest = regexp.MustCompile(`@sha256:[a-f0-9]{64}$`)
 
 var allowedBases = map[string]bool{
@@ -25,7 +26,9 @@ func reportBase(reference, directory string) {
 	}
 }
 
-func validate(root string) error {
+func validate(root string) error { return validateSource(root, false) }
+
+func validateSource(root string, allowSource bool) error {
 	owners := map[string]string{}
 	for _, family := range []string{"oci", "check", "lint", "workflow", "maintenance"} {
 		paths, err := filepath.Glob(filepath.Join(root, family, "*", "action.yml"))
@@ -45,15 +48,13 @@ func validate(root string) error {
 			if err != nil {
 				return err
 			}
-			match := imageLine.FindSubmatch(data)
-			if match == nil {
-				return fmt.Errorf("%s: missing image reference", path)
+			image, reference, err := catalog.Reference(data, directory)
+			if err != nil {
+				return err
 			}
-			reference := string(match[1])
-			if !digest.MatchString(reference) && !strings.HasSuffix(reference, ":unpublished") {
-				return fmt.Errorf("%s: image must be pinned or explicitly unpublished", path)
+			if !digest.MatchString(reference) && !(allowSource && (reference == "" || strings.HasSuffix(reference, ":unpublished"))) {
+				return fmt.Errorf("%s: image must be pinned; source bootstrap requires explicit allow-source", path)
 			}
-			image := strings.Split(strings.Split(filepath.Base(reference), ":")[0], "@")[0]
 			if family != "lint" && image != family+"-"+filepath.Base(directory) {
 				return fmt.Errorf("%s: image is not owned by this action", path)
 			}
@@ -128,6 +129,7 @@ func validate(root string) error {
 
 func main() {
 	directory := flag.String("directory", os.Getenv("INPUT_DIRECTORY"), "catalogue root")
+	allowSource := flag.Bool("allow-source", os.Getenv("INPUT_ALLOW-SOURCE") == "true", "allow unpublished source during qualification only")
 	version := flag.Bool("tool-version", false, "print validator version")
 	flag.Parse()
 	if *version {
@@ -141,7 +143,11 @@ func main() {
 	if *directory == "" {
 		*directory = "."
 	}
-	if err := validate(*directory); err != nil {
+	if *allowSource && strings.HasPrefix(os.Getenv("GITHUB_REF"), "refs/tags/") {
+		fmt.Fprintln(os.Stderr, "source bootstrap is forbidden on release tags")
+		os.Exit(1)
+	}
+	if err := validateSource(*directory, *allowSource); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

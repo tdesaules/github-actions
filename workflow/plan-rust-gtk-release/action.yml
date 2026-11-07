@@ -1,0 +1,66 @@
+name: Plan Rust GTK binary release
+description: Select source changes and derive an explicit source-bound binary release plan
+inputs:
+  directory:
+    description: Application checkout directory; output remains relative to original workspace
+    default: .
+  event:
+    description: GitHub event name
+    required: true
+  ref:
+    description: Full Git ref
+    required: true
+  before:
+    description: Previous push SHA (zero for new branch)
+    default: ''
+  source-sha:
+    description: Immutable checkout HEAD
+    required: true
+  mode:
+    description: Dispatch choice prepare or maintenance
+    default: ''
+  initial-release:
+    description: Explicit first official release at 1.0.0
+    default: 'false'
+  output:
+    description: Plan JSON workspace path
+    default: .build/plan.json
+  config:
+    description: Application git-cliff configuration
+    default: cliff.toml
+outputs:
+  mode:
+    description: development, prepare, publish or maintenance
+  source_sha:
+    description: Immutable application source revision
+  version:
+    description: Binary version
+  has_lint:
+    description: Whether lint is selected
+  has_images:
+    description: Whether binary construction is selected
+  has_tests:
+    description: Whether functional qualification is selected
+  has_release:
+    description: Whether release preparation or publication is selected
+  lint_matrix:
+    description: JSON include matrix
+  build_matrix:
+    description: JSON include matrix with arch and native runner
+  test_matrix:
+    description: JSON include matrix with arch and native runner
+  plan_artifact:
+    description: Unique plan artifact name
+runs:
+  using: docker
+  image: Containerfile
+  env:
+    INPUT_DIRECTORY: ${{ inputs.directory }}
+    INPUT_EVENT: ${{ inputs.event }}
+    INPUT_REF: ${{ inputs.ref }}
+    INPUT_BEFORE: ${{ inputs.before }}
+    INPUT_SOURCE_SHA: ${{ inputs.source-sha }}
+    INPUT_MODE: ${{ inputs.mode }}
+    INPUT_INITIAL_RELEASE: ${{ inputs.initial-release }}
+    INPUT_OUTPUT: ${{ inputs.output }}
+    INPUT_CONFIG: ${{ inputs.config }}

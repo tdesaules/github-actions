@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import subprocess
 
-from ci import ROOT, SEMVER, IMAGE, discover, git
+from ci import ROOT, SEMVER, discover, git, image_reference
 from images import ENGINE, mount
 
 CLIFF = 'docker.io/orhunp/git-cliff:2.14.2@sha256:1e696a381a1b0366bb6ccbb6bd4e50e73473fda88eab3a757b95e0d0d66c9531'
@@ -52,7 +52,7 @@ def finish(directory):
         subprocess.run(['git', 'apply', str(patch)], check=True)
     actions, _ = discover()
     for directory_name in actions:
-        reference = IMAGE.search((ROOT / directory_name / 'action.yml').read_text())[1]
+        _, reference = image_reference(ROOT / directory_name / 'action.yml')
         if '@sha256:' not in reference:
             raise ValueError('all release references must be immutable')
     notes = cliff('--tag', version)

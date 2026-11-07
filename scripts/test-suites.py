@@ -35,7 +35,7 @@ def test(image, reference):
         elif image == 'check-test-catalog':
             component = good / 'check/test-fixture'
             component.mkdir(parents=True)
-            (component / 'action.yml').write_text('runs:\n  image: docker://example.invalid/check-test-fixture:unpublished\n')
+            (component / 'action.yml').write_text('runs:\n  image: docker://example.invalid/check-test-fixture@sha256:' + 'a' * 64 + '\n')
             (component / 'main.go').write_text('package main\n')
             target = component / 'Containerfile'
             target.write_text('FROM scratch AS final\n')

@@ -1,0 +1,54 @@
+name: Qualify Rust GTK binary candidate
+description: Test source and exact candidate binary under private headless Wayland
+inputs:
+  directory:
+    description: Application checkout
+    default: .
+  archive:
+    description: Exact candidate archive workspace path
+    required: true
+  receipt:
+    description: Candidate or published receipt workspace path
+    required: true
+  source:
+    description: candidate (current run, untested) or published (original run, tested)
+    default: candidate
+  source-run-id:
+    description: Original preparation run ID, required for published mode
+  source-run-attempt:
+    description: Original preparation run attempt, required for published mode
+  version:
+    description: Expected stable SemVer
+    required: true
+  source-sha:
+    description: Expected full source commit SHA
+    required: true
+  arch:
+    description: Native amd64 or arm64
+    required: true
+  output:
+    description: Qualified directory relative to workspace
+    default: .build/qualified
+outputs:
+  extracted-root:
+    description: Fresh released payload extraction workspace path for scanning
+  archive:
+    description: Exact qualified archive workspace path
+  receipt:
+    description: Qualified receipt workspace path
+  sha256:
+    description: Qualified archive checksum
+runs:
+  using: docker
+  image: Containerfile
+  args:
+    - --directory=${{ inputs.directory }}
+    - --archive=${{ inputs.archive }}
+    - --receipt=${{ inputs.receipt }}
+    - --source=${{ inputs.source }}
+    - --source-run-id=${{ inputs.source-run-id }}
+    - --source-run-attempt=${{ inputs.source-run-attempt }}
+    - --version=${{ inputs.version }}
+    - --source-sha=${{ inputs.source-sha }}
+    - --arch=${{ inputs.arch }}
+    - --output=${{ inputs.output }}

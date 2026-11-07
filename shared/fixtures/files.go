@@ -5,6 +5,7 @@ import "strings"
 
 func Files() map[string]string {
 	files := map[string]string{
+		"security-findings.json":                           `{"matches":[{"vulnerability":{"severity":"Critical"}},{"vulnerability":{"severity":"High"}}],"descriptor":{"db":{"built":"2026-01-01T00:00:00Z"}}}`,
 		"syft-empty.json":                                  "{\"artifacts\":[],\"files\":[]}",
 		"review-empty.json":                                "{\"ignore\":[]}",
 		"fixture with spaces/hello.txt":                    "hello\n",
@@ -31,10 +32,10 @@ func Files() map[string]string {
 		"go-invalid/fixture_test.go":                       "package fixture\nimport \"testing\"\nfunc TestFixture(t *testing.T) { t.Fatal(\"intentional failure\") }\n",
 		"python-valid/tests/unit/test_fixture.py":          "import unittest\nclass Fixture(unittest.TestCase):\n def test_fixture(self): self.assertTrue(True)\n",
 		"python-invalid/tests/unit/test_fixture.py":        "import unittest\nclass Fixture(unittest.TestCase):\n def test_fixture(self): self.fail('intentional failure')\n",
-		"catalog-valid/check/test-fixture/action.yml":      "runs:\n  image: docker://example.invalid/check-test-fixture:unpublished\n",
+		"catalog-valid/check/test-fixture/action.yml":      "runs:\n  image: docker://example.invalid/check-test-fixture@sha256:" + strings.Repeat("a", 64) + "\n",
 		"catalog-valid/check/test-fixture/main.go":         "package main\n",
 		"catalog-valid/check/test-fixture/Containerfile":   "FROM scratch AS final\n",
-		"catalog-invalid/check/test-fixture/action.yml":    "runs:\n  image: docker://example.invalid/check-test-fixture:unpublished\n",
+		"catalog-invalid/check/test-fixture/action.yml":    "runs:\n  image: docker://example.invalid/check-test-fixture@sha256:" + strings.Repeat("a", 64) + "\n",
 		"catalog-invalid/check/test-fixture/main.go":       "package main\n",
 		"catalog-invalid/check/test-fixture/Containerfile": "FROM alpine:latest AS final\n",
 	}

@@ -1,0 +1,15 @@
+name: Lint Rust GTK application
+description: Check Rust formatting, Clippy, plugin syntax and package locks
+inputs:
+  directory:
+    description: Application checkout
+    default: .
+  output:
+    description: JSON lint report relative to workspace
+    default: .build/lint/rust-gtk.json
+runs:
+  using: docker
+  image: Containerfile
+  args:
+    - --directory=${{ inputs.directory }}
+    - --output=${{ inputs.output }}

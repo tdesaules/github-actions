@@ -1,4 +1,8 @@
-FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS build
+FROM quay.io/fedora/fedora:44@sha256:b3e011d47e686a89781495c9a87bc80349af742965e5d51e79cd51711982e4a2 AS build
+# Supporting RPMs follow signed Fedora updates; qualified archives stay unchanged.
+# hadolint ignore=DL3041
+RUN dnf install -y golang-1.26.10-1.fc44 git ca-certificates && dnf clean all
+ENV GOTOOLCHAIN=local
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY shared/fixtures/ ./shared/fixtures/
@@ -9,6 +13,8 @@ RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoi
     && CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /fixture-fail-run ./workflow/new-test-fixtures/fail \
     && CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /fixture-success-run ./workflow/new-test-fixtures/success
 RUN mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
+COPY shared/collect-binaries.sh /collect-binaries.sh
+RUN sh /collect-binaries.sh /usr/bin/git
 
 FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
@@ -16,6 +22,7 @@ COPY --from=build /runtime/ /
 COPY --from=build /entrypoint /entrypoint
 COPY --from=build /fixture-fail-run /fixture-fail-run
 COPY --from=build /fixture-success-run /fixture-success-run
+ENV PATH=/usr/bin HOME=/tmp
 # Generates fixtures in the runner workspace.
 # hadolint ignore=DL3002
 USER 0:0

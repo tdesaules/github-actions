@@ -25,7 +25,21 @@ type result struct {
 }
 
 func qualify(root *candidate.Root, image string, results *[]result) error {
+	rust := image == "lint-rust-gtk" || image == "workflow-build-rust-gtk" || image == "workflow-test-rust-gtk"
+	rustSHA := ""
+	if rust {
+		var err error
+		rustSHA, err = fixtures.RustRepository(filepath.Join(root.Path, "fixtures", "rust-app with spaces"))
+		if err != nil {
+			return err
+		}
+	}
 	files := fixtures.Files()
+	if rust {
+		for name, data := range fixtures.RustFiles() {
+			files["rust-app with spaces/"+name] = data
+		}
+	}
 	before := map[string][32]byte{}
 	for name, data := range files {
 		p := filepath.Join(root.Path, "fixtures", name)
@@ -52,8 +66,27 @@ func qualify(root *candidate.Root, image string, results *[]result) error {
 		}
 		return nil
 	}
-	if err := test("native tool version", "/entrypoint", []string{"--tool-version"}, true, ""); err != nil {
+	versionArg := "--tool-version"
+	if strings.Contains(image, "binary-release") || image == "workflow-plan-rust-gtk-release" {
+		versionArg = "--version"
+	}
+	if err := test("native tool version", "/entrypoint", []string{versionArg}, true, ""); err != nil {
 		return err
+	}
+	if rust {
+		if err := rustCases(root, image, rustSHA, results); err != nil {
+			return err
+		}
+	}
+	if image == "workflow-summarize-security" {
+		if err := securityCases(root, results); err != nil {
+			return err
+		}
+	}
+	if strings.Contains(image, "binary-release") || image == "workflow-plan-rust-gtk-release" {
+		if err := binaryCases(root, image, results); err != nil {
+			return err
+		}
 	}
 	if image == "workflow-start-test-registry" {
 		err := service(root)

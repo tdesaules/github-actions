@@ -1,6 +1,9 @@
 name: Test Catalog
 description: Validate image ownership, pinned bases and scratch final stages
 inputs:
+  allow-source:
+    description: Allow explicitly unpublished owned source during bootstrap qualification (never release tags)
+    default: 'false'
   directory:
     description: Catalogue root relative to the workspace
     default: .
@@ -8,4 +11,5 @@ runs:
   using: docker
   image: docker://ghcr.io/tdesaules/github-actions/check-test-catalog@sha256:c712756cfe1f4d037330e5be84fecb1c0d8d02157bd9af5908cd8039f431e2c0
   args:
+    - --allow-source=${{ inputs.allow-source }}
     - --directory=${{ inputs.directory }}

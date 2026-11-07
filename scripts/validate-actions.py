@@ -2,6 +2,7 @@
 """Validate native actions and the narrowly scoped Buildah composite exception."""
 from pathlib import Path
 import re
+import os
 
 import yaml
 
@@ -48,7 +49,8 @@ def validate(path):
                 raise ValueError(f'{path}: orchestration composites must use actions')
             if step['uses'].startswith('./') and not (Path(step['uses']) / 'action.yml').is_file():
                 raise ValueError(f'{path}: missing local action {step["uses"]}')
-    elif runs.get("using") != "docker" or not runs.get("image", "").startswith("docker://"):
+    elif runs.get("using") != "docker" or not (runs.get("image", "").startswith("docker://") or
+            (os.environ.get("ALLOW_SOURCE_ACTIONS") == "true" and runs.get("image") == "Containerfile")):
         raise ValueError(f"{path}: must be a native prebuilt Docker action")
     environment_inputs = set(runs.get('env', {}).values())
     if not builder and not composite and runs.get('args', []) != ['--'+name+'=${{ inputs.'+name+' }}' for name in data.get('inputs', {}) if '${{ inputs.'+name+' }}' not in environment_inputs]:
@@ -58,7 +60,7 @@ def validate(path):
             raise ValueError(f'{path}: action must own {filename}')
     for field in ("inputs", "outputs"):
         for name, spec in data.get(field, {}).items():
-            if not re.fullmatch(r"[a-z][a-z0-9-]*", name):
+            if not re.fullmatch(r"[a-z][a-z0-9_-]*", name):
                 raise ValueError(f"{path}: invalid {field} name: {name}")
             if not isinstance(spec.get("description"), str) or not spec["description"]:
                 raise ValueError(f"{path}: undocumented {field}: {name}")

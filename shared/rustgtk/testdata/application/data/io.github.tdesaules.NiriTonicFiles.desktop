@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Niri Tonic Fixture
+Exec=niri-tonic-files
+Icon=io.github.tdesaules.NiriTonicFiles
+Categories=Utility;

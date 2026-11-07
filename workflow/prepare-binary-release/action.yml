@@ -1,0 +1,40 @@
+name: Prepare binary release
+description: Bind qualified binaries to an annotated tag and atomically advance main
+inputs:
+  source-sha:
+    description: Expected immutable source HEAD
+    required: true
+  plan:
+    description: Prepared plan JSON
+    default: .build/plan.json
+  qualified-directory:
+    description: Complete amd64 and arm64 tested receipts and archives
+    default: .build/qualified
+  repository:
+    description: GitHub owner/repository
+    required: true
+  token:
+    description: App token with contents write and actions read
+    required: true
+  config:
+    description: Application git-cliff configuration
+    default: cliff.toml
+outputs:
+  tag:
+    description: Created stable no-v tag
+  final_sha:
+    description: Release metadata commit
+  source_sha:
+    description: Qualified application source commit
+  artifact_run_id:
+    description: Source qualification run
+runs:
+  using: docker
+  image: Containerfile
+  env:
+    INPUT_SOURCE_SHA: ${{ inputs.source-sha }}
+    INPUT_PLAN: ${{ inputs.plan }}
+    INPUT_QUALIFIED_DIRECTORY: ${{ inputs.qualified-directory }}
+    INPUT_REPOSITORY: ${{ inputs.repository }}
+    INPUT_TOKEN: ${{ inputs.token }}
+    INPUT_CONFIG: ${{ inputs.config }}

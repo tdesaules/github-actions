@@ -15,6 +15,36 @@ import (
 var ImageLine = regexp.MustCompile(`(?m)^(?:  image|        BUILDER_IMAGE): docker://([^\s]+)$`)
 var Pinned = regexp.MustCompile(`^.+@sha256:[a-f0-9]{64}$`)
 
+// Reference permits only an action's own Containerfile as a source bootstrap.
+// An empty reference is deliberately not a pullable or publishable image tag.
+func Reference(data []byte, directory string) (name, reference string, err error) {
+	if match := ImageLine.FindSubmatch(data); match != nil {
+		reference = string(match[1])
+		name = strings.Split(strings.Split(filepath.Base(reference), ":")[0], "@")[0]
+		return name, reference, nil
+	}
+	if !regexp.MustCompile(`(?m)^  image: Containerfile$`).Match(data) || !regexp.MustCompile(`(?m)^  using: docker$`).Match(data) {
+		return "", "", fmt.Errorf("%s: missing Docker image reference", directory)
+	}
+	name = filepath.Base(filepath.Dir(directory)) + "-" + filepath.Base(directory)
+	info, err := os.Lstat(filepath.Join(directory, "Containerfile"))
+	if err != nil {
+		return "", "", err
+	}
+	if !info.Mode().IsRegular() {
+		return "", "", fmt.Errorf("%s: source recipe must be an owned regular file", directory)
+	}
+	recipe, err := os.ReadFile(filepath.Join(directory, "Containerfile"))
+	if err != nil {
+		return "", "", err
+	}
+	final := strings.LastIndex(string(recipe), "FROM ")
+	if final < 0 || !regexp.MustCompile(`(?m)^FROM [^\n]+ AS final$`).Match(recipe[final:]) || !regexp.MustCompile(`(?m)^LABEL [^\n]*\borg\.opencontainers\.image\.title="`+regexp.QuoteMeta(name)+`"(?:\s|$)`).Match(recipe[final:]) {
+		return "", "", fmt.Errorf("%s: source image requires matching final-stage title", directory)
+	}
+	return name, "", nil
+}
+
 type Image struct{ Name, Directory, Reference string }
 
 func Discover() ([]Image, error) {
@@ -37,12 +67,10 @@ func Discover() ([]Image, error) {
 			if err != nil {
 				return nil, err
 			}
-			match := ImageLine.FindSubmatch(data)
-			if match == nil {
-				return nil, fmt.Errorf("%s: missing image reference", path)
+			name, ref, err := Reference(data, directory)
+			if err != nil {
+				return nil, err
 			}
-			ref := string(match[1])
-			name := strings.Split(strings.Split(filepath.Base(ref), ":")[0], "@")[0]
 			if family != "lint" && name != family+"-"+filepath.Base(directory) {
 				return nil, fmt.Errorf("%s: wrong image owner", path)
 			}

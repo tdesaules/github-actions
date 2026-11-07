@@ -1,0 +1,22 @@
+FROM quay.io/fedora/fedora:44@sha256:50ab7dd5a71732975b6a1f19108df021b61254f3a507e68ac8abb5fb0bceb308 AS build
+# hadolint ignore=DL3041
+RUN dnf install -y golang-1.26.10-1.fc44 && dnf clean all
+ENV GOTOOLCHAIN=local
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/binaryrelease/ ./shared/binaryrelease/
+COPY workflow/read-binary-release/main.go ./workflow/read-binary-release/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/read-binary-release
+FROM quay.io/fedora/fedora:44@sha256:50ab7dd5a71732975b6a1f19108df021b61254f3a507e68ac8abb5fb0bceb308 AS final
+# Git verifies annotated tag objects, parents and metadata-only diffs.
+# hadolint ignore=DL3041
+RUN dnf install -y --setopt=install_weak_deps=False git ca-certificates && dnf clean all
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=build /entrypoint /entrypoint
+ENV PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp GIT_TERMINAL_PROMPT=0
+# Writes verified artifacts into the mounted workspace.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="workflow-read-binary-release" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

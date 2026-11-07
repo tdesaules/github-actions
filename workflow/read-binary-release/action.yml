@@ -1,0 +1,38 @@
+name: Read binary release
+description: Verify annotated release provenance and download exact immutable qualified artifacts
+inputs:
+  tag:
+    description: Stable annotated release tag
+    required: true
+  repository:
+    description: GitHub owner/repository
+    required: true
+  token:
+    description: Token with contents read and actions read
+    required: true
+  output:
+    description: New workspace directory for downloaded qualified archives
+    default: .build/released
+outputs:
+  source_sha:
+    description: Original qualified source commit
+  version:
+    description: Release version
+  run_id:
+    description: Original preparation run
+  run_attempt:
+    description: Original preparation run attempt
+  qualified_directory:
+    description: Root qualified directory
+  amd64_directory:
+    description: AMD64 artifact directory
+  arm64_directory:
+    description: ARM64 artifact directory
+runs:
+  using: docker
+  image: Containerfile
+  env:
+    INPUT_TAG: ${{ inputs.tag }}
+    INPUT_REPOSITORY: ${{ inputs.repository }}
+    INPUT_TOKEN: ${{ inputs.token }}
+    INPUT_OUTPUT: ${{ inputs.output }}

@@ -56,6 +56,39 @@ func TestSelection(t *testing.T) {
 	}
 }
 
+func TestSourceBootstrapDiscoveryAndSelection(t *testing.T) {
+	t.Chdir(t.TempDir())
+	if err := os.MkdirAll("lint/rust-gtk", 0755); err != nil {
+		t.Fatal(err)
+	}
+	for path, text := range map[string]string{
+		"lint/rust-gtk/action.yml":    "runs:\n  using: docker\n  image: Containerfile\n",
+		"lint/rust-gtk/Containerfile": "FROM scratch AS final\nCOPY shared/rustgtk/ /src/\nLABEL org.opencontainers.image.title=\"lint-rust-gtk\"\n",
+	} {
+		if err := os.WriteFile(path, []byte(text), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	components, err := discover()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, paths := range [][]string{{"lint/rust-gtk/action.yml"}, {"shared/rustgtk/deleted.go"}} {
+		m, err := selectImages(components, paths, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(m.Include) != 2 {
+			t.Fatal(m)
+		}
+		for _, job := range m.Include {
+			if !job.Rebuild || job.Reference != "" {
+				t.Fatalf("source was reused or given a pullable reference: %+v", job)
+			}
+		}
+	}
+}
+
 func TestSourceDependenciesAndScanSelection(t *testing.T) {
 	t.Chdir(t.TempDir())
 	for directory, recipe := range map[string]string{

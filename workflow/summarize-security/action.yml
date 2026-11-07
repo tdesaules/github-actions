@@ -1,0 +1,31 @@
+name: Summarize advisory security evidence
+description: Report actual SBOM and Grype outcomes without a vulnerability gate
+inputs:
+  subject:
+    description: Archive SHA-256 (bare or sha256-prefixed) or git-prefixed full commit SHA
+    required: true
+  sbom-outcome:
+    description: Actual SBOM step outcome (success, failure, cancelled or skipped)
+    required: true
+  scan-outcome:
+    description: Actual scan step outcome (success, failure, cancelled or skipped)
+    required: true
+  sbom:
+    description: SBOM JSON path, including when the producer failed
+    required: true
+  report:
+    description: Grype JSON path, including when the scanner failed
+    required: true
+  output:
+    description: Workspace-relative summary JSON path
+    default: .build/security/summary.json
+runs:
+  using: docker
+  image: Containerfile
+  args:
+    - --subject=${{ inputs.subject }}
+    - --sbom-outcome=${{ inputs.sbom-outcome }}
+    - --scan-outcome=${{ inputs.scan-outcome }}
+    - --sbom=${{ inputs.sbom }}
+    - --report=${{ inputs.report }}
+    - --output=${{ inputs.output }}

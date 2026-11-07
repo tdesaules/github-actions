@@ -80,6 +80,12 @@ func Finish(directory string) error {
 			match := catalog.ImageLine.FindStringSubmatch(line)
 			return strings.Replace(line, match[1], state.Images[owner.Name].Reference, 1)
 		})
+		if owner.Reference == "" {
+			if !catalog.Pinned.MatchString(state.Images[owner.Name].Reference) {
+				return fmt.Errorf("%s: source bootstrap requires a published digest", owner.Name)
+			}
+			updated = strings.Replace(updated, "  image: Containerfile\n", "  image: docker://"+state.Images[owner.Name].Reference+"\n", 1)
+		}
 		if err = os.WriteFile(path, []byte(updated), 0644); err != nil {
 			return err
 		}

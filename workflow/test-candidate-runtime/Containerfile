@@ -1,21 +1,20 @@
-FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS build
+FROM quay.io/fedora/fedora:44@sha256:b3e011d47e686a89781495c9a87bc80349af742965e5d51e79cd51711982e4a2 AS build
+RUN dnf install -y golang-1.26.10-1.fc44 && dnf clean all
+ENV GOTOOLCHAIN=local
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY shared/candidate/ ./shared/candidate/
 COPY shared/catalog/ ./shared/catalog/
 COPY shared/fixtures/ ./shared/fixtures/
 COPY shared/workflow/ ./shared/workflow/
-COPY workflow/test-candidate-runtime/main.go ./workflow/test-candidate-runtime/main.go
-COPY workflow/test-candidate-runtime/service.go ./workflow/test-candidate-runtime/service.go
+COPY workflow/test-candidate-runtime/ ./workflow/test-candidate-runtime/
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/test-candidate-runtime \
     && echo 'disposable-candidate-runtime' > /candidate-runtime-marker
-FROM ghcr.io/tdesaules/github-actions/oci-import-image@sha256:9158f97b4f7d5179b18682f840391dc66f821edc2ec135e227e3267f523dc5aa AS runtime
-FROM build AS patched-skopeo
-COPY shared/runtime/ ./shared/runtime/
-RUN sh shared/runtime/compile-skopeo.sh
-FROM scratch AS final
-COPY --from=runtime / /
-COPY --from=patched-skopeo /tool /usr/bin/skopeo
+FROM quay.io/fedora/fedora:44@sha256:b3e011d47e686a89781495c9a87bc80349af742965e5d51e79cd51711982e4a2 AS final
+# Skopeo's distribution policy, trust store and transport libraries are retained.
+# hadolint ignore=DL3041
+RUN dnf install -y skopeo git ca-certificates && dnf clean all
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=build /entrypoint /entrypoint
 COPY --from=build /candidate-runtime-marker /.candidate-runtime
 ENV PATH=/usr/bin HOME=/tmp

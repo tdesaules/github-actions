@@ -8,7 +8,7 @@ from pathlib import Path
 import re
 import subprocess
 
-from ci import ROOT, IMAGE, SEMVER, aggregate, discover
+from ci import ROOT, SEMVER, aggregate, discover, image_reference, pinned_metadata
 from images import ENGINE, container, local_ref, action_ref, load_archive, mount, run
 
 
@@ -48,7 +48,7 @@ def main():
             if image in changed:
                 load_archive(locations[(image, "amd64")] / "image.oci.tar", local_ref(image, args.version))
             else:
-                reference = IMAGE.search((ROOT / owners[image] / 'action.yml').read_text())[1]
+                _, reference = image_reference(ROOT / owners[image] / 'action.yml')
                 if '@sha256:' not in reference:
                     raise ValueError(f'{image}: missing tested image or published immutable reference')
                 run(ENGINE, 'pull', reference)
@@ -103,7 +103,7 @@ def main():
         state = {"version": args.version, "images": {}, "security": security}
         for image in sorted(owners):
             if image not in changed:
-                reference = IMAGE.search((ROOT / owners[image] / 'action.yml').read_text())[1]
+                _, reference = image_reference(ROOT / owners[image] / 'action.yml')
                 if '@sha256:' not in reference:
                     raise ValueError(f'{image}: unchanged image is not pinned')
                 index = raw('docker://'+reference)
@@ -168,7 +168,7 @@ def main():
         for action, image in sorted(actions.items()):
             path = ROOT / action / "action.yml"
             old = path.read_text()
-            new = IMAGE.sub(lambda m: m[0].replace(m[1], state["images"][image]["reference"]), old)
+            new = pinned_metadata(path, state["images"][image]["reference"])
             patch.extend(difflib.unified_diff(old.splitlines(True), new.splitlines(True), fromfile="a/"+str(path.relative_to(ROOT)), tofile="b/"+str(path.relative_to(ROOT))))
         (directory / "action-digests.patch").write_text("".join(patch))
 

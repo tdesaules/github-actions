@@ -111,6 +111,24 @@ func execute(args []string) error {
 			return err
 		}
 	}
+	rustSHA, err := fixtures.RustRepository(filepath.Join(*directory, "rust-app with spaces"))
+	if err != nil {
+		return err
+	}
+	if output := os.Getenv("GITHUB_OUTPUT"); output != "" {
+		f, err := os.OpenFile(output, os.O_APPEND|os.O_WRONLY, 0600)
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintf(f, "rust-source-sha=%s\n", rustSHA)
+		closeErr := f.Close()
+		if err != nil {
+			return err
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+	}
 	if err := archive(filepath.Join(*directory, "fixture.oci.tar"), "amd64"); err != nil {
 		return err
 	}

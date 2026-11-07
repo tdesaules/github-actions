@@ -98,6 +98,8 @@ jobs:
       - name: Test catalog
         if: ${{ !cancelled() && steps.sources.outputs.catalog-changed == 'true' }}
         uses: ./.source-actions/check/test-catalog
+        with:
+          allow-source: ${{ !startsWith(github.ref, 'refs/tags/') }}
       - name: Test Python
         if: ${{ !cancelled() && steps.sources.outputs.python-changed == 'true' }}
         uses: ./check/test-python
@@ -115,20 +117,35 @@ jobs:
           name: release-plan
           path: .build/publication/release-plan.json
           include-hidden-files: true
+      - name: Bootstrap source-aware artifact reuse validation
+        if: github.event_name == 'workflow_dispatch' && !inputs.qualify-catalog && inputs.artifact-run-id != ''
+        uses: ./workflow/prepare-source-action
+        with:
+          directory: workflow/test-artifact-source
+          image: workflow-test-artifact-source
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Validate publication artifact source
         id: resume
         if: github.event_name == 'workflow_dispatch' && !inputs.qualify-catalog && inputs.artifact-run-id != ''
-        uses: ./workflow/test-artifact-source
+        uses: ./.source-actions/workflow/test-artifact-source
         with:
           run-id: ${{ inputs.artifact-run-id }}
           release-plan: ${{ steps.plan.outcome == 'success' && '.build/publication/release-plan.json' || '' }}
           repository: ${{ github.repository }}
           revision: ${{ github.sha }}
           token: ${{ github.token }}
+      # Temporary source bridge: remove after these control images are published and pinned.
+      - name: Bootstrap source-aware image selector
+        if: '!inputs.qualify-runner || inputs.qualify-catalog'
+        uses: ./workflow/prepare-source-action
+        with:
+          directory: workflow/get-image-matrix
+          image: workflow-get-image-matrix
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Select mode and dynamic matrix
         id: select
         if: '!inputs.qualify-runner || inputs.qualify-catalog'
-        uses: ./workflow/get-image-matrix
+        uses: ./.source-actions/workflow/get-image-matrix
         with:
           files: ${{ steps.sources.outputs.files }}
           full: ${{ steps.sources.outputs.full }}
@@ -136,9 +153,18 @@ jobs:
           ref: ${{ github.ref }}
           release-plan: ${{ steps.plan.outcome == 'success' && '.build/publication/release-plan.json' || '' }}
           reuse-artifacts: ${{ steps.resume.outcome == 'success' }}
+      - name: Bootstrap source-aware action metadata validator
+        if: ${{ !cancelled() && steps.sources.outputs.action-metadata-changed == 'true' }}
+        uses: ./workflow/prepare-source-action
+        with:
+          directory: check/test-action-metadata
+          image: check-test-action-metadata
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Validate action metadata
         if: ${{ !cancelled() && steps.sources.outputs.action-metadata-changed == 'true' }}
-        uses: ./check/test-action-metadata
+        uses: ./.source-actions/check/test-action-metadata
+        env:
+          ALLOW_SOURCE_ACTIONS: ${{ !startsWith(github.ref, 'refs/tags/') }}
         with:
           files: ${{ steps.sources.outputs.action-metadata-files }}
       - name: Create native runner fixtures
@@ -329,7 +355,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     services:
       candidate-registry:
-        image: ${{ (matrix.rebuild || matrix.scan || matrix.image == 'workflow-import-candidate-image') && needs.check.outputs.test-registry-image || '' }}
+        image: ${{ needs.check.outputs.test-registry-image }}
         ports:
           - 5000/tcp
       test-registry:
@@ -339,13 +365,35 @@ jobs:
       packages: read
     env:
       VERSION: ${{ needs.check.outputs.version }}-${{ github.run_id }}
+      SOURCE_CONTROLS: ${{ contains(fromJSON('["lint-rust-gtk","workflow-build-rust-gtk","workflow-test-rust-gtk","workflow-plan-rust-gtk-release","workflow-prepare-binary-release","workflow-read-binary-release","workflow-publish-binary-release","workflow-summarize-security","check-test-catalog","workflow-new-test-fixtures","workflow-test-candidate-runtime"]'), matrix.image) }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Create native test fixtures
+      # Temporary source bridges; retire after publishing and pinning these controls.
+      - name: Create runner-owned native fixture directories
         uses: ./workflow/new-test-fixtures
+        with:
+          directory: .build/fixtures
+      - name: Bootstrap native fixture generator
+        if: env.SOURCE_CONTROLS == 'true'
+        uses: ./workflow/prepare-source-action
+        with:
+          directory: workflow/new-test-fixtures
+          image: workflow-new-test-fixtures
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Bootstrap native runtime qualifier
+        if: env.SOURCE_CONTROLS == 'true'
+        uses: ./workflow/prepare-source-action
+        with:
+          directory: workflow/test-candidate-runtime
+          image: workflow-test-candidate-runtime
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Create native test fixtures
+        id: fixtures
+        if: env.SOURCE_CONTROLS == 'true'
+        uses: ./.source-actions/workflow/new-test-fixtures
         with:
           directory: .build/fixtures
       - name: Download untested build artifact
@@ -366,6 +414,18 @@ jobs:
           revision: ${{ github.sha }}
           version: ${{ env.VERSION }}
       - name: Test native runtime, negative fixtures and source permissions
+        if: env.SOURCE_CONTROLS == 'true'
+        uses: ./.source-actions/workflow/test-candidate-runtime
+        with:
+          archive: ${{ matrix.rebuild && format('.build/{0}/{1}/image.oci.tar', matrix.image, matrix.arch) || '' }}
+          archive-output: ${{ matrix.scan && !matrix.rebuild && format('.build/{0}/{1}/scan.oci.tar', matrix.image, matrix.arch) || '' }}
+          reference: ${{ matrix.reference }}
+          image: ${{ matrix.image }}
+          architecture: ${{ matrix.arch }}
+          revision: ${{ matrix.rebuild && github.sha || '' }}
+          output: .build/${{ matrix.image }}/${{ matrix.arch }}/runtime-tests.json
+      - name: Test published native runtime and negative fixtures
+        if: env.SOURCE_CONTROLS != 'true'
         uses: ./workflow/test-candidate-runtime
         with:
           archive: ${{ matrix.rebuild && format('.build/{0}/{1}/image.oci.tar', matrix.image, matrix.arch) || '' }}
@@ -392,6 +452,164 @@ jobs:
       - name: Test native catalog validation
         if: matrix.image == 'check-test-catalog'
         uses: ./.candidate-actions/check/test-catalog
+        with:
+          allow-source: 'true'
+      - name: Lint native synthetic Rust application
+        if: matrix.image == 'lint-rust-gtk'
+        uses: ./.candidate-actions/lint/rust-gtk
+        with:
+          directory: .build/fixtures/rust-app with spaces
+          output: .build/fixtures/rust-lint.json
+      - name: Reject missing Rust lint source
+        if: matrix.image == 'lint-rust-gtk'
+        id: invalid-rust-lint
+        continue-on-error: true
+        uses: ./.candidate-actions/lint/rust-gtk
+        with:
+          directory: .build/fixtures/missing-rust
+          output: .build/fixtures/rejected-lint.json
+      - name: Build native synthetic Rust archive
+        if: matrix.image == 'workflow-build-rust-gtk'
+        uses: ./.candidate-actions/workflow/build-rust-gtk
+        with:
+          directory: .build/fixtures/rust-app with spaces
+          output: .build/fixtures/rust-candidate
+          version: 1.0.0
+          source-sha: ${{ steps.fixtures.outputs.rust-source-sha }}
+          arch: ${{ matrix.arch }}
+      - name: Reject mismatched Rust build source
+        if: matrix.image == 'workflow-build-rust-gtk'
+        id: invalid-rust-build
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/build-rust-gtk
+        with:
+          directory: .build/fixtures/rust-app with spaces
+          output: .build/fixtures/rejected-rust-build
+          version: 1.0.0
+          source-sha: '0000000000000000000000000000000000000000'
+          arch: ${{ matrix.arch }}
+      - name: Bootstrap Rust fixture builder
+        if: matrix.image == 'workflow-test-rust-gtk'
+        uses: ./workflow/prepare-source-action
+        with:
+          directory: workflow/build-rust-gtk
+          image: workflow-build-rust-gtk
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Prepare exact native Rust test archive
+        if: matrix.image == 'workflow-test-rust-gtk'
+        id: rust-fixture-build
+        uses: ./.source-actions/workflow/build-rust-gtk
+        with:
+          directory: .build/fixtures/rust-app with spaces
+          output: .build/fixtures/rust-candidate
+          version: 1.0.0
+          source-sha: ${{ steps.fixtures.outputs.rust-source-sha }}
+          arch: ${{ matrix.arch }}
+      - name: Qualify exact native synthetic Rust archive
+        if: matrix.image == 'workflow-test-rust-gtk'
+        uses: ./.candidate-actions/workflow/test-rust-gtk
+        with:
+          directory: .build/fixtures/rust-app with spaces
+          output: .build/fixtures/rust-qualified
+          archive: ${{ steps.rust-fixture-build.outputs.archive }}
+          receipt: ${{ steps.rust-fixture-build.outputs.receipt }}
+          version: 1.0.0
+          source-sha: ${{ steps.fixtures.outputs.rust-source-sha }}
+          arch: ${{ matrix.arch }}
+      - name: Reject mismatched Rust qualification source
+        if: matrix.image == 'workflow-test-rust-gtk'
+        id: invalid-rust-test
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/test-rust-gtk
+        with:
+          directory: .build/fixtures/rust-app with spaces
+          output: .build/fixtures/rejected-rust-test
+          archive: ${{ steps.rust-fixture-build.outputs.archive }}
+          receipt: ${{ steps.rust-fixture-build.outputs.receipt }}
+          version: 1.0.0
+          source-sha: '0000000000000000000000000000000000000000'
+          arch: ${{ matrix.arch }}
+      - name: Plan native Rust empty development diff
+        if: matrix.image == 'workflow-plan-rust-gtk-release'
+        uses: ./.candidate-actions/workflow/plan-rust-gtk-release
+        with:
+          directory: .build/fixtures/rust-app with spaces
+          event: push
+          ref: refs/heads/main
+          before: ${{ steps.fixtures.outputs.rust-source-sha }}
+          source-sha: ${{ steps.fixtures.outputs.rust-source-sha }}
+          output: .build/fixtures/rust-plan.json
+      - name: Reject invalid Rust release tag
+        if: matrix.image == 'workflow-plan-rust-gtk-release'
+        id: invalid-rust-plan
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/plan-rust-gtk-release
+        with:
+          event: push
+          ref: refs/tags/v1.0.0
+          source-sha: ${{ github.sha }}
+          output: .build/fixtures/rejected-rust-plan.json
+      - name: Reject missing binary release preparation source
+        if: matrix.image == 'workflow-prepare-binary-release'
+        id: invalid-binary-prepare
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/prepare-binary-release
+        with:
+          source-sha: '0000000000000000000000000000000000000000'
+          repository: fixture/repo
+          token: unused-fixture-token
+      - name: Reject malformed binary release provenance
+        if: matrix.image == 'workflow-read-binary-release'
+        id: invalid-binary-read
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/read-binary-release
+        with:
+          tag: v1.0.0
+          repository: fixture/repo
+          token: unused-fixture-token
+      - name: Reject malformed binary release publication
+        if: matrix.image == 'workflow-publish-binary-release'
+        id: invalid-binary-publish
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/publish-binary-release
+        with:
+          tag: v1.0.0
+          repository: fixture/repo
+          token: unused-fixture-token
+      - name: Summarize actual native advisory findings
+        if: matrix.image == 'workflow-summarize-security'
+        uses: ./.candidate-actions/workflow/summarize-security
+        with:
+          subject: git:${{ github.sha }}
+          sbom-outcome: success
+          scan-outcome: success
+          sbom: .build/fixtures/syft-empty.json
+          report: .build/fixtures/security-findings.json
+          output: .build/fixtures/security-summary.json
+      - name: Reject unsafe advisory summary output
+        if: matrix.image == 'workflow-summarize-security'
+        id: invalid-security-summary
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/summarize-security
+        with:
+          subject: git:${{ github.sha }}
+          sbom-outcome: failure
+          scan-outcome: skipped
+          sbom: .build/fixtures/missing-sbom.json
+          report: .build/fixtures/missing-grype.json
+          output: ../unsafe-summary.json
+      - name: Assert advisory summary input rejection
+        if: matrix.image == 'workflow-summarize-security'
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: '["invalid-security-summary"]'
+      - name: Assert Rust and binary release rejection cases
+        if: contains(fromJSON('["lint-rust-gtk","workflow-build-rust-gtk","workflow-test-rust-gtk","workflow-plan-rust-gtk-release","workflow-prepare-binary-release","workflow-read-binary-release","workflow-publish-binary-release"]'), matrix.image)
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: ${{ toJSON(fromJSON('{"lint-rust-gtk":["invalid-rust-lint"],"workflow-build-rust-gtk":["invalid-rust-build"],"workflow-test-rust-gtk":["invalid-rust-test"],"workflow-plan-rust-gtk-release":["invalid-rust-plan"],"workflow-prepare-binary-release":["invalid-binary-prepare"],"workflow-read-binary-release":["invalid-binary-read"],"workflow-publish-binary-release":["invalid-binary-publish"]}')[matrix.image]) }}
       - name: Test native changed-file detection on an empty diff
         if: matrix.image == 'workflow-get-changed-files'
         uses: ./.candidate-actions/workflow/get-changed-files
@@ -1361,15 +1579,29 @@ jobs:
         with:
           name: release-plan
           path: .build/publication
+      - name: Bootstrap source-aware publication planner
+        if: needs.check.outputs.mode == 'prepare'
+        uses: ./workflow/prepare-source-action
+        with:
+          directory: workflow/new-publication-plan
+          image: workflow-new-publication-plan
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Bootstrap source-aware catalog publisher
+        if: needs.check.outputs.mode == 'prepare'
+        uses: ./workflow/prepare-source-action
+        with:
+          directory: workflow/publish-catalog-images
+          image: workflow-publish-catalog-images
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Validate exact-source publication artifacts
         if: needs.check.outputs.mode == 'prepare'
-        uses: ./workflow/new-publication-plan
+        uses: ./.source-actions/workflow/new-publication-plan
         with:
           owner: ${{ github.repository_owner }}
           release-plan: .build/publication/release-plan.json
       - name: Publish exact archives and verify remote digests
         if: needs.check.outputs.mode == 'prepare'
-        uses: ./workflow/publish-catalog-images
+        uses: ./.source-actions/workflow/publish-catalog-images
         with:
           registry-username: ${{ github.actor }}
           registry-password: ${{ github.token }}

@@ -3,6 +3,7 @@ RUN dnf install -y golang-1.26.10-1.fc44 && dnf clean all
 ENV GOTOOLCHAIN=local
 WORKDIR /src
 COPY go.mod go.sum ./
+COPY shared/catalog/ ./shared/catalog/
 COPY check/test-catalog/main.go ./check/test-catalog/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./check/test-catalog
 RUN mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp

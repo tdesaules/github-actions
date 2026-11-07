@@ -94,7 +94,7 @@ func TestSecurityContinuationDoesNotRelaxFunctionalGates(t *testing.T) {
 					t.Fatalf("%s must retain advisory execution", id)
 				}
 			}
-			if uses == "./workflow/publish-catalog-images" || uses == "./workflow/new-image-metadata" || uses == "./.source-actions/workflow/test-catalog-publication" || uses == "./.source-actions/workflow/complete-release" {
+			if uses == "./.source-actions/workflow/publish-catalog-images" || uses == "./workflow/new-image-metadata" || uses == "./.source-actions/workflow/test-catalog-publication" || uses == "./.source-actions/workflow/complete-release" {
 				checks[uses] = true
 				if step["continue-on-error"] == true {
 					t.Fatalf("functional gate weakened: %s", uses)

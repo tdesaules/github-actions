@@ -234,7 +234,7 @@ func TestMigratedJobsUsePublishedActions(t *testing.T) {
 			// not the source's unpublished bootstrap reference. Runtime calls in
 			// every other job still require a real immutable published image.
 			pinned := regexp.MustCompile(`^docker://.+@sha256:[a-f0-9]{64}$`).MatchString(action.Runs.Image)
-			bootstrap := candidate && action.Runs.Image == "docker://ghcr.io/tdesaules/github-actions/"+strings.ReplaceAll(strings.TrimPrefix(uses, "./"), "/", "-")+":unpublished"
+			bootstrap := candidate && (action.Runs.Image == "Containerfile" || action.Runs.Image == "docker://ghcr.io/tdesaules/github-actions/"+strings.ReplaceAll(strings.TrimPrefix(uses, "./"), "/", "-")+":unpublished")
 			if action.Runs.Using != "docker" || !(pinned || bootstrap) {
 				t.Errorf("%s: %s must use a published Docker image", job, uses)
 			}
@@ -320,9 +320,9 @@ func TestBuildAndQualificationAreSeparate(t *testing.T) {
 			reviewerUse = i
 		}
 		switch step["uses"] {
-		case "./workflow/new-test-fixtures":
+		case "./workflow/new-test-fixtures", "./.source-actions/workflow/new-test-fixtures":
 			fixtures = i
-		case "./workflow/test-candidate-runtime":
+		case "./workflow/test-candidate-runtime", "./.source-actions/workflow/test-candidate-runtime":
 			runtime = i
 		case "./workflow/test-reviewed-vulnerabilities", "./.source-actions/workflow/test-reviewed-vulnerabilities":
 			scan = i

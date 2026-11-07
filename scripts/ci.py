@@ -2,10 +2,12 @@
 """Discover components from actual files; select work without a central catalogue."""
 import argparse
 import hashlib
+import fnmatch
 import json
 import os
 from pathlib import Path
 import re
+import shlex
 import subprocess
 import sys
 
@@ -39,11 +41,7 @@ def discover(root=ROOT):
     for path in sorted([*root.glob("oci/*/action.yml"), *root.glob("check/*/action.yml"), *root.glob("lint/*/action.yml"), *root.glob("workflow/*/action.yml"), *root.glob("maintenance/*/action.yml")]):
         if path.parent.parent.name == 'workflow' and not (path.parent / 'Containerfile').exists():
             continue
-        match = IMAGE.search(path.read_text())
-        if not match:
-            raise ValueError(f"{path}: missing Docker image reference")
-        reference = match[1]
-        image = reference.rsplit("/", 1)[1].split(":")[0].split("@")[0]
+        image, reference = image_reference(path)
         expected = path.parent.parent.name+'-'+path.parent.name
         # Linter moves preserve their existing independently published image IDs.
         if path.parent.parent.name != 'lint' and image != expected:
@@ -59,6 +57,33 @@ def discover(root=ROOT):
     return actions, owners
 
 
+def image_reference(path):
+    text = path.read_text()
+    match = IMAGE.search(text)
+    if match:
+        reference = match[1]
+        return reference.rsplit('/', 1)[-1].split(':')[0].split('@')[0], reference
+    if not re.search(r'^  image: Containerfile$', text, re.M) or not re.search(r'^  using: docker$', text, re.M):
+        raise ValueError(f'{path}: missing Docker image reference')
+    image = path.parent.parent.name + '-' + path.parent.name
+    if (path.parent / 'Containerfile').is_symlink():
+        raise ValueError(f'{path}: source recipe must be an owned regular file')
+    recipe = (path.parent / 'Containerfile').read_text().rsplit('FROM ', 1)[-1]
+    if not re.match(r'[^\n]+ AS final\n', recipe) or not re.search(r'^LABEL [^\n]*\borg\.opencontainers\.image\.title="' + re.escape(image) + r'"(?:\s|$)', recipe, re.M):
+        raise ValueError(f'{path}: source image requires matching final-stage title')
+    return image, ''
+
+
+def pinned_metadata(path, reference):
+    if not re.search(r'@sha256:[a-f0-9]{64}$', reference):
+        raise ValueError('publication must provide a real digest reference')
+    _, previous = image_reference(path)
+    text = path.read_text()
+    if not previous:
+        return text.replace('  image: Containerfile\n', '  image: docker://' + reference + '\n', 1)
+    return IMAGE.sub(lambda match: match[0].replace(match[1], reference), text)
+
+
 def select(paths, full=False, root=ROOT):
     actions, owners = discover(root)
     images, selected_actions = set(), set()
@@ -66,27 +91,30 @@ def select(paths, full=False, root=ROOT):
         images.update(owners)
         selected_actions.update(actions)
     for path in paths:
-        if Path(path).suffix.lower() in ('.md', '.markdown'):
-            continue
-        if path.startswith((".github/workflows/", "tests/fixtures/")) or path == 'grype-review.json':
+        if path == 'grype-review.json' or path.startswith('shared/review/'):
             selected_actions.update(actions)
-        if path.startswith(("shared/", "scripts/", "tasks/")) or path in ("go.mod", "go.sum", ".containerignore", ".dockerignore", "taskfile.yml"):
+        if path in (".containerignore", ".dockerignore"):
             images.update(owners)
             selected_actions.update(actions)
         for directory, image in actions.items():
+            if path == directory + '/Containerfile' or build_dependency(root, directory, path):
+                images.add(image)
+                selected_actions.add(directory)
+                continue
+            if Path(path).suffix.lower() in ('.md', '.markdown'):
+                continue
+            if path.startswith(('.github/workflows/', 'tests/fixtures/', 'scripts/', 'tasks/')) or path == 'taskfile.yml':
+                selected_actions.add(directory)
             if path.startswith(directory + "/"):
                 selected_actions.add(directory)
-                filename = path[len(directory) + 1:]
-                if filename == "Containerfile" or filename == ".containerignore" or filename.endswith(('.go', '.mjs', '.cjs')) or filename.startswith(("src/", "dependencies.")):
-                    images.add(image)
     for directory, image in actions.items():
         if image in images:
             selected_actions.add(directory)
     # Tests of an action-only change use its pinned image, not a rebuilt image.
     matrix = []
     for image in sorted({actions[a] for a in selected_actions} | images):
-        reference = IMAGE.search((root / owners[image] / 'action.yml').read_text())[1]
-        rebuild = image in images or reference.endswith(':unpublished')
+        _, reference = image_reference(root / owners[image] / 'action.yml')
+        rebuild = image in images or not reference or reference.endswith(':unpublished')
         for arch in ("amd64", "arm64"):
             matrix.append({"image": image, "directory": owners[image], "arch": arch,
                            "runner": "ubuntu-24.04" if arch == "amd64" else "ubuntu-24.04-arm",
@@ -94,6 +122,49 @@ def select(paths, full=False, root=ROOT):
     if len(matrix) > 256:
         raise ValueError("GitHub supports at most 256 matrix jobs")
     return {"include": matrix}
+
+
+def build_dependency(root, directory, changed):
+    """Mirror context COPY/ADD and bind dependencies, including deleted files."""
+    for ignore in ('.containerignore', '.dockerignore'):
+        file = root / ignore
+        if file.exists():
+            ignored = False
+            for pattern in file.read_text().splitlines():
+                pattern = pattern.strip()
+                if not pattern or pattern.startswith('#'):
+                    continue
+                negate = pattern.startswith('!')
+                pattern = pattern.lstrip('!').strip('/')
+                if any(fnmatch.fnmatchcase(p, pattern) for p in [changed, *[str(p) for p in Path(changed).parents]]):
+                    ignored = not negate
+            if ignored:
+                return False
+            break
+    recipe = root / directory / 'Containerfile'
+    if not recipe.exists():
+        return False
+    sources = []
+    for line in recipe.read_text().replace('\\\n', ' ').splitlines():
+        command, _, rest = line.strip().partition(' ')
+        if command.upper() in ('COPY', 'ADD'):
+            if re.search(r'^--from(?:=|\s)', rest):
+                continue
+            rest = re.sub(r'^(?:--[^\s]+\s+)+', '', rest)
+            words = json.loads(rest) if rest.startswith('[') else shlex.split(rest)
+            sources.extend(s for s in words[:-1] if '://' not in s and not s.startswith(('git@', '<<')))
+        elif command.upper() == 'RUN':
+            for mount in re.findall(r'--mount=([^\s]+)', rest):
+                values = dict(part.split('=', 1) for part in mount.split(',') if '=' in part)
+                if not values.get('from') and values.get('type', 'bind') == 'bind':
+                    sources.append(values.get('source', values.get('src', '.')))
+    for source in sources:
+        source = source.removeprefix('./').strip('/')
+        if '$' in source or source in ('', '.') or changed == source or changed.startswith(source + '/'):
+            return True
+        if any(fnmatch.fnmatchcase(p, source) for p in [changed, *[str(p) for p in Path(changed).parents]]):
+            return True
+    return False
 
 
 def changed_paths(before, after):
@@ -158,11 +229,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=("select", "validate", "aggregate"))
     parser.add_argument("paths", nargs="*")
+    parser.add_argument('--allow-source', action='store_true', help='allow unpublished source during bootstrap qualification only')
     args = parser.parse_args()
     if args.command == "aggregate":
         print(json.dumps(aggregate(args.paths), indent=2))
         return
     actions, owners = discover()
+    if args.command == 'validate' or os.environ.get('GITHUB_REF', '').startswith('refs/tags/'):
+        for directory in owners.values():
+            _, reference = image_reference(ROOT / directory / 'action.yml')
+            if not re.search(r'@sha256:[a-f0-9]{64}$', reference):
+                if not args.allow_source or os.environ.get('GITHUB_REF', '').startswith('refs/tags/'):
+                    raise ValueError(f'{directory}: released catalogue requires digest pins; qualification may use --allow-source')
     if args.command == "validate":
         for name, directory in owners.items():
             text = (ROOT / directory / "Containerfile").read_text()

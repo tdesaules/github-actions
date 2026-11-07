@@ -1,0 +1,22 @@
+FROM quay.io/fedora/fedora:45@sha256:5db9683660938d440b057d412247ee245172b9724f42428ae95ae01253bae699 AS build
+# hadolint ignore=DL3041
+RUN dnf install -y golang-1.27.3-1.fc45 && dnf clean all
+ENV GOTOOLCHAIN=local
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/workflow/ ./shared/workflow/
+COPY shared/rustgtk/ ./shared/rustgtk/
+COPY lint/rust-gtk/main.go ./lint/rust-gtk/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./lint/rust-gtk
+
+FROM quay.io/fedora/fedora:44@sha256:50ab7dd5a71732975b6a1f19108df021b61254f3a507e68ac8abb5fb0bceb308 AS final
+# Packaged compiler and GTK headers are required by Clippy; never bootstrap rustup.
+# hadolint ignore=DL3041
+RUN dnf install -y --setopt=install_weak_deps=False rust-1.99.1-2.fc44 cargo-1.99.1-2.fc44 rustfmt-1.99.1-2.fc44 clippy-1.99.1-2.fc44 gcc gtk4-devel pkgconf-pkg-config nodejs22 nodejs22-bin nodejs22-npm nodejs22-npm-bin python3 desktop-file-utils git ca-certificates \
+    && dnf clean all
+COPY --from=build /entrypoint /entrypoint
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+ENV PYTHONDONTWRITEBYTECODE=1
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="lint-rust-gtk" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

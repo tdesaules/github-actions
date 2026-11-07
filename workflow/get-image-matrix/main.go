@@ -10,10 +10,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/tdesaules/github-actions/shared/catalog"
 	"github.com/tdesaules/github-actions/shared/workflow"
 )
 
-var imageLine = regexp.MustCompile(`(?m)^(?:  image|        BUILDER_IMAGE): docker://([^\s]+)$`)
 var semver = regexp.MustCompile(`^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$`)
 
 type component struct{ directory, image, reference string }
@@ -51,12 +51,10 @@ func discover() ([]component, error) {
 			if err != nil {
 				return nil, err
 			}
-			match := imageLine.FindSubmatch(data)
-			if match == nil {
-				return nil, fmt.Errorf("%s: missing image", path)
+			image, ref, err := catalog.Reference(data, dir)
+			if err != nil {
+				return nil, err
 			}
-			ref := string(match[1])
-			image := strings.Split(strings.Split(filepath.Base(ref), ":")[0], "@")[0]
 			if owners[image] {
 				return nil, fmt.Errorf("duplicate image owner: %s", image)
 			}
@@ -110,7 +108,7 @@ func selectImages(components []component, paths []string, full bool) (matrix, er
 		if !selected {
 			continue
 		}
-		rebuild = rebuild || strings.HasSuffix(c.reference, ":unpublished")
+		rebuild = rebuild || c.reference == "" || strings.HasSuffix(c.reference, ":unpublished")
 		scan = scan || rebuild
 		for _, arch := range []string{"amd64", "arm64"} {
 			runner := "ubuntu-24.04"
@@ -198,6 +196,13 @@ func run() error {
 	components, err := discover()
 	if err != nil {
 		return err
+	}
+	if mode == "release" || mode == "maintenance" {
+		for _, c := range components {
+			if !catalog.Pinned.MatchString(c.reference) {
+				return fmt.Errorf("%s: released catalogue requires digest pins", c.directory)
+			}
+		}
 	}
 	m := matrix{Include: []job{}}
 	if mode == "development" || mode == "prepare" {
