@@ -9,7 +9,7 @@ outputs:
   version: {description: Release version}
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-read-pantavisor-release@sha256:43b27124b36ea31f6c2c570bb1dd7ae2108aa054015bcb17ae5b0b692b52ac15
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-read-pantavisor-release@sha256:69e4b96dff34489a44b29a7e1922147aedfd57c6c0bc5feea8d02107a01d4bf8
   env:
     INPUT_TOKEN: ${{ inputs.token }}
   args: []

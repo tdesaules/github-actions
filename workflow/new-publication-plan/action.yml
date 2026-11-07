@@ -12,7 +12,7 @@ inputs:
     default: ''
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-publication-plan@sha256:da30ca95201c88402316e17b4f8333ab4c08ba0e104bb2a68bc11280e13909fd
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-publication-plan@sha256:bc4a939c553a96cc0cd26dd35f4d634bfd543d3bc57342b9a77be7452c0c58e0
   args:
     - --directory=${{ inputs.directory }}
     - --owner=${{ inputs.owner }}

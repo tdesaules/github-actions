@@ -18,7 +18,7 @@ outputs:
     description: Published release tag
 runs:
   using: docker
-  image: Containerfile
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-publish-binary-release@sha256:d9036955239188be3c793a2c41dd81987fdf7f6ea83b19d1cae83c8274eadb47
   env:
     INPUT_REPOSITORY: ${{ inputs.repository }}
     INPUT_TAG: ${{ inputs.tag }}

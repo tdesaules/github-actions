@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.6.0
+
+- use approved bases for application CI tools (f30fb41)
+
+- qualify and release native Rust GTK binaries (2afa5d0)
+
+- validate k0s profile identity during activation (46ce2bb)
+
+- replace source bootstraps with published control actions (b8213fe)
+
+- reconcile published controls with binary actions (92f17f8)
+
+- bootstrap compatible catalog qualification fixtures (45f31ef)
+
+- rebuild selected unpublished runtime changes (d40f2a4)
+
+- adopt runner ownership for binary action outputs (f610c10)
+
+- map native GTK in hosted binary fixtures (6bed3f9)
+
+- require canonical breaking-change footers (a1124b5)
+
+- retain the upstream license filename (b8a9211)
+
+- version the binary preparation fixture plan (ccab611)
+
+- make native tool recipes pass shell lint (a4a4360)
+
+- retain attempt-bound binary qualification artifacts (e44af78)
+
+- install Git for the upstream build script (3d80984)
+
+- include writable temporary directory in runtime (e4f07bf)
+
 ## 1.5.0
 
 - record 1.4.3 release and force-push recovery activation (d17231f)

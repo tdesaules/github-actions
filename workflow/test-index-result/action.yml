@@ -15,7 +15,7 @@ outputs:
     description: Whether index, archives and registry state passed verification
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-index-result@sha256:31f2eb24db37a08516c7d7daa67eadda08de9438f20b5af9aadf6ee9d3422ae1
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-index-result@sha256:e0e15c5bafbf510027c00872c5f46acbc17b53ecbb12b2eac71d2bd47e22beb9
   args:
     - --directory=${{ inputs.directory }}
     - --index=${{ inputs.index }}

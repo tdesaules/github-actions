@@ -15,7 +15,7 @@ inputs:
     required: true
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-reviewed-vulnerabilities@sha256:dcfdac5cbe5acc2f6da6c00d9ebcb4a779031b0930451f7d08481ce89188f73b
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-reviewed-vulnerabilities@sha256:c587b9b3f696c8f15e2f329d9153dd21450220811939ddde646eba90cdd6f077
   args:
     - --sbom=${{ inputs.sbom }}
     - --config=${{ inputs.config }}

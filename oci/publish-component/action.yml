@@ -20,7 +20,7 @@ outputs:
     description: Digest of component.json
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/oci-publish-component@sha256:356ed8d92e7a20a68d7063c77e7a774f59e8e4bebc90ccfa408ac94fd766f816
+  image: docker://ghcr.io/tdesaules/github-actions/oci-publish-component@sha256:d65f3d2b630043e84d8a517d92337309243e7bee9be39c40e27baf4e877a507f
   env:
     INPUT_REGISTRY-PASSWORD: ${{ inputs.registry-password }}
   args:

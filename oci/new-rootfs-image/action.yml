@@ -14,7 +14,7 @@ outputs:
     description: Root image manifest digest
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/oci-new-rootfs-image@sha256:97af0b5ac601e031a55bab9f1a7703dc35d8d54f24631a312c3d091f2efccd67
+  image: docker://ghcr.io/tdesaules/github-actions/oci-new-rootfs-image@sha256:de1e4ac654d4400308a147c9da3b90c4ad08ba8b2b89c8a44332aec798c6d7f1
   args:
     - --directory=${{ inputs.directory }}
     - --output=${{ inputs.output }}

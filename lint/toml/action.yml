@@ -11,6 +11,6 @@ outputs:
     description: Whether every selected file passed
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/check-test-toml@sha256:82c751bfa85a106e963ca5065dc607f40980f40ebc8d9e0a335e499e5ab5039a
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-toml@sha256:15763073852353907b6b7ab6c8a8d4f1c6bf6a64bf7a394969c7378c59b35cec
   args:
     - --files=${{ inputs.files }}

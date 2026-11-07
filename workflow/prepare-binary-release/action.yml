@@ -30,7 +30,7 @@ outputs:
     description: Source qualification run
 runs:
   using: docker
-  image: Containerfile
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-prepare-binary-release@sha256:ce788fd8bc8725532872c7f0927f86059288e737a0e4b0f86414dfc054b95330
   env:
     INPUT_SOURCE_SHA: ${{ inputs.source-sha }}
     INPUT_PLAN: ${{ inputs.plan }}

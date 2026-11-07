@@ -9,7 +9,7 @@ inputs:
     default: .
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/check-test-catalog@sha256:c712756cfe1f4d037330e5be84fecb1c0d8d02157bd9af5908cd8039f431e2c0
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-catalog@sha256:8c682dceef2045fb6879f3caa4fcb92224f74b46ce36f8f65cfe2f480a538076
   args:
     - --allow-source=${{ inputs.allow-source }}
     - --directory=${{ inputs.directory }}
