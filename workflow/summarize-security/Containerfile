@@ -5,10 +5,12 @@ WORKDIR /src
 COPY go.mod go.sum ./
 COPY shared/workflow/ ./shared/workflow/
 COPY workflow/summarize-security/main.go ./workflow/summarize-security/main.go
-RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/summarize-security
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/summarize-security \
+    && mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
 FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=build /entrypoint /entrypoint
+COPY --from=build /runtime/ /
 # Adopt the runner UID before writing workspace evidence.
 # hadolint ignore=DL3002
 USER 0:0
