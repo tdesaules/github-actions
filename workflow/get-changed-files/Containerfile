@@ -1,18 +1,22 @@
-FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS build
+FROM quay.io/fedora/fedora:45@sha256:5db9683660938d440b057d412247ee245172b9724f42428ae95ae01253bae699 AS build
+# hadolint ignore=DL3041
+RUN dnf install -y golang-1.27.3-1.fc45 git-core-2.56.0-1.fc45 ca-certificates && dnf clean all
+ENV GOTOOLCHAIN=local
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY shared/workflow/ ./shared/workflow/
 COPY workflow/get-changed-files/main.go ./workflow/get-changed-files/main.go
-RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/get-changed-files \
-    && apk add --no-cache git=2.54.0-r0
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/get-changed-files
 COPY shared/collect-binaries.sh /collect-binaries.sh
-RUN sh /collect-binaries.sh /usr/bin/git
+# The force-push fallback fetches an absent base commit over HTTPS.
+RUN sh /collect-binaries.sh /usr/bin/git /usr/libexec/git-core/git-remote-http /usr/libexec/git-core/git-remote-https
 
 FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=build /runtime/ /
+COPY --from=build /usr/share/licenses/ /usr/share/licenses/
 COPY --from=build /entrypoint /entrypoint
-ENV PATH=/usr/bin HOME=/tmp
+ENV PATH=/usr/bin HOME=/tmp GIT_SSL_CAINFO=/etc/ssl/certs/ca-certificates.crt
 # GitHub owns the mounted output file.
 # hadolint ignore=DL3002
 USER 0:0

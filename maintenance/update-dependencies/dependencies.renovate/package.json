@@ -1,0 +1,11 @@
+{
+  "name": "renovate-runtime",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "renovate": "44.181.6"
+  },
+  "overrides": {
+    "undici": "8.12.2"
+  }
+}

@@ -1,4 +1,4 @@
-// Build-stage dependency closure from the digest-pinned upstream installation.
+// Build-stage dependency closure from the integrity-locked npm installation.
 import { cpSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 

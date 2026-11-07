@@ -1,26 +1,29 @@
-FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS build
+FROM quay.io/fedora/fedora:45@sha256:5db9683660938d440b057d412247ee245172b9724f42428ae95ae01253bae699 AS build
+# hadolint ignore=DL3041
+RUN dnf install -y golang-1.27.3-1.fc45 ca-certificates && dnf clean all
+ENV GOTOOLCHAIN=local
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY shared/check/ ./shared/check/
 COPY lint/markdownlint/main.go ./lint/markdownlint/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./lint/markdownlint
 
-FROM docker.io/davidanson/markdownlint-cli2:v0.23.3@sha256:d5f3f3f04b2e285dcbcdcd13b4454d119e273e3c393a9dabd163dba4abad526d AS tool
-# Runtime assembly needs to create /runtime in this intermediate stage.
-# hadolint ignore=DL3002
-USER 0:0
-COPY shared/collect-binaries.sh /collect-binaries.sh
+FROM quay.io/fedora/fedora:45@sha256:5db9683660938d440b057d412247ee245172b9724f42428ae95ae01253bae699 AS tool
+# hadolint ignore=DL3041
+RUN dnf install -y nodejs24-24.18.0-4.fc45 nodejs24-npm ca-certificates && dnf clean all
+WORKDIR /usr/local/lib/node_modules/markdownlint-cli2
+COPY lint/markdownlint/dependencies/package.json lint/markdownlint/dependencies/package-lock.json ./
+RUN npm-24 ci --ignore-scripts --omit=dev --no-audit --no-fund
 COPY lint/markdownlint/collect-modules.mjs /collect-modules.mjs
-RUN sh /collect-binaries.sh /usr/local/bin/node && node /collect-modules.mjs
+RUN node-24 /collect-modules.mjs
 
-FROM docker.io/library/node:24.22.2-alpine3.24@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85 AS node
-COPY shared/collect-binaries.sh /collect-binaries.sh
-RUN sh /collect-binaries.sh /usr/local/bin/node
-
-FROM scratch AS final
+FROM quay.io/fedora/fedora:45@sha256:5db9683660938d440b057d412247ee245172b9724f42428ae95ae01253bae699 AS final
+# Keep Node's distro-managed ICU, OpenSSL, trust roots and license closure.
+# hadolint ignore=DL3041
+RUN dnf install -y --setopt=install_weak_deps=False nodejs24-24.18.0-4.fc45 ca-certificates && dnf clean all \
+    && ln -s /usr/bin/node-24 /usr/local/bin/node
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=tool /runtime/ /
-COPY --from=node /runtime/ /
 COPY lint/markdownlint/check.mjs /opt/markdown/check.mjs
 COPY --from=build /entrypoint /entrypoint
 ENV PATH=/usr/local/bin HOME=/tmp SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt

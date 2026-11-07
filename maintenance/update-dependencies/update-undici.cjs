@@ -14,7 +14,7 @@ function walk(directory) {
     if (fs.existsSync(metadata)) {
       const pkg = JSON.parse(fs.readFileSync(metadata, 'utf8'));
       if (pkg.name === 'undici') {
-        assert.equal(pkg.version, '8.11.2', `unexpected Undici at ${child}`);
+        assert.equal(pkg.version, '8.12.2', `unexpected Undici at ${child}`);
         targets.push(child);
         continue;
       }
@@ -23,7 +23,7 @@ function walk(directory) {
   }
 }
 walk(root);
-assert.ok(targets.length > 0, 'expected vulnerable Undici copy');
+assert.ok(targets.length > 0, 'expected integrity-locked Undici copy');
 for (const target of targets) {
   fs.rmSync(target, { recursive: true });
   fs.symlinkSync(replacement, target, 'dir');

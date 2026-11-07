@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
 const { readFileSync, writeFileSync } = require('node:fs');
-const path = '/usr/local/renovate/node_modules/.pnpm/braces@3.0.3/node_modules/braces';
+const path = '/usr/local/renovate/node_modules/braces';
 const original = {
   'compile.js': 'dc98f22eee3d511785d92a00758d5f0d48efed5f5813bdecc2de430c529b5c9f',
   'expand.js': '41ccc196ebfa7b7781a634e721eb744e4e7bcb54cba427a7e3d6806a1b9e58f7',

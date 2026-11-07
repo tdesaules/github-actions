@@ -1,4 +1,7 @@
-FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS build
+FROM quay.io/fedora/fedora:45@sha256:5db9683660938d440b057d412247ee245172b9724f42428ae95ae01253bae699 AS build
+# hadolint ignore=DL3041
+RUN dnf install -y golang-1.27.3-1.fc45 ca-certificates && dnf clean all
+ENV GOTOOLCHAIN=local
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY shared/check/ ./shared/check/
@@ -12,6 +15,7 @@ COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=build /entrypoint /entrypoint
 COPY --from=build /tool /usr/bin/actionlint
 COPY --from=build /runtime/ /
+COPY --from=build /tool-source/LICENSE /usr/share/licenses/actionlint/LICENSE
 # Entrypoint adopts the runner-owned GITHUB_OUTPUT UID before checking files.
 # hadolint ignore=DL3002
 USER 0:0

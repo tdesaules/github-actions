@@ -1,4 +1,7 @@
-FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS entrypoint
+FROM quay.io/fedora/fedora:45@sha256:5db9683660938d440b057d412247ee245172b9724f42428ae95ae01253bae699 AS entrypoint
+# hadolint ignore=DL3041
+RUN dnf install -y golang-1.27.3-1.fc45 ca-certificates && dnf clean all
+ENV GOTOOLCHAIN=local
 WORKDIR /src
 COPY go.mod ./
 COPY shared/runtime/ ./shared/runtime/
@@ -13,6 +16,7 @@ COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=upstream /tool /usr/bin/syft
 COPY --from=entrypoint /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=upstream /runtime/ /
+COPY --from=upstream /tool-source/LICENSE /usr/share/licenses/syft/LICENSE
 COPY --from=entrypoint /entrypoint /entrypoint
 ENV PATH=/usr/bin HOME=/tmp SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt SYFT_CHECK_FOR_APP_UPDATE=false
 # Entrypoint adopts the runner UID for writable bind mounts.

@@ -1,17 +1,31 @@
-FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS build
+FROM quay.io/fedora/fedora:45@sha256:5db9683660938d440b057d412247ee245172b9724f42428ae95ae01253bae699 AS build
+# hadolint ignore=DL3041
+RUN dnf install -y golang-1.27.3-1.fc45 ca-certificates && dnf clean all
+ENV GOTOOLCHAIN=local
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY shared/check/ ./shared/check/
 COPY lint/lychee/main.go ./lint/lychee/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./lint/lychee
 
-FROM docker.io/lycheeverse/lychee:0.24.2@sha256:e2d19e57cf6ab037026f20b8e449a1f30d9d7f81eef4194763aab2eab20bd28d AS tool
+FROM quay.io/fedora/fedora:45@sha256:5db9683660938d440b057d412247ee245172b9724f42428ae95ae01253bae699 AS tool
+# Build the verified lychee-v0.24.2 source with its upstream Cargo.lock.
+# hadolint ignore=DL3041
+RUN dnf install -y rust-1.99.1-2.fc45 cargo-1.99.1-2.fc45 gcc openssl-devel pkgconf-pkg-config curl tar gzip ca-certificates && dnf clean all
+WORKDIR /lychee
+RUN curl --fail --silent --show-error --location https://codeload.github.com/lycheeverse/lychee/tar.gz/2bba271688c1abb1503097a064e6c3bc1d1b6a9b -o /source.tar.gz \
+    && echo '2cb80645547d76f0dc51f5236c1d4b6fce311717837ee6f9a2020a6f2c001470  /source.tar.gz' | sha256sum --check - \
+    && tar -xzf /source.tar.gz --strip-components=1 \
+    && cargo build --locked --release --jobs 2 --bin lychee \
+    && install -m 0755 target/release/lychee /usr/local/bin/lychee
 COPY shared/collect-binaries.sh /collect-binaries.sh
 RUN sh /collect-binaries.sh /usr/local/bin/lychee
 
 FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=tool /runtime/ /
+COPY --from=tool /usr/share/licenses/ /usr/share/licenses/
+COPY --from=tool /lychee/LICENSE-APACHE /lychee/LICENSE-MIT /usr/share/licenses/lychee/
 COPY --from=build /entrypoint /entrypoint
 ENV PATH=/usr/local/bin HOME=/tmp SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 # Entrypoint adopts the runner UID for output files.
