@@ -25,7 +25,9 @@ Publication requires selected functional tests to succeed in the consumer workfl
 is blocking. Security reports are advisory and do not enter this integrity gate.
 Expired preparation artifacts prevent publication/replay; configure retention.
 
-Git object validation requires a Fedora runtime with git and TLS roots. Bootstrap
-`image: Containerfile` is temporary and must be pinned after actual qualification
+Git object validation requires a Fedora runtime with git and TLS roots.
+The entrypoint adopts the `GITHUB_OUTPUT` owner's UID/GID before operations
+(workspace owner when unset); version probes require no output file.
+Bootstrap `image: Containerfile` is temporary and must be pinned after actual qualification
 and publication. `go test ./shared/binaryrelease` exercises repeated publication,
 conflicting assets, source/receipt mismatches and pagination using local mocks.

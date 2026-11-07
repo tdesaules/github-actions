@@ -53,6 +53,12 @@ final tag commit changes only Cargo versions and changelog metadata.
 
 ## Runtime and verification
 
+Before operations, the root container process adopts the UID/GID owning
+`GITHUB_OUTPUT` (workspace owner for local runs without that variable) and clears
+supplementary groups. Version probes need no output file. git-cliff receives a
+private temporary Git configuration trusting only the active checkout, including
+read-only root-owned fixtures; source ownership and permissions are not changed.
+
 Fedora runtime retains git and checksum-verified git-cliff 2.14.2. The recipe
 reuses the catalog's pinned Fedora/Go/cliff versions and verified release hashes.
 `image: Containerfile` is temporary source bootstrap metadata: replace with the

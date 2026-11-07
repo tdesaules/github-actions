@@ -46,3 +46,5 @@ points at `final_sha`. This distinction is mandatory for subsequent tests.
 Fedora is retained for git/git-cliff and authenticated transport. Source bootstrap
 `image: Containerfile` must be replaced with the observed qualified GHCR digest.
 Tests live in `shared/binaryrelease`; test fixtures do not push or publish remotely.
+The entrypoint adopts the `GITHUB_OUTPUT` owner's UID/GID before creating files
+(workspace owner when unset). git-cliff uses private checkout-scoped Git trust.

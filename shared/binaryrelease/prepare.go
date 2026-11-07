@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -312,8 +311,7 @@ func PrepareAction() error {
 			return e
 		}
 	}
-	cmd := exec.Command("git-cliff", "--config", Input("config", "cliff.toml"), "--tag", p.Version, "--output", "CHANGELOG.md")
-	if e = cmd.Run(); e != nil {
+	if _, e = runCliff("--offline", "--no-exec", "--config", Input("config", "cliff.toml"), "--tag", p.Version, "--output", "CHANGELOG.md"); e != nil {
 		return fmt.Errorf("git-cliff notes generation failed")
 	}
 	if _, e = Git("add", "--", "Cargo.toml", "Cargo.lock", "CHANGELOG.md"); e != nil {

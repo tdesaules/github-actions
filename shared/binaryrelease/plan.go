@@ -3,7 +3,6 @@ package binaryrelease
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -149,7 +148,7 @@ func releaseVersion(initial bool, config string) (string, bool, error) {
 		return "", false, closeErr
 	}
 	// Explicit bump avoids git-cliff's default perf/pre-1.0 policy.
-	b, e := exec.Command("git-cliff", "--offline", "--no-exec", "--config", tmp.Name(), "--bumped-version", "--bump", level).Output()
+	b, e := runCliff("--offline", "--no-exec", "--config", tmp.Name(), "--bumped-version", "--bump", level)
 	if e != nil {
 		return "", false, fmt.Errorf("git-cliff version calculation failed")
 	}

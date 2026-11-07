@@ -34,5 +34,8 @@ func RunCLI(version string, args, names []string, stdout io.Writer, run func() e
 	previous := cliInputs
 	cliInputs = overrides
 	defer func() { cliInputs = previous }()
+	if err := adoptRunnerIdentity(); err != nil {
+		return err
+	}
 	return run()
 }
