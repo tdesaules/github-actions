@@ -111,7 +111,7 @@ func TestPlanningConservativeRuntimeAndHistory(t *testing.T) {
 }
 
 func TestCaseInsensitiveBumps(t *testing.T) {
-	for message, want := range map[string]string{"FEAT(ui): add": "minor", "FiX: repair": "patch", "PERF: improve": "patch", "CHORE!: remove": "major", "docs: migration\n\nBreaking Change: removed": "major", "docs: migration\n\nbreaking-change: removed": "major"} {
+	for message, want := range map[string]string{"FEAT(ui): add": "minor", "FiX: repair": "patch", "PERF: improve": "patch", "CHORE!: remove": "major", "docs: migration\n\nBREAKING CHANGE: removed": "major", "docs: migration\n\nBREAKING-CHANGE: removed": "major", "docs: migration\n\nBreaking Change: removed": "", "docs: migration\n\nbreaking-change: removed": ""} {
 		if got := Bump([]string{message}); got != want {
 			t.Fatalf("%q: got %s want %s", message, got, want)
 		}

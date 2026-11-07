@@ -63,14 +63,13 @@ func latestStable() (string, error) {
 func Bump(messages []string) string {
 	level := 0
 	for _, m := range messages {
-		m = strings.ToLower(m)
-		line := strings.SplitN(m, "\n", 2)[0]
+		line := strings.ToLower(strings.SplitN(m, "\n", 2)[0])
 		colon := strings.Index(line, ":")
 		if colon < 0 {
 			continue
 		}
 		typ := line[:colon]
-		if strings.HasSuffix(typ, "!") || strings.Contains(m, "\nbreaking change:") || strings.Contains(m, "\nbreaking-change:") {
+		if strings.HasSuffix(typ, "!") || strings.Contains(m, "\nBREAKING CHANGE:") || strings.Contains(m, "\nBREAKING-CHANGE:") {
 			return "major"
 		}
 		if i := strings.Index(typ, "("); i >= 0 {
