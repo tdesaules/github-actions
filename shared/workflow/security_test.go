@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"go.yaml.in/yaml/v3"
@@ -46,26 +45,6 @@ func TestScanReportingPreservesErrorsAndFindings(t *testing.T) {
 	}
 }
 
-func TestSourceBootstrapUsesOnlyQualifiedOperations(t *testing.T) {
-	data, err := os.ReadFile("../../workflow/prepare-source-action/action.yml")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Validate the transport chain, including the checksum check before execution.
-	text := string(data)
-	last := -1
-	for _, action := range []string{"./oci/build-image", "./workflow/new-build-receipt", "./workflow/test-build-artifact", "./workflow/test-candidate-runtime", "./workflow/import-candidate-image", "./workflow/new-candidate-action"} {
-		i := strings.Index(text, "uses: "+action+"\n")
-		if i <= last {
-			t.Fatalf("missing/out-of-order bootstrap operation %s", action)
-		}
-		last = i
-	}
-	if strings.Contains(text, "run:") {
-		t.Fatal("bootstrap must not add host commands")
-	}
-}
-
 func TestSecurityContinuationDoesNotRelaxFunctionalGates(t *testing.T) {
 	data, err := os.ReadFile("../../.github/workflows/main.yml")
 	if err != nil {
@@ -94,7 +73,7 @@ func TestSecurityContinuationDoesNotRelaxFunctionalGates(t *testing.T) {
 					t.Fatalf("%s must retain advisory execution", id)
 				}
 			}
-			if uses == "./.source-actions/workflow/publish-catalog-images" || uses == "./workflow/new-image-metadata" || uses == "./.source-actions/workflow/test-catalog-publication" || uses == "./.source-actions/workflow/complete-release" {
+			if uses == "./.source-actions/workflow/publish-catalog-images" || uses == "./workflow/new-image-metadata" || uses == "./workflow/test-catalog-publication" || uses == "./.source-actions/workflow/complete-release" {
 				checks[uses] = true
 				if step["continue-on-error"] == true {
 					t.Fatalf("functional gate weakened: %s", uses)

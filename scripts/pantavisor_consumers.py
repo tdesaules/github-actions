@@ -211,7 +211,9 @@ def activate(project, tag, directory, core='', k0s=''):
     identity = json.loads(identity_file.read_text())
     if not identity.get('repository', '').endswith('/pantavisor-' + project):
         raise ValueError('Selected directory is not the requested Pantavisor project')
-    if project != 'system' and identity.get('name') != project:
+    producer_name = (identity.get('profiles', {}).get('base', {}).get('name')
+                     if project == 'k0s' else identity.get('name'))
+    if project != 'system' and producer_name != project:
         raise ValueError('Producer identity differs from the requested project')
     text = render(project, tag)
     verify_catalogue(text, tag)

@@ -180,7 +180,6 @@ func TestMigratedJobsUsePublishedActions(t *testing.T) {
 	}
 	for _, job := range []string{"check", "lint", "build", "test", "release", "maintenance"} {
 		steps := workflow.Jobs[job].Steps
-		prepared := map[string]bool{}
 		if len(steps) == 0 {
 			t.Fatalf("missing steps in %s", job)
 		}
@@ -189,23 +188,27 @@ func TestMigratedJobsUsePublishedActions(t *testing.T) {
 				t.Errorf("%s: host run step %v", job, step["name"])
 			}
 			uses, _ := step["uses"].(string)
-			candidate := job == "test" && strings.HasPrefix(uses, "./.candidate-actions/")
+			// Temporary source controls have an explicit preceding qualification
+			// bridge. Remove this allowance with the documented source bridges.
 			if uses == "./workflow/prepare-source-action" {
-				with, _ := step["with"].(map[string]any)
-				directory, _ := with["directory"].(string)
-				if directory == "" {
-					t.Fatal("source bootstrap lacks explicit directory")
-				}
-				prepared["./.source-actions/"+directory] = true
-				continue // Composition of qualified archive operations, tested below.
+				continue
 			}
-			if strings.HasPrefix(uses, "./.source-actions/") {
-				if !prepared[uses] {
-					t.Fatalf("%s: source action invoked before bootstrap: %s", job, uses)
+			source := strings.HasPrefix(uses, "./.source-actions/")
+			if source {
+				directory := strings.TrimPrefix(uses, "./.source-actions/")
+				prepared := false
+				for _, earlier := range steps {
+					if earlier["uses"] == "./workflow/prepare-source-action" {
+						with, _ := earlier["with"].(map[string]any)
+						prepared = prepared || with["directory"] == directory
+					}
 				}
-				candidate = true
-				uses = strings.Replace(uses, "./.source-actions/", "./", 1)
+				if !prepared {
+					t.Fatalf("%s: unqualified source control %s", job, uses)
+				}
+				uses = "./" + directory
 			}
+			candidate := job == "test" && strings.HasPrefix(uses, "./.candidate-actions/")
 			// Candidate actions preserve the source directory beneath this prefix.
 			uses = strings.Replace(uses, "./.candidate-actions/", "./", 1)
 			if !strings.HasPrefix(uses, "./") {
@@ -234,7 +237,7 @@ func TestMigratedJobsUsePublishedActions(t *testing.T) {
 			// not the source's unpublished bootstrap reference. Runtime calls in
 			// every other job still require a real immutable published image.
 			pinned := regexp.MustCompile(`^docker://.+@sha256:[a-f0-9]{64}$`).MatchString(action.Runs.Image)
-			bootstrap := candidate && (action.Runs.Image == "Containerfile" || action.Runs.Image == "docker://ghcr.io/tdesaules/github-actions/"+strings.ReplaceAll(strings.TrimPrefix(uses, "./"), "/", "-")+":unpublished")
+			bootstrap := (candidate || source) && action.Runs.Image == "Containerfile"
 			if action.Runs.Using != "docker" || !(pinned || bootstrap) {
 				t.Errorf("%s: %s must use a published Docker image", job, uses)
 			}
@@ -324,7 +327,7 @@ func TestBuildAndQualificationAreSeparate(t *testing.T) {
 			fixtures = i
 		case "./workflow/test-candidate-runtime", "./.source-actions/workflow/test-candidate-runtime":
 			runtime = i
-		case "./workflow/test-reviewed-vulnerabilities", "./.source-actions/workflow/test-reviewed-vulnerabilities":
+		case "./workflow/test-reviewed-vulnerabilities":
 			scan = i
 		case "./workflow/test-build-artifact":
 			checks = append(checks, i)

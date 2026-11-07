@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:44@sha256:b3e011d47e686a89781495c9a87bc80349af742965e5d51e79cd51711982e4a2 AS build
+FROM quay.io/fedora/fedora:44@sha256:50ab7dd5a71732975b6a1f19108df021b61254f3a507e68ac8abb5fb0bceb308 AS build
 RUN dnf install -y golang-1.26.10-1.fc44 && dnf clean all
 ENV GOTOOLCHAIN=local
 WORKDIR /src
@@ -9,7 +9,7 @@ COPY shared/runtime/ ./shared/runtime/
 COPY shared/workflow/ ./shared/workflow/
 COPY workflow/publish-catalog-images/main.go ./workflow/publish-catalog-images/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/publish-catalog-images
-FROM quay.io/fedora/fedora:44@sha256:b3e011d47e686a89781495c9a87bc80349af742965e5d51e79cd51711982e4a2 AS final
+FROM quay.io/fedora/fedora:44@sha256:50ab7dd5a71732975b6a1f19108df021b61254f3a507e68ac8abb5fb0bceb308 AS final
 # Retain distribution transport libraries, Git and registry trust configuration.
 # hadolint ignore=DL3041
 RUN dnf install -y skopeo git ca-certificates && dnf clean all

@@ -1,5 +1,5 @@
 name: Prepare source action
-description: Bootstrap an unpublished action from the exact checkout using qualified OCI operations
+description: Temporarily qualify an unpublished source control with the established OCI actions
 inputs:
   directory:
     description: Source action directory

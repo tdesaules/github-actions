@@ -50,6 +50,26 @@ class ConsumerTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 module.render('core', tag)
 
+    def test_k0s_activation_checks_base_profile_identity(self):
+        import json
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            identity = root / 'build/component.json'
+            identity.parent.mkdir()
+            for name in ('core', 'k0s'):
+                identity.write_text(json.dumps({'repository': 'fixture/pantavisor-k0s',
+                                               'profiles': {'base': {'name': name}}}))
+                with patch.object(module, 'verify_catalogue') as verify:
+                    if name == 'core':
+                        with self.assertRaisesRegex(ValueError, 'Producer identity'):
+                            module.activate('k0s', '1.5.0', root)
+                        verify.assert_not_called()
+                        self.assertFalse((root / '.github').exists())
+                    else:
+                        module.activate('k0s', '1.5.0', root)
+                        self.assertIn('PROJECT: k0s', (root / '.github/workflows/main.yml').read_text())
+
     def test_activation_preserves_originals_and_refuses_local_edits(self):
         import tempfile
         with tempfile.TemporaryDirectory() as directory:

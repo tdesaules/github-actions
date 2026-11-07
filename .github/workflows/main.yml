@@ -88,7 +88,7 @@ jobs:
           before: ${{ github.event.before }}
           after: ${{ github.sha }}
           full: ${{ github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') }}
-      - name: Bootstrap policy-aware catalog validator
+      - name: Bootstrap source-aware catalog validation
         if: ${{ !cancelled() && steps.sources.outputs.catalog-changed == 'true' }}
         uses: ./workflow/prepare-source-action
         with:
@@ -1399,22 +1399,12 @@ jobs:
           sbom: .build/${{ matrix.image }}/${{ matrix.arch }}/sbom.syft.json
           output: .build/${{ matrix.image }}/${{ matrix.arch }}/grype-reviewed.json
           evidence: .build/${{ matrix.image }}/${{ matrix.arch }}/review-evidence.json
-      - name: Bootstrap reporting-only scanner
-        timeout-minutes: 30
-        id: security-scanner-bootstrap
-        if: (matrix.rebuild || matrix.scan) && steps.security-sbom.outcome == 'success'
-        continue-on-error: true
-        uses: ./workflow/prepare-source-action
-        with:
-          directory: workflow/test-reviewed-vulnerabilities
-          image: workflow-test-reviewed-vulnerabilities
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Report exact candidate vulnerabilities
         id: security-scan
         timeout-minutes: 15
-        if: (matrix.rebuild || matrix.scan) && steps.security-sbom.outcome == 'success' && steps.security-scanner-bootstrap.outcome == 'success'
+        if: (matrix.rebuild || matrix.scan) && steps.security-sbom.outcome == 'success'
         continue-on-error: true
-        uses: ./.source-actions/workflow/test-reviewed-vulnerabilities
+        uses: ./workflow/test-reviewed-vulnerabilities
         env:
           SECURITY_COMPONENT: ${{ matrix.image }}
           SECURITY_ARCHITECTURE: ${{ matrix.arch }}
@@ -1423,21 +1413,11 @@ jobs:
           config: ${{ steps.security-review.outcome == 'success' && format('.build/{0}/{1}/grype-reviewed.json', matrix.image, matrix.arch) || '' }}
           output: .build/${{ matrix.image }}/${{ matrix.arch }}/grype.json
           database-metadata: .build/${{ matrix.image }}/${{ matrix.arch }}/grype-db.json
-      - name: Bootstrap advisory security summary
-        timeout-minutes: 15
-        id: security-summary-bootstrap
-        if: always() && (matrix.rebuild || matrix.scan)
-        continue-on-error: true
-        uses: ./workflow/prepare-source-action
-        with:
-          directory: workflow/test-step-outcomes
-          image: workflow-test-step-outcomes
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Summarize advisory security outcomes
         timeout-minutes: 5
-        if: always() && (matrix.rebuild || matrix.scan) && steps.security-summary-bootstrap.outcome == 'success'
+        if: always() && (matrix.rebuild || matrix.scan)
         continue-on-error: true
-        uses: ./.source-actions/workflow/test-step-outcomes
+        uses: ./workflow/test-step-outcomes
         env:
           SECURITY_SUBJECT: ${{ steps.candidate.outputs.image || matrix.reference }}
           SECURITY_COMPONENT: ${{ matrix.image }}
@@ -1523,16 +1503,9 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Bootstrap tag publication validator
-        if: needs.check.outputs.mode == 'release'
-        uses: ./workflow/prepare-source-action
-        with:
-          directory: workflow/test-catalog-publication
-          image: workflow-test-catalog-publication
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Validate tag provenance and exact published catalog
         if: needs.check.outputs.mode == 'release'
-        uses: ./.source-actions/workflow/test-catalog-publication
+        uses: ./workflow/test-catalog-publication
         with:
           tag: ${{ github.ref_name }}
           registry-username: ${{ github.actor }}
@@ -1593,6 +1566,13 @@ jobs:
           directory: workflow/publish-catalog-images
           image: workflow-publish-catalog-images
           host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Bootstrap source-aware release finalizer
+        if: needs.check.outputs.mode == 'prepare'
+        uses: ./workflow/prepare-source-action
+        with:
+          directory: workflow/complete-release
+          image: workflow-complete-release
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Validate exact-source publication artifacts
         if: needs.check.outputs.mode == 'prepare'
         uses: ./.source-actions/workflow/new-publication-plan
@@ -1624,33 +1604,16 @@ jobs:
           repository: ${{ github.repository }}
           registry-username: ${{ github.actor }}
           registry-password: ${{ github.token }}
-      - name: Bootstrap functional release finalization
-        if: needs.check.outputs.mode == 'prepare'
-        uses: ./workflow/prepare-source-action
-        with:
-          directory: workflow/complete-release
-          image: workflow-complete-release
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Commit pins and atomically push release tag
         if: needs.check.outputs.mode == 'prepare'
         uses: ./.source-actions/workflow/complete-release
         with:
           token: ${{ steps.app.outputs.token }}
-      - name: Bootstrap release security summary
-        id: security-summary-bootstrap
-        timeout-minutes: 15
-        if: always()
-        continue-on-error: true
-        uses: ./workflow/prepare-source-action
-        with:
-          directory: workflow/test-step-outcomes
-          image: workflow-test-step-outcomes
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Summarize release security outcomes
         timeout-minutes: 5
-        if: always() && steps.security-summary-bootstrap.outcome == 'success'
+        if: always()
         continue-on-error: true
-        uses: ./.source-actions/workflow/test-step-outcomes
+        uses: ./workflow/test-step-outcomes
         env:
           SECURITY_SUBJECT: ${{ github.sha }}
           SECURITY_OUTPUT: .build/publication/security-status.json
@@ -1702,22 +1665,12 @@ jobs:
         id: security-sboms
         continue-on-error: true
         uses: ./maintenance/new-catalog-sboms
-      - name: Bootstrap maintenance scanner
-        timeout-minutes: 30
-        id: security-scanner-bootstrap
-        if: '!cancelled()'
-        continue-on-error: true
-        uses: ./workflow/prepare-source-action
-        with:
-          directory: maintenance/test-catalog-vulnerabilities
-          image: maintenance-test-catalog-vulnerabilities
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Scan catalogue with refreshed vulnerability database
         timeout-minutes: 60
         id: security-catalog-scan
         continue-on-error: true
-        if: ${{ !cancelled() && steps.security-scanner-bootstrap.outcome == 'success' }}
-        uses: ./.source-actions/maintenance/test-catalog-vulnerabilities
+        if: '!cancelled()'
+        uses: ./maintenance/test-catalog-vulnerabilities
       - name: Select documentation links
         if: '!cancelled()'
         id: documents
@@ -1737,21 +1690,11 @@ jobs:
           repository: ${{ github.repository }}
           token: ${{ secrets.RENOVATE_TOKEN }}
           dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.renovate-dry-run }}
-      - name: Bootstrap maintenance security summary
-        id: security-summary-bootstrap
-        timeout-minutes: 15
-        if: always()
-        continue-on-error: true
-        uses: ./workflow/prepare-source-action
-        with:
-          directory: workflow/test-step-outcomes
-          image: workflow-test-step-outcomes
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Summarize maintenance security outcomes
         timeout-minutes: 5
-        if: always() && steps.security-summary-bootstrap.outcome == 'success'
+        if: always()
         continue-on-error: true
-        uses: ./.source-actions/workflow/test-step-outcomes
+        uses: ./workflow/test-step-outcomes
         env:
           SECURITY_SUBJECT: ${{ github.sha }}
           SECURITY_OUTPUT: .build/maintenance/security-status.json

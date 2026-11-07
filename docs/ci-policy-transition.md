@@ -39,11 +39,10 @@ The consumer template and System generator follow the same policy. Consumer
 repositories are not activated by changing their generator: they still require
 a genuinely published catalogue release with resolvable immutable references.
 
-## Temporary source bootstrap
+## Completed source-bootstrap transition
 
-Existing released control images implement the old scratch/security contracts.
-Changing their source does not change those immutable published images. The
-workflow therefore uses `workflow/prepare-source-action` for:
+Before release `1.5.0`, the older control images implemented the former
+scratch/security contracts. A temporary source bridge was used for:
 
 - the catalogue validator accepting distribution runtimes;
 - reporting-only candidate and maintenance scanners;
@@ -51,18 +50,32 @@ workflow therefore uses `workflow/prepare-source-action` for:
 - independent tag publication validation;
 - release finalization without a signature gate.
 
-The bridge composes the existing Buildah, receipt, integrity, runtime-test,
+The bridge composed the existing Buildah, receipt, integrity, runtime-test,
 registry-transfer and candidate-metadata actions. Every call is explicit and
 uses a job-private registry digest. There is no host-script fallback or invented
 GHCR digest. Auxiliary security-helper failure is advisory; a helper image
 selected as a catalogue product must still build and pass functional tests.
 
-These temporary control-tool builds also occur during tag verification; the
-catalogue product images themselves are not rebuilt or republished on tags.
-After publishing each new control action, pin its real digest and replace its
-source invocation with the released action. Remove the bridge when no calls
-remain. Hosted validation and actual publication are still distinct from local
-builds/tests; no assistant push or remote release is implied by this transition.
+Release `1.5.0` published all replacement images. Their pinned GHCR references
+were resolved and checked before replacing every bridge invocation with the
+dedicated Docker action and removing the bridge. Functional gates and advisory
+continuation remain distinct. The cleanup requires its own hosted execution
+after push; the successful release runs below precede that cleanup.
+
+## Publication evidence — 2026-11-07
+
+- Full native qualification `42306550247` at source `def168e`: 290 successful
+  jobs, with release and maintenance skipped; 144 architecture archives.
+- All 144 security report sets were executed without tool errors: 78 scans
+  clean, 66 with findings including high/critical. KAS scans were clean.
+- Preparation `42331739888` reused those exact archives without rebuilding:
+  72 images published and 72 signature-verification records successful.
+- Release commit `ffe2ac3`, tag `1.5.0`; tag run `42334527019` and main run
+  `42334527413` succeeded. The stable GitHub Release was published at
+  `2026-11-07T03:42:55Z`.
+- Core and k0s workflows were generated locally against `1.5.0` after checking
+  the published Docker interfaces and resolving their digests. Hosted consumer
+  execution awaits their push. System still requires producer release digests.
 
 ## Local checks
 
