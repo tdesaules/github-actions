@@ -52,6 +52,9 @@ func (f *githubFixture) serve(w http.ResponseWriter, r *http.Request) {
 	var value any
 	switch {
 	case path == "/actions/runs/123":
+		// A later failed rerun must not invalidate the original prepared tag.
+		value = map[string]any{"id": 123, "head_sha": f.source, "head_branch": "main", "event": "workflow_dispatch", "status": "completed", "conclusion": "failure", "run_attempt": 2}
+	case path == "/actions/runs/123/attempts/1":
 		value = map[string]any{"id": 123, "head_sha": f.source, "head_branch": "main", "event": "workflow_dispatch", "status": "completed", "conclusion": "success", "run_attempt": 1}
 	case path == "/actions/runs/123/artifacts":
 		value = map[string]any{"artifacts": f.artifacts}
@@ -208,7 +211,7 @@ func binaryCases(root *candidate.Root, image string, results *[]result) error {
 		id := i + 1
 		digest := fmt.Sprintf("sha256:%x", sha256.Sum256(zipped.Bytes()))
 		f.zips[fmt.Sprintf("/actions/artifacts/%d/zip", id)] = zipped.Bytes()
-		f.artifacts = append(f.artifacts, map[string]any{"id": id, "name": "qualified-" + arch + "-123", "digest": digest, "expired": false, "workflow_run": map[string]any{"id": 123, "head_sha": source}})
+		f.artifacts = append(f.artifacts, map[string]any{"id": id, "name": "qualified-" + arch + "-123-attempt-1", "digest": digest, "expired": false, "workflow_run": map[string]any{"id": 123, "head_sha": source}})
 		bindings = append(bindings, map[string]any{"id": id, "arch": arch, "digest": digest, "sha256": sum, "archive": name})
 	}
 	marker := map[string]any{"schema_version": 1, "source_sha": source, "version": "1.0.0", "run_id": "123", "run_attempt": "1", "artifacts": bindings}

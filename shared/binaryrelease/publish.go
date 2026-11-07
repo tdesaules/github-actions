@@ -228,7 +228,7 @@ func PublishAction() error {
 	if e != nil {
 		return e
 	}
-	r, e := a.Run(m.RunID)
+	r, e := a.RunAttempt(m.RunID, m.RunAttempt)
 	if e != nil {
 		return e
 	}

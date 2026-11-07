@@ -82,10 +82,17 @@ type Run struct {
 	Attempt    int    `json:"run_attempt"`
 }
 
-func (a API) Run(id string) (Run, error) {
+func (a API) RunAttempt(id, attempt string) (Run, error) {
 	var r Run
-	_, e := a.json("GET", "/actions/runs/"+id, nil, &r)
+	if !decimal.MatchString(id) || !decimal.MatchString(attempt) {
+		return r, fmt.Errorf("invalid run attempt identity")
+	}
+	_, e := a.json("GET", "/actions/runs/"+id+"/attempts/"+attempt, nil, &r)
 	return r, e
+}
+
+func qualifiedName(arch string, m Marker) string {
+	return "qualified-" + arch + "-" + m.RunID + "-attempt-" + m.RunAttempt
 }
 func checkRun(r Run, m Marker, complete bool) error {
 	if strconv.FormatInt(r.ID, 10) != m.RunID || r.HeadSHA != m.SourceSHA || r.HeadBranch != "main" || r.Event != "workflow_dispatch" || strconv.Itoa(r.Attempt) != m.RunAttempt {
@@ -126,7 +133,7 @@ func (a API) Artifacts(run string) ([]Artifact, error) {
 	return nil, fmt.Errorf("artifact pagination limit exceeded")
 }
 func (a API) Bind(m *Marker, q []Qualified) error {
-	r, e := a.Run(m.RunID)
+	r, e := a.RunAttempt(m.RunID, m.RunAttempt)
 	if e != nil {
 		return e
 	}
@@ -141,7 +148,7 @@ func (a API) Bind(m *Marker, q []Qualified) error {
 		var match *Artifact
 		for i := range artifacts {
 			art := &artifacts[i]
-			if art.Name == "qualified-"+v.Arch+"-"+m.RunID {
+			if art.Name == qualifiedName(v.Arch, *m) {
 				if match != nil {
 					return fmt.Errorf("ambiguous qualified artifact")
 				}
@@ -260,7 +267,7 @@ func (a API) Fetch(m Marker, out string, wait bool) error {
 	}
 	deadline := time.Now().Add(8 * time.Minute)
 	for {
-		r, e := a.Run(m.RunID)
+		r, e := a.RunAttempt(m.RunID, m.RunAttempt)
 		if e != nil {
 			return e
 		}
@@ -294,7 +301,7 @@ func (a API) Fetch(m Marker, out string, wait bool) error {
 	for _, b := range m.Artifacts {
 		ok := false
 		for _, ar := range artifacts {
-			if ar.ID == b.ID && !ar.Expired && ar.Name == "qualified-"+b.Arch+"-"+m.RunID && ar.Digest == b.Digest && ar.WorkflowRun.HeadSHA == m.SourceSHA && strconv.FormatInt(ar.WorkflowRun.ID, 10) == m.RunID {
+			if ar.ID == b.ID && !ar.Expired && ar.Name == qualifiedName(b.Arch, m) && ar.Digest == b.Digest && ar.WorkflowRun.HeadSHA == m.SourceSHA && strconv.FormatInt(ar.WorkflowRun.ID, 10) == m.RunID {
 				ok = true
 			}
 		}

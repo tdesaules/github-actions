@@ -17,9 +17,13 @@ before writing `.build` paths (workspace owner when unset), allowing subsequent
 runner checkout/artifact steps to create sibling directories. It does not change
 source permissions. It verifies the bounded preparation marker, source parent,
 and metadata-only Cargo/changelog diff. It checks the source dispatch run and
-latest attempt, waits up to eight minutes between API calls for preparation to
+recorded attempt via `/actions/runs/{run_id}/attempts/{run_attempt}`, and waits up
+to eight minutes between API calls for that preparation attempt to
 finish successfully (individual HTTP calls also have bounded timeouts), paginates
 artifact metadata, and downloads only the two bound immutable artifact IDs.
+Their names must be `qualified-<arch>-<run_id>-attempt-<run_attempt>`.
+A newer running or failed attempt does not invalidate a successful recorded attempt
+or replace its retained artifacts. Uploads must not overwrite earlier attempts.
 Redirected object downloads never receive the GitHub token. ZIP digest, archive
 hash, tested receipts, version/source/run/attempt and both architectures must match.
 

@@ -14,6 +14,10 @@ must preserve the preparation source SHA, version, run ID and run attempt.
 
 The action rechecks the annotated tag and metadata-only source diff, successful
 preparation run, immutable artifact IDs/ZIP digests, complete receipts and hashes.
+Run success is checked at `/actions/runs/{run_id}/attempts/{run_attempt}` for the
+recorded preparation attempt, not the latest run attempt. Artifact names must match
+`qualified-<arch>-<run_id>-attempt-<run_attempt>`; retain them without overwrite so
+later running/failed preparation attempts cannot invalidate the tagged evidence.
 It creates or updates a non-draft, non-prerelease GitHub Release containing the
 actual `.tar.gz` binaries, `SHA256SUMS`, and `release-evidence.json`. Uploaded bytes
 are streamed with a 2 GiB bound. Existing identical assets are reused; conflicting

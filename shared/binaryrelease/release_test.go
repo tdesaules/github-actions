@@ -17,6 +17,18 @@ import (
 
 func TestFetchImmutableArtifactSet(t *testing.T) {
 	dir, m := qualifiedFixture(t)
+	m.RunAttempt = "1"
+	for _, arch := range []string{"amd64", "arm64"} {
+		path := filepath.Join(dir, arch, "binary.receipt.json")
+		var receipt Receipt
+		if e := Decode(path, &receipt); e != nil {
+			t.Fatal(e)
+		}
+		receipt.RunAttempt = "1"
+		if e := WriteJSON(path, receipt); e != nil {
+			t.Fatal(e)
+		}
+	}
 	zips := map[int64][]byte{}
 	for i := range m.Artifacts {
 		binding := &m.Artifacts[i]
@@ -42,14 +54,24 @@ func TestFetchImmutableArtifactSet(t *testing.T) {
 		binding.Digest = fmt.Sprintf("sha256:%x", sha256.Sum256(buf.Bytes()))
 	}
 	corrupt := false
+	wrongAttempt := false
+	latestStatus, latestConclusion := "in_progress", ""
+	latestCalls := 0
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/repos/o/r/actions/runs/123":
-			_ = json.NewEncoder(w).Encode(Run{ID: 123, HeadSHA: m.SourceSHA, HeadBranch: "main", Event: "workflow_dispatch", Status: "completed", Conclusion: "success", Attempt: 2})
+			latestCalls++
+			_ = json.NewEncoder(w).Encode(Run{ID: 123, HeadSHA: m.SourceSHA, HeadBranch: "main", Event: "workflow_dispatch", Status: latestStatus, Conclusion: latestConclusion, Attempt: 2})
+		case "/repos/o/r/actions/runs/123/attempts/1":
+			_ = json.NewEncoder(w).Encode(Run{ID: 123, HeadSHA: m.SourceSHA, HeadBranch: "main", Event: "workflow_dispatch", Status: "completed", Conclusion: "success", Attempt: 1})
 		case "/repos/o/r/actions/runs/123/artifacts":
 			arts := []Artifact{}
 			for _, b := range m.Artifacts {
-				ar := Artifact{ID: b.ID, Name: "qualified-" + b.Arch + "-123", Digest: b.Digest}
+				name := "qualified-" + b.Arch + "-123-attempt-1"
+				if wrongAttempt {
+					name = "qualified-" + b.Arch + "-123-attempt-2"
+				}
+				ar := Artifact{ID: b.ID, Name: name, Digest: b.Digest}
 				ar.WorkflowRun.ID = 123
 				ar.WorkflowRun.HeadSHA = m.SourceSHA
 				arts = append(arts, ar)
@@ -73,6 +95,18 @@ func TestFetchImmutableArtifactSet(t *testing.T) {
 	if e := a.Fetch(m, filepath.Join(t.TempDir(), "qualified"), true); e != nil {
 		t.Fatal(e)
 	}
+	latestStatus, latestConclusion = "completed", "failure"
+	if e := a.Fetch(m, filepath.Join(t.TempDir(), "qualified"), true); e != nil {
+		t.Fatalf("newer failed attempt invalidated retained original: %v", e)
+	}
+	if latestCalls != 0 {
+		t.Fatal("consulted mutable latest-run endpoint")
+	}
+	wrongAttempt = true
+	if e := a.Fetch(m, filepath.Join(t.TempDir(), "qualified"), true); e == nil {
+		t.Fatal("accepted bound IDs with wrong attempt names")
+	}
+	wrongAttempt = false
 	corrupt = true
 	if e := a.Fetch(m, filepath.Join(t.TempDir(), "qualified"), true); e == nil {
 		t.Fatal("accepted substituted artifact ZIP")
@@ -139,7 +173,7 @@ func TestGitCliffVersionFixtures(t *testing.T) {
 		release             bool
 	}{
 		{"1.2.3", "feat: add tabs", "1.3.0", true}, {"1.2.3", "fix: repair tabs", "1.2.4", true}, {"1.2.3", "perf: cache icons", "1.2.4", true}, {"1.2.3", "chore!: remove config", "2.0.0", true}, {"1.2.3", "docs: migration\n\nBREAKING CHANGE: remove config", "2.0.0", true}, {"1.2.3", "docs: explain tabs", "1.2.3", false}, {"0.2.3", "chore!: remove config", "0.3.0", true},
-		{"1.2.3", "FEAT: add tabs", "1.3.0", true}, {"1.2.3", "PERF: cache", "1.2.4", true}, {"1.2.3", "docs: migration\n\nBreaking Change: removed", "2.0.0", true},
+		{"1.2.3", "FEAT: add tabs", "1.3.0", true}, {"1.2.3", "PERF: cache", "1.2.4", true}, {"1.2.3", "docs: migration\n\nBreaking Change: removed", "1.2.3", false},
 	} {
 		t.Run(tt.message+tt.base, func(t *testing.T) {
 			fixtureRepo(t)

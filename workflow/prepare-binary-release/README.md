@@ -15,8 +15,16 @@ scoped GitHub App token with **contents: write** and **actions: read**. The App 
 be installed on the consumer repository; ordinary workflow tokens do not trigger
 the required tag workflow. Secrets are environment inputs, never command arguments.
 
-Each architecture must upload `qualified-<arch>-<github.run_id>` through immutable
+Each architecture must upload
+`qualified-<arch>-<github.run_id>-attempt-<github.run_attempt>` through immutable
 Actions upload-artifact v4. Each artifact contains a `.tar.gz` plus `*.receipt.json`:
+
+Do not enable `overwrite`. Each retry creates a distinct attempt-scoped artifact;
+artifacts already bound by a tag must remain retained. Binding verifies the exact
+name, ID and `/actions/runs/{run_id}/attempts/{run_attempt}` response. Run attempt
+responses must identify the source SHA, main branch, dispatch event and recorded
+attempt; read/publication additionally require that recorded attempt to succeed.
+The mutable latest-run endpoint is never used for this proof.
 
 ```json
 {"schema_version":1,"source_sha":"<40-hex>","version":"1.0.0","component":"niri-tonic-files","arch":"amd64","archive":"niri-tonic-files-1.0.0-linux-amd64.tar.gz","sha256":"<64-hex>","run_id":"123","run_attempt":"1","tested":true}
