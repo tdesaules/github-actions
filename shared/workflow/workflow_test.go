@@ -180,7 +180,6 @@ func TestMigratedJobsUsePublishedActions(t *testing.T) {
 	}
 	for _, job := range []string{"check", "lint", "build", "test", "release", "maintenance"} {
 		steps := workflow.Jobs[job].Steps
-		prepared := map[string]bool{}
 		if len(steps) == 0 {
 			t.Fatalf("missing steps in %s", job)
 		}
@@ -190,22 +189,6 @@ func TestMigratedJobsUsePublishedActions(t *testing.T) {
 			}
 			uses, _ := step["uses"].(string)
 			candidate := job == "test" && strings.HasPrefix(uses, "./.candidate-actions/")
-			if uses == "./workflow/prepare-source-action" {
-				with, _ := step["with"].(map[string]any)
-				directory, _ := with["directory"].(string)
-				if directory == "" {
-					t.Fatal("source bootstrap lacks explicit directory")
-				}
-				prepared["./.source-actions/"+directory] = true
-				continue // Composition of qualified archive operations, tested below.
-			}
-			if strings.HasPrefix(uses, "./.source-actions/") {
-				if !prepared[uses] {
-					t.Fatalf("%s: source action invoked before bootstrap: %s", job, uses)
-				}
-				candidate = true
-				uses = strings.Replace(uses, "./.source-actions/", "./", 1)
-			}
 			// Candidate actions preserve the source directory beneath this prefix.
 			uses = strings.Replace(uses, "./.candidate-actions/", "./", 1)
 			if !strings.HasPrefix(uses, "./") {
@@ -324,7 +307,7 @@ func TestBuildAndQualificationAreSeparate(t *testing.T) {
 			fixtures = i
 		case "./workflow/test-candidate-runtime":
 			runtime = i
-		case "./workflow/test-reviewed-vulnerabilities", "./.source-actions/workflow/test-reviewed-vulnerabilities":
+		case "./workflow/test-reviewed-vulnerabilities":
 			scan = i
 		case "./workflow/test-build-artifact":
 			checks = append(checks, i)

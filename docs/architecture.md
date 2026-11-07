@@ -89,8 +89,7 @@ Cosign. Une publication peut comporter des alertes ou ne pas être signée : le
 journal et le résumé doivent le dire. Les diagnostics sécurité sont transférés
 séparément des archives/reçus obligatoires.
 
-Le pont temporaire `workflow/prepare-source-action` exécute les versions source
-de la validation et du reporting tant que leurs nouvelles images ne sont pas
-publiées. Il vérifie les archives et prépare des références immuables dans un
-registre de job. Supprimer ses appels après publication et épinglage des vrais
-digests ; ne pas confondre ce bootstrap avec l'activation des consommateurs.
+Depuis la publication du catalogue `1.5.0`, la validation et le reporting utilisent
+directement leurs actions Docker épinglées aux digests publiés. Le pont temporaire
+de construction source a été retiré. L'activation des consommateurs et leur
+exécution hébergée restent des étapes distinctes.
