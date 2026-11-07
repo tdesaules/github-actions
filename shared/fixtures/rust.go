@@ -14,14 +14,41 @@ func RustFiles() map[string]string {
 	files := map[string]string{
 		"Cargo.toml": "[package]\nname = \"niri-tonic-files\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
 		"Cargo.lock": "version = 4\n\n[[package]]\nname = \"niri-tonic-files\"\nversion = \"0.1.0\"\n",
-		"src/main.rs": `fn main() {
-    match std::env::args().nth(1).as_deref() {
+		"src/main.rs": `use std::env;
+
+#[link(name = "gtk-4")]
+extern "C" {
+    fn gtk_init();
+    fn gtk_window_new() -> *mut std::ffi::c_void;
+    fn gtk_window_present(window: *mut std::ffi::c_void);
+    fn gtk_window_destroy(window: *mut std::ffi::c_void);
+    fn gtk_widget_get_mapped(widget: *mut std::ffi::c_void) -> i32;
+}
+#[link(name = "glib-2.0")]
+extern "C" {
+    fn g_main_context_iteration(context: *mut std::ffi::c_void, block: i32) -> i32;
+}
+
+fn main() {
+    match env::args().nth(1).as_deref() {
         Some("--version") => println!("niri-tonic-files {}", env!("NIRI_TONIC_RELEASE_VERSION")),
         Some("--check-config") => println!("configuration valid"),
-        Some("--smoke-test") => {
-            assert_eq!(std::env::var("GDK_BACKEND").unwrap(), "wayland");
-            println!("synthetic smoke passed");
-        }
+        Some("--smoke-test") => unsafe {
+            assert_eq!(env::var("GDK_BACKEND").unwrap(), "wayland");
+            gtk_init();
+            let window = gtk_window_new();
+            gtk_window_present(window);
+            for _ in 0..100 {
+                g_main_context_iteration(std::ptr::null_mut(), 0);
+                if gtk_widget_get_mapped(window) != 0 {
+                    gtk_window_destroy(window);
+                    println!("synthetic smoke passed");
+                    return;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            panic!("fixture GTK window did not map");
+        },
         _ => std::process::exit(2),
     }
 }
