@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:45@sha256:5db9683660938d440b057d412247ee245172b9724f42428ae95ae01253bae699 AS entrypoint
+FROM quay.io/fedora/fedora:45@sha256:fd31d2f9dfd835cf7398af9cb6cbbbffbd33ffac2d5204042ea14157455b63a2 AS entrypoint
 # hadolint ignore=DL3041
 RUN dnf install -y golang-1.27.3-1.fc45 ca-certificates && dnf clean all
 ENV GOTOOLCHAIN=local

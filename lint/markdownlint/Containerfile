@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:45@sha256:5db9683660938d440b057d412247ee245172b9724f42428ae95ae01253bae699 AS build
+FROM quay.io/fedora/fedora:45@sha256:fd31d2f9dfd835cf7398af9cb6cbbbffbd33ffac2d5204042ea14157455b63a2 AS build
 # hadolint ignore=DL3041
 RUN dnf install -y golang-1.27.3-1.fc45 ca-certificates && dnf clean all
 ENV GOTOOLCHAIN=local
@@ -8,7 +8,7 @@ COPY shared/check/ ./shared/check/
 COPY lint/markdownlint/main.go ./lint/markdownlint/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./lint/markdownlint
 
-FROM quay.io/fedora/fedora:45@sha256:5db9683660938d440b057d412247ee245172b9724f42428ae95ae01253bae699 AS tool
+FROM quay.io/fedora/fedora:45@sha256:fd31d2f9dfd835cf7398af9cb6cbbbffbd33ffac2d5204042ea14157455b63a2 AS tool
 # hadolint ignore=DL3041
 RUN dnf install -y nodejs24-24.18.0-4.fc45 nodejs24-npm ca-certificates && dnf clean all
 WORKDIR /usr/local/lib/node_modules/markdownlint-cli2
@@ -17,7 +17,7 @@ RUN npm-24 ci --ignore-scripts --omit=dev --no-audit --no-fund
 COPY lint/markdownlint/collect-modules.mjs /collect-modules.mjs
 RUN node-24 /collect-modules.mjs
 
-FROM quay.io/fedora/fedora:45@sha256:5db9683660938d440b057d412247ee245172b9724f42428ae95ae01253bae699 AS final
+FROM quay.io/fedora/fedora:45@sha256:fd31d2f9dfd835cf7398af9cb6cbbbffbd33ffac2d5204042ea14157455b63a2 AS final
 # Keep Node's distro-managed ICU, OpenSSL, trust roots and license closure.
 # hadolint ignore=DL3041
 RUN dnf install -y --setopt=install_weak_deps=False nodejs24-24.18.0-4.fc45 ca-certificates && dnf clean all \
