@@ -9,6 +9,24 @@ maintenance (déclenchement séparé)
 
 ## Frontière des artefacts
 
+Le sélecteur émet deux matrices : `matrix` conserve les tests de toutes les images
+sélectionnées ; `build-matrix` ne contient que les reconstructions nécessaires et
+les dépendances de scan. `has-build` dépend de cette seconde matrice. Une image
+publiée à retester ne lance donc plus un runner `build` vide.
+
+Le helper de revue est ajouté une seule fois par architecture nécessitant un scan,
+sauf s'il figure déjà parmi les produits à reconstruire. Ses étapes sont
+consultatives lorsqu'il sert uniquement de dépendance ; ses tests et builds de
+produit restent bloquants lorsqu'il est lui-même à qualifier. Son archive utilise
+le même nom `build-workflow-new-vulnerability-review-<architecture>-<run>` dans les
+deux cas, sans ajouter ce helper à la sélection de publication.
+
+Transition : l'image publiée du sélecteur ne fournit pas encore `build-matrix`.
+`check` construit donc un seul sélecteur de contrôle AMD64 pour les pushes et
+préparations, puis l'exécute via le registre candidat. Les tags utilisent encore
+le digest publié, sans reconstruction. Après qualification/publication du nouveau
+sélecteur, remplacer ce bootstrap par l'appel direct à son digest publié.
+
 `build` utilise l'action Buildah publiée sur le runner natif sélectionné. Il ne
 qualifie pas les images. Il dépose `image.oci.tar` et `build.json` dans un artefact
 `build-<image>-<architecture>-<run>`. Le reçu contient le checksum émis par le

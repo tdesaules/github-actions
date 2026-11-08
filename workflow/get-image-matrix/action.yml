@@ -26,6 +26,10 @@ outputs:
     description: Development, prepare, release or maintenance mode
   matrix:
     description: Native image qualification matrix JSON
+  build-matrix:
+    description: Required product builds and advisory reviewer dependencies only
+  has-build:
+    description: Whether the build matrix is nonempty
   has-work:
     description: Whether the matrix is nonempty
   version:

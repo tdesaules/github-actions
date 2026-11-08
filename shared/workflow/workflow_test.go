@@ -98,68 +98,41 @@ func TestSourceReviewerHasExactlyOneArtifactProducer(t *testing.T) {
 	}
 	var document struct {
 		Jobs map[string]struct {
-			Steps []struct{ Name, If string } `yaml:"steps"`
+			Steps []map[string]any `yaml:"steps"`
 		} `yaml:"jobs"`
 	}
 	if err := yaml.Unmarshal(data, &document); err != nil {
 		t.Fatal(err)
 	}
-	conditions := map[string]string{}
+	producers := 0
 	for _, step := range document.Jobs["build"].Steps {
-		conditions[step.Name] = step.If
+		switch step["uses"] {
+		case "./oci/build-image":
+			producers++
+			if step["if"] != nil {
+				t.Fatal("filtered build entries must not silently skip construction")
+			}
+		case "./workflow/new-build-receipt":
+			if step["if"] != "steps.archive.outcome == 'success'" {
+				t.Fatal("receipt must require actual build success")
+			}
+		default:
+			continue
+		}
+		if step["continue-on-error"] != "${{ matrix.dependency == true }}" {
+			t.Fatal("only dependency-only reviewer builds may be advisory")
+		}
 	}
-	type entry struct {
-		image         string
-		rebuild, scan bool
+	if producers != 1 {
+		t.Fatalf("%d producers per build row; want one", producers)
 	}
-	const reviewer = "workflow-new-vulnerability-review"
-	for _, tc := range []struct {
-		name    string
-		entries []entry
-		want    int
-	}{
-		{"empty", nil, 0},
-		{"metadata", []entry{{"oci-export-image", false, false}}, 0},
-		{"changed image", []entry{{"oci-export-image", true, true}}, 1},
-		{"scan only", []entry{{"oci-export-image", false, true}}, 1},
-		{"reviewer changed", []entry{{reviewer, true, true}}, 1},
-		{"reviewer selected for scan", []entry{{"oci-export-image", false, true}, {reviewer, false, true}}, 1},
-		{"reviewer metadata plus changed image", []entry{{"oci-export-image", true, true}, {reviewer, false, false}}, 1},
-		{"first image reused", []entry{{"oci-export-image", false, false}, {"oci-new-sbom", true, true}}, 1},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			build, selected := false, false
-			for _, e := range tc.entries {
-				build = build || e.rebuild || e.scan
-				selected = selected || e.image == reviewer
+	for _, step := range document.Jobs["test"].Steps {
+		if step["name"] == "Download source reviewer archive" {
+			with := step["with"].(map[string]any)
+			if with["name"] != "build-workflow-new-vulnerability-review-${{ matrix.arch }}-${{ github.run_id }}" {
+				t.Fatal("reviewer consumer must use the same build artifact for products and dependencies")
 			}
-			producers := 0
-			if build {
-				for _, e := range tc.entries {
-					for _, name := range []string{"Build selected native OCI archive", "Build source reviewer dependency"} {
-						if name == "Build selected native OCI archive" && e.image != reviewer {
-							continue
-						}
-						expression := strings.ReplaceAll(conditions[name], "'", "\"")
-						expression = strings.NewReplacer(
-							`contains(fromJSON(needs.check.outputs.matrix).include.*.image, "workflow-new-vulnerability-review")`, strconv.FormatBool(selected),
-							"fromJSON(needs.check.outputs.matrix).include[0].image", strconv.Quote(tc.entries[0].image),
-							"matrix.image", strconv.Quote(e.image), "matrix.rebuild", strconv.FormatBool(e.rebuild),
-						).Replace(expression)
-						result, err := types.Eval(token.NewFileSet(), nil, token.NoPos, strings.Join(strings.Fields(expression), " "))
-						if err != nil {
-							t.Fatal(err)
-						}
-						if constant.BoolVal(result.Value) {
-							producers++
-						}
-					}
-				}
-			}
-			if producers != tc.want {
-				t.Fatalf("%d producers per architecture; want %d", producers, tc.want)
-			}
-		})
+		}
 	}
 }
 
@@ -193,7 +166,7 @@ func TestMigratedJobsUsePublishedActions(t *testing.T) {
 			if uses == "./workflow/prepare-source-action" || strings.HasPrefix(uses, "./.source-actions/") || with["allow-source"] != nil || env["ALLOW_SOURCE_ACTIONS"] != nil {
 				t.Fatalf("%s: retired source bootstrap in %v", job, step["name"])
 			}
-			candidate := job == "test" && strings.HasPrefix(uses, "./.candidate-actions/")
+			candidate := (job == "test" || (job == "check" && uses == "./.candidate-actions/workflow/get-image-matrix")) && strings.HasPrefix(uses, "./.candidate-actions/")
 			// Candidate actions preserve the source directory beneath this prefix.
 			uses = strings.Replace(uses, "./.candidate-actions/", "./", 1)
 			if !strings.HasPrefix(uses, "./") {
@@ -255,7 +228,11 @@ func TestBuildAndQualificationAreSeparate(t *testing.T) {
 	}
 	for _, name := range []string{"build", "test"} {
 		job := document.Jobs[name]
-		if job.Strategy.FailFast == nil || *job.Strategy.FailFast || job.Strategy.MaxParallel != 4 || job.Strategy.Matrix != "${{ fromJSON(needs.check.outputs.matrix) }}" {
+		matrixOutput := "matrix"
+		if name == "build" {
+			matrixOutput = "build-matrix"
+		}
+		if job.Strategy.FailFast == nil || *job.Strategy.FailFast || job.Strategy.MaxParallel != 4 || job.Strategy.Matrix != "${{ fromJSON(needs.check.outputs."+matrixOutput+") }}" {
 			t.Fatalf("%s: qualification matrix constraints lost", name)
 		}
 	}

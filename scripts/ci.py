@@ -136,13 +136,27 @@ def select(paths, full=False, root=ROOT, unreleased=(), rebuild_selected=False):
         stale = any(source_path(path) and (path in (owners[image] + '/Containerfile', '.containerignore', '.dockerignore') or
                     build_dependency(root, owners[image], path)) for path in unreleased)
         rebuild = image in images or rebuild_selected or stale or not reference or reference.endswith(':unpublished')
+        scan = rebuild or full or any(path == 'grype-review.json' or path.startswith('shared/review/') for path in paths)
         for arch in ("amd64", "arm64"):
             matrix.append({"image": image, "directory": owners[image], "arch": arch,
                            "runner": "ubuntu-24.04" if arch == "amd64" else "ubuntu-24.04-arm",
-                           "rebuild": rebuild})
+                            "rebuild": rebuild, "scan": scan})
     if len(matrix) > 256:
         raise ValueError("GitHub supports at most 256 matrix jobs")
     return {"include": matrix}
+
+
+def build_matrix(tests):
+    builds = [dict(job) for job in tests['include'] if job['rebuild']]
+    reviewers = {job['arch'] for job in builds if job['image'] == 'workflow-new-vulnerability-review'}
+    for job in tests['include']:
+        if (job.get('scan', False) or job['rebuild']) and job['arch'] not in reviewers:
+            builds.append({'image': 'workflow-new-vulnerability-review',
+                           'directory': 'workflow/new-vulnerability-review',
+                           'arch': job['arch'], 'runner': job['runner'],
+                           'rebuild': True, 'reference': '', 'scan': False, 'dependency': True})
+            reviewers.add(job['arch'])
+    return {'include': builds}
 
 
 def build_dependency(root, directory, changed):
@@ -327,6 +341,9 @@ def main():
         matrix = {'include': []}
     emit("mode", pipeline_mode)
     emit("matrix", matrix)
+    builds = build_matrix(matrix)
+    emit("build-matrix", builds)
+    emit("has-build", str(bool(builds['include'])).lower())
     emit("has-work", str(bool(matrix["include"])).lower())
     emit("version", "0.0.0-sha-"+after[:12] if pipeline_mode != "release" else ref.removeprefix("refs/tags/"))
 

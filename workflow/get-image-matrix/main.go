@@ -18,13 +18,14 @@ var semver = regexp.MustCompile(`^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((
 
 type component struct{ directory, image, reference string }
 type job struct {
-	Image     string `json:"image"`
-	Directory string `json:"directory"`
-	Arch      string `json:"arch"`
-	Runner    string `json:"runner"`
-	Rebuild   bool   `json:"rebuild"`
-	Reference string `json:"reference"`
-	Scan      bool   `json:"scan"`
+	Image      string `json:"image"`
+	Directory  string `json:"directory"`
+	Arch       string `json:"arch"`
+	Runner     string `json:"runner"`
+	Rebuild    bool   `json:"rebuild"`
+	Reference  string `json:"reference"`
+	Scan       bool   `json:"scan"`
+	Dependency bool   `json:"dependency,omitempty"`
 }
 type matrix struct {
 	Include []job `json:"include"`
@@ -174,6 +175,31 @@ func selectImages(components []component, paths []string, full bool, histories .
 	return r, nil
 }
 
+// buildMatrix retains product builds and adds at most one advisory reviewer per
+// scanning architecture. Published-image tests never allocate empty build jobs.
+func buildMatrix(tests matrix) matrix {
+	builds := matrix{Include: []job{}}
+	reviewers := map[string]bool{}
+	for _, j := range tests.Include {
+		if j.Rebuild {
+			builds.Include = append(builds.Include, j)
+			if j.Image == "workflow-new-vulnerability-review" {
+				reviewers[j.Arch] = true
+			}
+		}
+	}
+	for _, j := range tests.Include {
+		if (j.Scan || j.Rebuild) && !reviewers[j.Arch] {
+			builds.Include = append(builds.Include, job{
+				Image: "workflow-new-vulnerability-review", Directory: "workflow/new-vulnerability-review",
+				Arch: j.Arch, Runner: j.Runner, Rebuild: true, Dependency: true,
+			})
+			reviewers[j.Arch] = true
+		}
+	}
+	return builds
+}
+
 func run() error {
 	files := flag.String("files", workflow.Default("INPUT_FILES", "[]"), "changed paths JSON")
 	full := flag.Bool("full", os.Getenv("INPUT_FULL") == "true", "select all images")
@@ -283,7 +309,11 @@ func run() error {
 			registry = c.reference
 		}
 	}
-	for name, value := range map[string]any{"mode": mode, "version": version, "matrix": m, "has-work": len(m.Include) > 0, "test-registry-image": registry} {
+	builds := buildMatrix(m)
+	if len(builds.Include) > 256 {
+		return fmt.Errorf("build matrix exceeds 256 jobs")
+	}
+	for name, value := range map[string]any{"mode": mode, "version": version, "matrix": m, "build-matrix": builds, "has-build": len(builds.Include) > 0, "has-work": len(m.Include) > 0, "test-registry-image": registry} {
 		if err := workflow.Output(name, value); err != nil {
 			return err
 		}
