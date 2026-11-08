@@ -56,10 +56,13 @@ Published native actions generate catalogue SBOMs and scan both architectures.
 The maintenance job contains no host command steps. The Go advisory-review
 implementation preserves the prior fail-closed evidence checks and `high` gate.
 
-Renovate is wired through `maintenance/update-dependencies` with the dedicated
-`RENOVATE_TOKEN` secret and runs directly in the maintenance job unless cancelled.
+Renovate is wired through `maintenance/update-dependencies` with a repository-scoped
+installation token generated in the maintenance job from `vars.BOT_APP_ID` and
+`secrets.BOT_APP_PRIVATE_KEY`. It runs only after token generation succeeds and
+unless cancelled. The same bot App credentials serve release preparation, which
+generates its own separate installation token. No dedicated Renovate secret or PAT
+is required; `RENOVATE_TOKEN` is only the container's internal environment variable.
 Disable the hosted Renovate App for this repository to avoid duplicate execution.
-Release App credentials are not reused for Renovate.
 
 ## Build and test
 

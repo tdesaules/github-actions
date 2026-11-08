@@ -63,8 +63,10 @@ jobs:
         if: steps.candidate.outputs.changed == 'true'
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
         with:
-          app-id: ${{ vars.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          app-id: ${{ vars.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
           permission-contents: write
       - name: Test producer contracts
         if: steps.select.outputs.check-required == 'true'
@@ -286,8 +288,10 @@ jobs:
         id: app
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
         with:
-          app-id: ${{ vars.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          app-id: ${{ vars.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
           permission-contents: write
       - name: Finalize qualified commit and tag
         if: github.event_name == 'workflow_dispatch'
@@ -398,11 +402,21 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with: {persist-credentials: false}
+      - name: Create shared bot App token for Renovate
+        if: '!cancelled()'
+        id: bot-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
       - name: Update dependencies
+        if: ${{ !cancelled() && steps.bot-token.outcome == 'success' }}
         uses: tdesaules/github-actions/maintenance/update-dependencies@__CATALOG_TAG__
         with:
           repository: ${{ github.repository }}
-          token: ${{ secrets.RENOVATE_TOKEN }}
+          token: ${{ steps.bot-token.outputs.token }}
           dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.renovate-dry-run || false }}
       - name: Read published release
         id: published

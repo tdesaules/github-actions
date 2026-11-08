@@ -60,12 +60,15 @@ Les campagnes de reprise et de concurrence sont qualifiées séparément.
   `ACTIONS_ID_TOKEN_REQUEST_TOKEN`, avec audience `sigstore`. La publication les
   transmet au conteneur et échoue s'ils sont absents.
 - Une GitHub App n'est **pas nécessaire pour le bootstrap**, qui ne pousse
-  pas de tag. Pour les releases SemVer, configurer la variable `RELEASE_APP_ID`
-  et le secret `RELEASE_APP_PRIVATE_KEY`, avec Contents écriture et une
-  installation limitée à ce dépôt. Le token App permet au push du tag de
+  pas de tag. Pour les releases SemVer et Renovate, configurer la variable
+  `BOT_APP_ID` et le secret `BOT_APP_PRIVATE_KEY` de l'App bot partagée, avec
+  Contents, Pull requests et Workflows en écriture, ainsi qu'Issues en écriture
+  pour le Dependency Dashboard. Installer l'App sur ce dépôt. Chaque job génère
+  son propre jeton d'installation limité au dépôt ; la préparation de release
+  ne demande que Contents en écriture. Le token App permet au push du tag de
   déclencher sa validation, contrairement à un push avec `GITHUB_TOKEN`.
 
-Ces identifiants App sont configurés dans ce dépôt. En local, la publication exige
+Vérifier la disponibilité de ces identifiants App dans ce dépôt. En local, la publication exige
 `GHCR_TOKEN`, `GHCR_USERNAME`, les artefacts validés des deux architectures et :
 
 ```bash
@@ -108,8 +111,11 @@ Une seule base Grype actualisée est partagée entre les vingt scans ; elle n'es
 pas incluse dans les artefacts de rapports.
 Les politiques de revue de dépendances restent identiques à celles des builds.
 `renovate.json` configure les mises à jour des bases, actions et dépendances Go.
-Le runner conteneurisé utilise le secret dédié `RENOVATE_TOKEN` et s'exécute dans
-le job `maintenance`. L'App Renovate hébergée doit être désactivée sur ce dépôt
+Le job `maintenance` génère son propre jeton depuis `BOT_APP_ID` et
+`BOT_APP_PRIVATE_KEY`, juste avant Renovate, et ne lance celui-ci que si la
+génération réussit. Le runner reçoit ce jeton temporaire via son input `token`
+et la variable interne `RENOVATE_TOKEN` ; aucun secret de ce nom ni PAT n'est requis.
+L'App Renovate hébergée doit être désactivée sur ce dépôt
 pour éviter les doublons. L'automerge est désactivé.
 Le lancement manuel avec `maintenance: true` utilise par défaut
 `renovate-dry-run: true` pour valider le token et la résolution des dépendances.

@@ -28,7 +28,7 @@ et l'émetteur `https://token.actions.githubusercontent.com`.
 Les dix métadonnées d'action intègrent les digests issus du journal de publication.
 Les rapports, checksums, signatures et le patch sont conservés dans les artefacts
 de ce run. Le push automatique des releases SemVer reste conditionné à la
-configuration de l'App (`RELEASE_APP_ID`, `RELEASE_APP_PRIVATE_KEY`).
+configuration de l'App (désormais `BOT_APP_ID`, `BOT_APP_PRIVATE_KEY`).
 
 Le [run du tag 39036476600](https://github.com/tdesaules/github-actions/actions/runs/39036476600)
 est réussi : appartenance à l'historique de `main`, références immuables,

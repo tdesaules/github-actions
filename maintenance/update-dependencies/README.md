@@ -5,8 +5,14 @@ Action running Renovate 44.181.6 for one explicit GitHub repository.
 The runtime includes upstream Zod 4.6.7 and Markdown-it 15.0.3. Undici is replaced
 with its locked upstream 8.12.2 release until Renovate incorporates that fix.
 Required inputs: `repository` (`owner/name`) and `token`; `dry-run` defaults to
-`false`. Authentication is passed through `RENOVATE_TOKEN`, never an argument.
-The token needs contents, pull request and workflow update permissions.
+`false`. Supply a repository-scoped installation token generated with the official
+App-token action from `vars.BOT_APP_ID` and `secrets.BOT_APP_PRIVATE_KEY`.
+Release preparation and maintenance each generate their own token from this shared
+bot App. Authentication is passed through the internal `RENOVATE_TOKEN` environment
+variable, never an argument; no dedicated Renovate secret or PAT is required.
+The App needs contents, pull request and workflow update permissions, plus issues
+write access for the Dependency Dashboard. Maintenance uses the App's granted
+permissions, while release preparation requests only contents write access.
 
 The scratch runtime includes Node, Git and Go for this repository's dependency
 managers. Autodiscovery is disabled; an existing Renovate configuration is
@@ -19,8 +25,9 @@ is retained; vulnerability review requires all three patched source hashes in
 the SBOM. Missing or modified evidence keeps the vulnerability blocking.
 
 `--repository` and `--dry-run` override `INPUT_REPOSITORY` and `INPUT_DRY-RUN`.
-The image is pinned by digest in tag `0.3.0`; maintenance integration is pending. Disable hosted
-Renovate App execution before activating this runner to avoid duplicate updates.
+The catalogue workflow invokes this digest-pinned action after its maintenance
+App token is generated successfully. Disable hosted Renovate App execution for
+the repository to avoid duplicate updates.
 
 ## Go tool source upgrades
 

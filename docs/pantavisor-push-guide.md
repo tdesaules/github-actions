@@ -71,8 +71,10 @@ préserve les modifications préexistantes et refuse d'écraser un workflow gér
 qui a été modifié localement. Relire les diffs, committer puis pousser chacun des
 deux consommateurs. Une nouvelle branche effectue la sélection complète.
 
-Configurer pour chacun l'App de release, `RELEASE_APP_ID`,
-`RELEASE_APP_PRIVATE_KEY` et le bot `RENOVATE_TOKEN`. Désactiver l'instance
+Configurer pour chacun l'App bot partagée avec la variable `BOT_APP_ID` et le
+secret `BOT_APP_PRIVATE_KEY`. Release et Renovate génèrent chacun leur jeton
+d'installation limité au dépôt. Accorder à l'App Contents, Pull requests,
+Workflows et Issues en écriture (Dependency Dashboard). Désactiver l'instance
 Renovate hébergée si elle ferait doublon. Le premier lancement de maintenance
 peut être un dry-run authentifié ; la configuration seule ne prouve pas ses droits.
 

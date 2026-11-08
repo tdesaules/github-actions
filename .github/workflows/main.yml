@@ -1458,8 +1458,9 @@ jobs:
         if: needs.check.outputs.mode == 'prepare'
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
         with:
-          app-id: ${{ vars.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          app-id: ${{ vars.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
           permission-contents: write
       - name: Download tested matrix artifacts
@@ -1587,12 +1588,21 @@ jobs:
         with:
           files: ${{ steps.documents.outputs.lychee-files }}
           config: lychee.toml
-      - name: Update dependencies with Renovate
+      - name: Create shared bot App token for Renovate
         if: '!cancelled()'
+        id: bot-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+      - name: Update dependencies with Renovate
+        if: ${{ !cancelled() && steps.bot-token.outcome == 'success' }}
         uses: ./maintenance/update-dependencies
         with:
           repository: ${{ github.repository }}
-          token: ${{ secrets.RENOVATE_TOKEN }}
+          token: ${{ steps.bot-token.outputs.token }}
           dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.renovate-dry-run }}
       - name: Summarize maintenance security outcomes
         timeout-minutes: 5

@@ -8,7 +8,7 @@ inputs:
     description: Resolve proposed updates without creating branches or pull requests
     default: 'false'
   token:
-    description: Dedicated bot or App installation token with repository update and pull request permissions
+    description: Repository-scoped shared bot App installation token with repository update and pull request permissions
     required: true
 runs:
   using: docker
