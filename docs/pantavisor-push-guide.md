@@ -1,28 +1,14 @@
 # Ordre des push et activation Pantavisor
 
-## 1. Catalogue : qualification complète sur main
+## 1. Catalogue : contrôles sur main
 
 Commiter les changements de `github-actions` avec un message Conventional Commits,
 puis pousser `main`. La CI de push sélectionne les changements ; elle ne prouve
-pas à elle seule que tout le catalogue a été qualifié. Pour construire et tester
-toutes les images sur AMD64/ARM64 sans publication :
-
-```sh
-gh workflow run main.yml --repo tdesaules/github-actions --ref main \
-  -f qualify-catalog=true
-```
-
-Ce mode exige `main`, force la sélection complète et expose le mode
-`qualification`. Il ne calcule aucune release et ne réutilise pas d'anciens
-artefacts. `release` et `maintenance` sont exclus, même si d'autres options
-manuelles ont été fournies. Il est distinct de `qualify-runner`, limité aux
-contrôles publiés et au lanceur Buildah. Les références `:unpublished`
-sont uniquement un mécanisme d'amorçage interne ; elles ne doivent jamais être
-consommées directement par Pantavisor.
-
-Les tests peuvent écrire dans leurs registres isolés et transférer des artefacts
-GitHub Actions ; ce mode ne publie pas le catalogue sur GHCR et ne crée ni commit,
-tag, release GitHub ou branche Renovate.
+pas à elle seule que tout le catalogue a été qualifié. La préparation de release
+effectue la qualification complète sur AMD64/ARM64 avant publication, en construisant
+les images nécessaires et en réutilisant les digests publiés inchangés.
+Les références `:unpublished` sont uniquement un mécanisme d'amorçage interne ;
+elles ne doivent jamais être consommées directement par Pantavisor.
 
 Surveiller `check`, `lint`, les variantes des jobs `build`/`test`, les contrôles
 de permissions, les archives d'intégrité, Syft/Grype et les échecs attendus des
@@ -35,21 +21,19 @@ Conserver les métadonnées de paquets et distinguer les opérations ignorées.
 
 ## 2. Catalogue : publication
 
-Après qualification complète et validation des plateformes, lancer la préparation
-manuelle sur le **même commit main** en réutilisant le run qualifié :
+Après une CI de push réussie, lancer la préparation manuelle sur **main**, sans
+paramètres :
 
 ```sh
-gh workflow run main.yml --repo tdesaules/github-actions --ref main \
-  -f artifact-run-id="$QUALIFICATION_RUN_ID"
+gh workflow run main.yml --repo tdesaules/github-actions --ref main
 ```
 
-Cette préparation peut publier et écrire dans Git : ne pas la confondre avec
-`qualify-catalog`. Les archives testées sont publiées sans reconstruction ;
+Cette préparation qualifie le catalogue, puis peut publier et écrire dans Git.
+Les archives testées dans ce run sont publiées sans reconstruction ;
 signatures et vérifications sont tentées et rapportées. Le workflow met à jour
 les digests puis crée son commit/tag ; l'exécution du tag publie la GitHub Release.
-Ne pas créer un tag anticipé. Tout nouveau commit entre qualification et reprise
-invalide la réutilisation de ces artefacts : consigner les résultats sans changer
-la source jusqu'à la publication, ou requalifier la nouvelle révision.
+Ne pas créer un tag anticipé. Éviter de modifier `main` pendant la préparation :
+le workflow refuse de finaliser une release si la branche a avancé.
 
 Relever le **vrai tag stable publié** dans `CATALOGUE_TAG`. Aucune valeur supposée
 de prochaine version n'est requise par l'activation.

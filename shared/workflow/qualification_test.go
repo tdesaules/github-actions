@@ -11,69 +11,77 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-func TestFullQualificationNeverPlansOrPublishes(t *testing.T) {
+func TestManualDispatchOnlyPreparesRelease(t *testing.T) {
 	data, err := os.ReadFile("../../.github/workflows/main.yml")
 	if err != nil {
 		t.Fatal(err)
 	}
 	var document struct {
+		On   map[string]any `yaml:"on"`
 		Jobs map[string]struct {
 			If      string            `yaml:"if"`
 			Outputs map[string]string `yaml:"outputs"`
 			Steps   []struct {
-				Name, If string
-				With     map[string]string `yaml:"with"`
+				Name, If, Uses string
+				With           map[string]string `yaml:"with"`
 			} `yaml:"steps"`
 		} `yaml:"jobs"`
 	}
 	if err = yaml.Unmarshal(data, &document); err != nil {
 		t.Fatal(err)
 	}
-	evaluate := func(expression string, maintenance, runner bool) bool {
+	dispatch, ok := document.On["workflow_dispatch"].(map[string]any)
+	if !ok || len(dispatch) != 0 || strings.Contains(string(data), "inputs.") {
+		t.Fatal("manual dispatch must have no options or remaining input references")
+	}
+	if len(document.Jobs) != 6 || document.On["schedule"] == nil {
+		t.Fatal("keep all six jobs and scheduled maintenance")
+	}
+	evaluate := func(expression, event string) bool {
 		expression = strings.ReplaceAll(expression, "'", "\"")
-		expression = strings.NewReplacer(
-			"inputs.qualify-catalog", "true", "inputs.maintenance", map[bool]string{true: "true", false: "false"}[maintenance],
-			"inputs.qualify-runner", map[bool]string{true: "true", false: "false"}[runner],
-			"inputs.artifact-run-id", "\"123\"", "github.event_name", "\"workflow_dispatch\"",
-			"always()", "true", "cancelled()", "false",
-			"needs.check.result", "\"success\"", "needs.lint.result", "\"success\"",
-			"needs.build.result", "\"success\"", "needs.test.result", "\"success\"",
-			"needs.check.outputs.has-lint", "\"true\"", "needs.check.outputs.has-build", "\"true\"",
-			"needs.check.outputs.has-work", "\"true\"", "needs.check.outputs.release-changed", "\"true\"",
-			"needs.check.outputs.mode", "\"prepare\"",
-		).Replace(expression)
+		expression = strings.ReplaceAll(expression, "github.event_name", "\""+event+"\"")
 		value, err := types.Eval(token.NewFileSet(), nil, token.NoPos, strings.Join(strings.Fields(expression), " "))
 		if err != nil {
 			t.Fatal(expression, err)
 		}
 		return constant.BoolVal(value.Value)
 	}
-	for _, maintenance := range []bool{false, true} {
-		for _, runner := range []bool{false, true} {
-			if !evaluate(document.Jobs["check"].If, maintenance, runner) {
-				t.Fatal("full qualification must execute check")
-			}
-			if evaluate(document.Jobs["release"].If, maintenance, runner) || evaluate(document.Jobs["maintenance"].If, maintenance, runner) {
-				t.Fatal("qualification selected a writing job")
-			}
-			for _, step := range document.Jobs["check"].Steps {
-				switch step.Name {
-				case "Plan semantic release", "Validate publication artifact source", "Create native runner fixtures", "Qualify the published Buildah launcher":
-					if evaluate(step.If, maintenance, runner) {
-						t.Fatal("qualification selected incompatible step", step.Name)
-					}
-				case "Select mode and dynamic matrix":
-					if !evaluate(step.If, maintenance, runner) {
-						t.Fatal("full matrix selection skipped")
-					}
-					if step.With["event"] != "${{ github.event_name }}" || step.With["ref"] != "${{ github.ref }}" {
-						t.Fatal("selector must retain dispatch/main validation")
-					}
+	for _, event := range []string{"push", "workflow_dispatch", "schedule"} {
+		if evaluate(document.Jobs["check"].If, event) != (event != "schedule") || evaluate(document.Jobs["maintenance"].If, event) != (event == "schedule") {
+			t.Fatalf("incorrect check/maintenance routing for %s", event)
+		}
+		planFound, selectorFound := false, false
+		for _, step := range document.Jobs["check"].Steps {
+			switch step.Name {
+			case "Plan semantic release":
+				planFound = true
+				if evaluate(step.If, event) != (event == "workflow_dispatch") {
+					t.Fatal("only manual dispatch should plan releases")
+				}
+			case "Select mode and dynamic matrices":
+				selectorFound = true
+				if step.With["event"] != "${{ github.event_name }}" || step.With["ref"] != "${{ github.ref }}" {
+					t.Fatal("selector must retain dispatch/main validation")
 				}
 			}
 		}
+		if !planFound || !selectorFound {
+			t.Fatal("release planning and mode validation are required")
+		}
 	}
-	if document.Jobs["check"].Outputs["mode"] != "${{ inputs.qualify-catalog && 'qualification' || steps.select.outputs.mode }}" {
-		t.Fatal("qualification mode is not propagated")
+	if document.Jobs["check"].Outputs["mode"] != "${{ steps.select.outputs.mode }}" {
+		t.Fatal("selector mode must be propagated")
+	}
+	renovateFound := false
+	for _, step := range document.Jobs["maintenance"].Steps {
+		if step.Uses == "./maintenance/update-dependencies" {
+			renovateFound = true
+			if step.With["dry-run"] != "false" {
+				t.Fatal("scheduled Renovate must perform updates")
+			}
+		}
+	}
+	if !renovateFound {
+		t.Fatal("scheduled Renovate was removed")
 	}
 }

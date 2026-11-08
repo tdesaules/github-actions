@@ -8,8 +8,8 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// Selection changes must reach both consumers of /matrix. Publication must run
-// the exact qualified planner, never silently substitute an older selector.
+// Publication must run the exact qualified planner from this run, never silently
+// substitute an older selector or another run's artifacts.
 func TestPublicationPlannerActivationPreservesVerification(t *testing.T) {
 	data, err := os.ReadFile("../../.github/workflows/main.yml")
 	if err != nil {
@@ -42,10 +42,10 @@ func TestPublicationPlannerActivationPreservesVerification(t *testing.T) {
 		t.Fatal("planner activation paths are incorrect")
 	}
 	with := verify["with"].(map[string]any)
-	if with["revision"] != "${{ github.sha }}" || with["image"] != "workflow-new-publication-plan" || with["architecture"] != "amd64" || with["version"] != "${{ needs.check.outputs.version }}-${{ inputs.artifact-run-id || github.run_id }}" {
+	if with["revision"] != "${{ github.sha }}" || with["image"] != "workflow-new-publication-plan" || with["architecture"] != "amd64" || with["version"] != "${{ needs.check.outputs.version }}-${{ github.run_id }}" {
 		t.Fatal("planner receipt must match exact source, platform, owner and originating run")
 	}
-	if !strings.Contains(with["archive"].(string), "inputs.artifact-run-id || github.run_id") || !strings.Contains(with["receipt"].(string), "inputs.artifact-run-id || github.run_id") {
+	if !strings.Contains(with["archive"].(string), "${{ github.run_id }}") || !strings.Contains(with["receipt"].(string), "${{ github.run_id }}") {
 		t.Fatal("planner archive and receipt must come from the same source run")
 	}
 	guard := verify["if"].(string)
@@ -63,9 +63,8 @@ func TestPublicationPlannerActivationPreservesVerification(t *testing.T) {
 			t.Fatalf("incorrect activation order: %s before %s", names[i-1], names[i])
 		}
 	}
-	for _, step := range document.Jobs["check"].Steps {
-		if step["id"] == "resume" && step["uses"] != "./.candidate-actions/workflow/test-artifact-source" {
-			t.Fatal("artifact-source reuse still embeds the old published selector")
-		}
+	download := steps["Download tested matrix artifacts"]["with"].(map[string]any)
+	if download["run-id"] != "${{ github.run_id }}" || download["pattern"] != "oci-*-${{ github.run_id }}" || download["artifact-ids"] != nil {
+		t.Fatal("publication must download only this run's qualification artifacts")
 	}
 }

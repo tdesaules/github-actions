@@ -1,9 +1,10 @@
 # Qualification Docker sur runners GitHub hébergés
 
-Le mode manuel `qualify-runner` de `main.yml` teste Ubuntu 24.04 AMD64 et ARM64
-natifs. Il ne publie aucune image. Il utilise Buildah amont épinglé et les mêmes
-options internes que le socle : stockage `vfs`, isolation `chroot`, réseau du
-conteneur extérieur.
+Ce document conserve le protocole historique de qualification sur Ubuntu 24.04
+AMD64 et ARM64 natifs. Le mode manuel dédié a été retiré de `main.yml` ; les
+builds et tests courants continuent d'utiliser les deux architectures natives.
+Le protocole décrit ci-dessous utilise Buildah amont épinglé, le stockage `vfs`,
+l'isolation `chroot` et le réseau du conteneur extérieur.
 
 ## Protocole
 

@@ -4,28 +4,7 @@ on:
   push:
     branches: ['**']
     tags: ['*']
-  workflow_dispatch:
-    inputs:
-      maintenance:
-        description: Rescan published images and check documentation links without building
-        type: boolean
-        default: false
-      renovate-dry-run:
-        description: Resolve Renovate updates without creating branches or pull requests
-        type: boolean
-        default: true
-      qualify-runner:
-        description: Qualify published checks and the Buildah launcher on both hosted architectures
-        type: boolean
-        default: false
-      qualify-catalog:
-        description: Build and test the entire catalogue without publication; overrides other manual modes
-        type: boolean
-        default: false
-      artifact-run-id:
-        description: Reuse tested archives from a successful run at this exact main commit
-        type: string
-        default: ''
+  workflow_dispatch: {}
   schedule:
     - cron: '23 5 * * 1'
 
@@ -33,17 +12,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: oci-workflow-${{ inputs.qualify-catalog && 'qualification' || github.event_name == 'workflow_dispatch' && 'publication' || github.ref }}
+  group: oci-workflow-${{ github.event_name == 'schedule' && 'maintenance' || github.event_name == 'workflow_dispatch' && 'publication' || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   check:
-    if: github.event_name != 'schedule' && (!inputs.maintenance || inputs.qualify-catalog)
-    strategy:
-      fail-fast: false
-      matrix:
-        runner: ${{ inputs.qualify-runner && !inputs.qualify-catalog && fromJSON('["ubuntu-24.04", "ubuntu-24.04-arm"]') || fromJSON('["ubuntu-24.04"]') }}
-    runs-on: ${{ matrix.runner }}
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
     services:
       candidate-registry:
         image: ghcr.io/tdesaules/github-actions/workflow-start-test-registry@sha256:c6732ab79e17ac5e6f51bbb58a3f95425dc60c345ca1ecf8b9a2b8933be2a976
@@ -52,7 +27,7 @@ jobs:
       contents: read
       actions: read
     outputs:
-      mode: ${{ inputs.qualify-catalog && 'qualification' || steps.select.outputs.mode }}
+      mode: ${{ steps.select.outputs.mode }}
       matrix: ${{ steps.select.outputs.matrix }}
       build-matrix: ${{ steps.select.outputs.build-matrix || '{"include":[]}' }}
       test-registry-image: ${{ steps.select.outputs.test-registry-image }}
@@ -62,7 +37,6 @@ jobs:
       version: ${{ steps.select.outputs.version }}
       release-version: ${{ steps.plan.outputs.release-version }}
       release-changed: ${{ steps.plan.outputs.release-changed }}
-      artifact-ids: ${{ steps.resume.outputs.artifact-ids }}
       actionlint-files: ${{ steps.sources.outputs.actionlint-files }}
       hadolint-files: ${{ steps.sources.outputs.hadolint-files }}
       shellcheck-files: ${{ steps.sources.outputs.shellcheck-files }}
@@ -100,7 +74,7 @@ jobs:
         uses: ./check/test-go
       - name: Plan semantic release
         id: plan
-        if: github.event_name == 'workflow_dispatch' && !inputs.qualify-runner && !inputs.qualify-catalog
+        if: github.event_name == 'workflow_dispatch'
         uses: ./workflow/new-release-plan
       - name: Retain release plan
         if: steps.plan.outputs.release-changed == 'true'
@@ -109,48 +83,11 @@ jobs:
           name: release-plan
           path: .build/publication/release-plan.json
           include-hidden-files: true
-      # Keep artifact reuse on the same source selector as check. Remove this
-      # control bootstrap after publishing the updated artifact-source image.
-      - name: Build current artifact-source validator
-        if: github.event_name == 'workflow_dispatch' && !inputs.qualify-catalog && !inputs.qualify-runner && inputs.artifact-run-id != ''
-        uses: ./oci/build-image
-        with:
-          context: .
-          containerfile: workflow/test-artifact-source/Containerfile
-          image: localhost/github-actions/workflow-test-artifact-source
-          version: 0.0.0-control-${{ github.run_id }}
-          platform: linux/amd64
-          output: .build/control/artifact-source.oci.tar
-      - name: Transfer artifact-source validator to private registry
-        if: github.event_name == 'workflow_dispatch' && !inputs.qualify-catalog && !inputs.qualify-runner && inputs.artifact-run-id != ''
-        id: artifact-source-image
-        uses: ./workflow/import-candidate-image
-        with:
-          archive: .build/control/artifact-source.oci.tar
-          repository: workflow-test-artifact-source
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
-      - name: Prepare current artifact-source validator action
-        if: github.event_name == 'workflow_dispatch' && !inputs.qualify-catalog && !inputs.qualify-runner && inputs.artifact-run-id != ''
-        uses: ./workflow/new-candidate-action
-        with:
-          directory: workflow/test-artifact-source
-          image: ${{ steps.artifact-source-image.outputs.image }}
-          destination: .candidate-actions/workflow/test-artifact-source
-      - name: Validate publication artifact source
-        id: resume
-        if: github.event_name == 'workflow_dispatch' && !inputs.qualify-catalog && !inputs.qualify-runner && inputs.artifact-run-id != ''
-        uses: ./.candidate-actions/workflow/test-artifact-source
-        with:
-          run-id: ${{ inputs.artifact-run-id }}
-          release-plan: ${{ steps.plan.outcome == 'success' && '.build/publication/release-plan.json' || '' }}
-          repository: ${{ github.repository }}
-          revision: ${{ github.sha }}
-          token: ${{ github.token }}
       # Bootstrap the new selector output until its qualified image is published.
       # Remove these three steps and restore the published selector uses below
       # once its qualified digest implements the current selection semantics.
       - name: Build current matrix selector
-        if: ${{ (!inputs.qualify-runner || inputs.qualify-catalog) && !startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: ./oci/build-image
         with:
           context: .
@@ -160,7 +97,7 @@ jobs:
           platform: linux/amd64
           output: .build/control/selector.oci.tar
       - name: Transfer matrix selector to private registry
-        if: ${{ (!inputs.qualify-runner || inputs.qualify-catalog) && !startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         id: selector-image
         uses: ./workflow/import-candidate-image
         with:
@@ -168,7 +105,6 @@ jobs:
           repository: workflow-get-image-matrix
           host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Prepare current matrix selector action
-        if: '!inputs.qualify-runner || inputs.qualify-catalog'
         uses: ./workflow/new-candidate-action
         with:
           directory: workflow/get-image-matrix
@@ -176,7 +112,6 @@ jobs:
           destination: .candidate-actions/workflow/get-image-matrix
       - name: Select mode and dynamic matrices
         id: select
-        if: '!inputs.qualify-runner || inputs.qualify-catalog'
         uses: ./.candidate-actions/workflow/get-image-matrix
         with:
           files: ${{ steps.sources.outputs.files }}
@@ -184,7 +119,6 @@ jobs:
           event: ${{ github.event_name }}
           ref: ${{ github.ref }}
           release-plan: ${{ steps.plan.outcome == 'success' && '.build/publication/release-plan.json' || '' }}
-          reuse-artifacts: ${{ steps.resume.outcome == 'success' }}
           reuse-builds: ${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/') }}
           before: ${{ github.event.before }}
           repository: ${{ github.repository }}
@@ -194,29 +128,6 @@ jobs:
         uses: ./check/test-action-metadata
         with:
           files: ${{ steps.sources.outputs.action-metadata-files }}
-      - name: Create native runner fixtures
-        if: inputs.qualify-runner && !inputs.qualify-catalog
-        uses: ./workflow/new-test-fixtures
-        with:
-          directory: .build/qualification
-      - name: Qualify the published Buildah launcher
-        if: inputs.qualify-runner && !inputs.qualify-catalog
-        uses: ./oci/build-image
-        with:
-          context: .build/qualification/fixture with spaces
-          containerfile: .build/qualification/fixture with spaces/Containerfile
-          image: localhost/runner-proof
-          version: 0.0.0-qualification
-          platform: ${{ runner.arch == 'ARM64' && 'linux/arm64' || 'linux/amd64' }}
-          output: .build/qualification/proof.oci.tar
-      - name: Upload qualification evidence
-        if: always() && inputs.qualify-runner && !inputs.qualify-catalog
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: qualification-${{ matrix.runner }}
-          path: |
-            .build/qualification/*.tar
-          include-hidden-files: true
 
   lint:
     needs: check
@@ -1430,7 +1341,7 @@ jobs:
   release:
     needs: [check, lint, build, test]
     if: >-
-      always() && !cancelled() && !inputs.qualify-catalog && needs.check.result == 'success' &&
+      always() && !cancelled() && needs.check.result == 'success' &&
       ((needs.check.outputs.has-lint == 'true' && needs.lint.result == 'success') ||
        (needs.check.outputs.has-lint == 'false' && needs.lint.result == 'skipped')) &&
       ((needs.check.outputs.has-build == 'true' && needs.build.result == 'success') ||
@@ -1496,10 +1407,9 @@ jobs:
         if: needs.check.outputs.mode == 'prepare'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          artifact-ids: ${{ needs.check.outputs.artifact-ids }}
-          pattern: ${{ needs.check.outputs.artifact-ids == '' && format('oci-*-{0}', github.run_id) || '' }}
+          pattern: oci-*-${{ github.run_id }}
           path: .build/publication
-          run-id: ${{ inputs.artifact-run-id || github.run_id }}
+          run-id: ${{ github.run_id }}
           github-token: ${{ github.token }}
       - name: Download release plan
         if: needs.check.outputs.mode == 'prepare'
@@ -1511,21 +1421,21 @@ jobs:
       # Execute its tested AMD64 archive rather than a stale published planner.
       - name: Verify qualified publication planner archive
         id: planner-receipt
-        if: needs.check.outputs.mode == 'prepare' && hashFiles(format('.build/publication/oci-workflow-new-publication-plan-amd64-{0}/image.oci.tar', inputs.artifact-run-id || github.run_id)) != ''
+        if: needs.check.outputs.mode == 'prepare' && hashFiles(format('.build/publication/oci-workflow-new-publication-plan-amd64-{0}/image.oci.tar', github.run_id)) != ''
         uses: ./workflow/test-build-artifact
         with:
-          archive: .build/publication/oci-workflow-new-publication-plan-amd64-${{ inputs.artifact-run-id || github.run_id }}/image.oci.tar
-          receipt: .build/publication/oci-workflow-new-publication-plan-amd64-${{ inputs.artifact-run-id || github.run_id }}/build.json
+          archive: .build/publication/oci-workflow-new-publication-plan-amd64-${{ github.run_id }}/image.oci.tar
+          receipt: .build/publication/oci-workflow-new-publication-plan-amd64-${{ github.run_id }}/build.json
           image: workflow-new-publication-plan
           architecture: amd64
           revision: ${{ github.sha }}
-          version: ${{ needs.check.outputs.version }}-${{ inputs.artifact-run-id || github.run_id }}
+          version: ${{ needs.check.outputs.version }}-${{ github.run_id }}
       - name: Transfer qualified publication planner to private registry
         id: planner-image
         if: steps.planner-receipt.outcome == 'success'
         uses: ./workflow/import-candidate-image
         with:
-          archive: .build/publication/oci-workflow-new-publication-plan-amd64-${{ inputs.artifact-run-id || github.run_id }}/image.oci.tar
+          archive: .build/publication/oci-workflow-new-publication-plan-amd64-${{ github.run_id }}/image.oci.tar
           repository: workflow-new-publication-plan
           host-port: ${{ job.services.candidate-registry.ports['5000'] }}
       - name: Prepare qualified publication planner action
@@ -1542,7 +1452,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           release-plan: .build/publication/release-plan.json
       - name: Validate exact-source publication artifacts with unchanged planner
-        if: needs.check.outputs.mode == 'prepare' && hashFiles(format('.build/publication/oci-workflow-new-publication-plan-amd64-{0}/image.oci.tar', inputs.artifact-run-id || github.run_id)) == ''
+        if: needs.check.outputs.mode == 'prepare' && hashFiles(format('.build/publication/oci-workflow-new-publication-plan-amd64-{0}/image.oci.tar', github.run_id)) == ''
         uses: ./workflow/new-publication-plan
         with:
           owner: ${{ github.repository_owner }}
@@ -1614,7 +1524,7 @@ jobs:
           include-hidden-files: true
 
   maintenance:
-    if: (github.event_name == 'schedule' || inputs.maintenance) && !inputs.qualify-catalog
+    if: github.event_name == 'schedule'
     runs-on: ubuntu-24.04
     services:
       candidate-registry:
@@ -1666,7 +1576,7 @@ jobs:
         with:
           repository: ${{ github.repository }}
           token: ${{ steps.bot-token.outputs.token }}
-          dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.renovate-dry-run }}
+          dry-run: 'false'
       - name: Summarize maintenance security outcomes
         timeout-minutes: 5
         if: always()

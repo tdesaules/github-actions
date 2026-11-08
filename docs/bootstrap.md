@@ -20,15 +20,22 @@ multiarchitecture si une seule architecture a été exécutée.
 ## Workflow
 
 - Push de branche : contrôles, lint du socle et sélection des builds/tests.
-- `workflow_dispatch` sur `main` : préparation SemVer avec git-cliff ; première
+- `workflow_dispatch` sur `main`, sans paramètres : préparation SemVer avec git-cliff ; première
   release complète, puis sélection depuis le tag stable précédent et réutilisation
   des digests inchangés. Sans changement publiable, aucune release n'est créée.
-- Toute release exige une signature keyless puis une vérification exacte de
-  l'identité et de l'émetteur, pour les deux manifestes et l'index. Les anciennes
-  options de migration `publish-bootstrap` et `sign` sont retirées du workflow.
+- Les signatures keyless et leurs vérifications sont rapportées à titre consultatif.
+  Les tests fonctionnels, l'intégrité des artefacts et la publication restent bloquants.
 - Tag SemVer : validation des références déjà épinglées et de leurs signatures,
   puis création idempotente de la GitHub Release.
-- Schedule : rescans avec une base Grype actualisée ; pas de build ni publication.
+- Schedule : rescans avec une base Grype actualisée, contrôle des liens et Renovate ;
+  pas de build ni publication.
+
+Pour préparer une release, ouvrir **Actions → main → Run workflow**, sélectionner
+`main` et lancer. Aucun champ supplémentaire n'est nécessaire. En CLI :
+
+```sh
+gh workflow run main.yml --repo tdesaules/github-actions --ref main
+```
 
 La publication recharge les archives déjà testées, vérifie leur checksum,
 publie les variantes, assemble l'index et vérifie les digests des enfants. Aucune
@@ -94,19 +101,17 @@ généré qu'à la fin ; une action versionnée ne doit jamais référencer une 
 absente. La reprise après expiration des artefacts requiert leur sauvegarde
 externe, pas une reconstruction silencieuse.
 
-L'entrée manuelle `artifact-run-id` permet de publier les archives d'un run
-réussi du même workflow, sur `main` et au **même commit**. Cette vérification
-précède le téléchargement ; la matrice de construction est alors vide. Le
-publisher vérifie à nouveau le commit, la version candidate, les checksums et
-les deux architectures. Des artefacts absents ou ambigus font échouer la
-publication. Pour reprendre un échec du job de publication, relancer les jobs
-échoués conserve également les archives déjà testées.
+La préparation publie les archives qualifiées dans son propre run. Le publisher
+vérifie le commit, la version candidate, les checksums et les deux architectures.
+Des artefacts absents ou ambigus font échouer la publication. Pour reprendre un
+échec du job de publication sans modification de source, relancer les jobs
+échoués du même run conserve les archives déjà testées. Après un correctif du
+workflow, lancer une nouvelle préparation sur `main` pour utiliser ce correctif.
 
 ## Maintenance
 
 Le job planifié réactualise la base Grype, rescane les deux architectures des
 images épinglées et vérifie les liens de documentation avec Lychee conteneurisé.
-L'entrée manuelle `maintenance` permet d'exécuter ce même job sans construction.
 Une seule base Grype actualisée est partagée entre les vingt scans ; elle n'est
 pas incluse dans les artefacts de rapports.
 Les politiques de revue de dépendances restent identiques à celles des builds.
@@ -117,10 +122,9 @@ génération réussit. Le runner reçoit ce jeton temporaire via son input `toke
 et la variable interne `RENOVATE_TOKEN` ; aucun secret de ce nom ni PAT n'est requis.
 L'App Renovate hébergée doit être désactivée sur ce dépôt
 pour éviter les doublons. L'automerge est désactivé.
-Le lancement manuel avec `maintenance: true` utilise par défaut
-`renovate-dry-run: true` pour valider le token et la résolution des dépendances.
-Mettre cet input à `false` pour créer les branches et PR. Le lancement planifié
-du lundi à 05:23 UTC exécute les mises à jour réelles.
+La maintenance s'exécute automatiquement le lundi à 05:23 UTC. Renovate crée
+ses branches et PR lorsque des mises à jour sont proposées ; ce lancement n'est
+pas un dry-run. Sa concurrence est distincte des pushes et des releases.
 
 La migration ponctuelle depuis les cinq images partagées est terminée. L'entrée
 `retire-shared-images` et les étapes de suppression ont été retirées du workflow.

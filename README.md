@@ -108,6 +108,15 @@ jobs:
 Les dépôts Pantavisor ne sont pas modifiés. Voir la
 [procédure de migration](docs/consumers.md).
 
+## Publication
+
+Dans **Actions → main → Run workflow**, sélectionner `main` et lancer : aucun
+paramètre n'est nécessaire. Le workflow prépare la version, qualifie le catalogue
+et publie les archives testées. Le tag poussé par l'App bot déclenche ensuite la
+création de la GitHub Release. Voir [la procédure de publication](docs/bootstrap.md).
+
+La maintenance (rescans, liens et Renovate) s'exécute automatiquement le lundi.
+
 ## Développement
 
 ```bash

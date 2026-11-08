@@ -4,7 +4,7 @@ Le workflow possède maintenant six jobs :
 
 ```text
 check → lint → build → test → release
-maintenance (déclenchement séparé)
+maintenance (planifiée le lundi)
 ```
 
 ## Frontière des artefacts
@@ -19,8 +19,8 @@ avec la version courante. Un changement limité à la maintenance ou aux release
 ne sélectionne aucune image à lui seul. Un changement d'étape explicitement liée
 à une image sélectionne cette image. Un changement d'environnement commun, une
 condition non analysable ou un historique manquant élargit prudemment la sélection.
-La préparation d'une release non vide et la qualification complète explicite
-conservent les contrôles de toutes les images. Les archives de builds réutilisées
+La préparation d'une release non vide conserve les contrôles de toutes les images.
+Les archives de builds réutilisées
 passent toujours leurs tests lorsqu'elles sont sélectionnées.
 
 Le sélecteur émet deux matrices : `matrix` conserve les tests de toutes les images
@@ -46,7 +46,7 @@ Ces archives sont téléchargées par ID et requalifiées dans `test`. Le reçu,
 checksum, la plateforme et la révision d'origine sont vérifiés avant exécution
 et après qualification. Révision et version d'origine restent attachées aux
 archives ; elles ne deviennent pas artificiellement des builds du commit courant.
-La préparation de release et la qualification complète n'utilisent pas ce cache.
+La préparation de release n'utilise pas ce cache.
 
 Les changements de `.containerignore` et `.dockerignore` ne déclenchent une
 reconstruction que s'ils affectent les entrées utilisées par une recette, ou si
@@ -137,12 +137,10 @@ embarqué attendait 160 archives alors que la sélection courante en nécessitai
 128. Le candidat qualifié de ce même run attend bien 128 archives. Les contrôles
 de provenance et d'intégrité restent bloquants.
 
-Le chemin optionnel `artifact-run-id` utilise temporairement un validateur de
-source construit depuis le checkout, afin d'embarquer les mêmes règles de sélection.
-Après publication de sa nouvelle image, retirer ses trois étapes de bootstrap et
-rétablir l'appel direct à `workflow/test-artifact-source`. La validation continue
-d'exiger un run réussi au commit exact ; un ancien run échoué ne devient pas une
-source de publication autorisée.
+Le lancement manuel ne propose aucun paramètre : il prépare une release sur
+`main`. La publication utilise exclusivement les archives qualifiées dans ce run,
+y compris lors d'une relance de ses jobs échoués. Le bootstrap du validateur de
+source destiné à la reprise manuelle entre runs a été retiré.
 
 Les neuf images ont été qualifiées et publiées par le run `40352155319` dans
 `1.2.0`. Les six jobs sont maintenant composés d'appels `uses`, sans step `run`.

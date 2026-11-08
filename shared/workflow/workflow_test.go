@@ -75,7 +75,6 @@ func TestIncrementalJobGates(t *testing.T) {
 				expression = strings.Join(strings.Fields(expression), " ")
 				expression = strings.ReplaceAll(expression, "always()", "true")
 				expression = strings.ReplaceAll(expression, "cancelled()", strconv.FormatBool(tc.cancelled))
-				expression = strings.ReplaceAll(expression, "inputs.qualify-catalog", "false")
 				for key, value := range values {
 					expression = strings.ReplaceAll(expression, key, strconv.Quote(value))
 				}
