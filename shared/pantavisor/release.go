@@ -141,7 +141,7 @@ func NewCandidate() error {
 		return err
 	}
 	old, _ := os.ReadFile("CHANGELOG.md")
-	notes := "# Changelog\n\n## " + next + "\n\n" + subjects + "\n\n" + strings.TrimPrefix(string(old), "# Changelog\n")
+	notes := releaseNotes(next, subjects, string(old))
 	if err := os.WriteFile("CHANGELOG.md", []byte(notes), 0644); err != nil {
 		return err
 	}
@@ -172,6 +172,14 @@ func NewCandidate() error {
 		return err
 	}
 	return workflow.Output("version", next)
+}
+
+func releaseNotes(version, subjects, previous string) string {
+	notes := "# Changelog\n\n## " + version + "\n\n" + strings.TrimSpace(subjects)
+	if history := strings.TrimSpace(strings.TrimPrefix(previous, "# Changelog\n")); history != "" {
+		notes += "\n\n" + history
+	}
+	return notes + "\n"
 }
 func ImportCandidate() error {
 	directory := Input("directory", "artifacts/release")

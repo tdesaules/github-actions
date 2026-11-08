@@ -30,6 +30,18 @@ func TestReleaseVersions(t *testing.T) {
 		t.Fatal("invalid VERSION accepted")
 	}
 }
+
+func TestReleaseNotesMarkdownSpacing(t *testing.T) {
+	for _, previous := range []string{"", "# Changelog\n", "# Changelog\n\n## 0.1.0\n\n- Initial release\n\n\n"} {
+		notes := releaseNotes("0.1.1", "- fix: release notes (abcdef)\n", previous)
+		if strings.Contains(notes, "\n\n\n") || strings.HasSuffix(notes, "\n\n") {
+			t.Fatalf("invalid blank lines: %q", notes)
+		}
+		if strings.Contains(previous, "Initial release") && !strings.Contains(notes, "\n\n## 0.1.0\n\n- Initial release\n") {
+			t.Fatalf("lost release history: %q", notes)
+		}
+	}
+}
 func TestCandidateBundleRetainsExactCommit(t *testing.T) {
 	// The enclosing test action supplies its own directory input.
 	t.Setenv("INPUT_DIRECTORY", "")
@@ -68,6 +80,10 @@ func TestCandidateBundleRetainsExactCommit(t *testing.T) {
 	flags("--project=core")
 	if err := NewCandidate(); err != nil {
 		t.Fatal(err)
+	}
+	notes, err := os.ReadFile("CHANGELOG.md")
+	if err != nil || strings.Contains(string(notes), "\n\n\n") || strings.HasSuffix(string(notes), "\n\n") {
+		t.Fatalf("candidate changelog is not lintable: %q (%v)", notes, err)
 	}
 	var candidate Candidate
 	if err := ReadJSON("artifacts/release/candidate.json", &candidate); err != nil {
