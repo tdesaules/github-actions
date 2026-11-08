@@ -9,6 +9,8 @@ COPY shared/workflow/ ./shared/workflow/
 COPY shared/catalog/ ./shared/catalog/
 COPY workflow/get-image-matrix/main.go ./workflow/get-image-matrix/main.go
 COPY workflow/get-image-matrix/dependencies.go ./workflow/get-image-matrix/dependencies.go
+COPY workflow/get-image-matrix/ignore.go ./workflow/get-image-matrix/ignore.go
+COPY workflow/get-image-matrix/cache.go ./workflow/get-image-matrix/cache.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/get-image-matrix
 COPY shared/collect-binaries.sh /collect-binaries.sh
 RUN sh /collect-binaries.sh /usr/bin/git

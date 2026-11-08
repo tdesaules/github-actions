@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/tdesaules/github-actions/shared/catalog"
 	"github.com/tdesaules/github-actions/shared/workflow"
@@ -18,14 +20,18 @@ var semver = regexp.MustCompile(`^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((
 
 type component struct{ directory, image, reference string }
 type job struct {
-	Image      string `json:"image"`
-	Directory  string `json:"directory"`
-	Arch       string `json:"arch"`
-	Runner     string `json:"runner"`
-	Rebuild    bool   `json:"rebuild"`
-	Reference  string `json:"reference"`
-	Scan       bool   `json:"scan"`
-	Dependency bool   `json:"dependency,omitempty"`
+	Image          string `json:"image"`
+	Directory      string `json:"directory"`
+	Arch           string `json:"arch"`
+	Runner         string `json:"runner"`
+	Rebuild        bool   `json:"rebuild"`
+	Reference      string `json:"reference"`
+	Scan           bool   `json:"scan"`
+	Dependency     bool   `json:"dependency,omitempty"`
+	ArtifactID     string `json:"artifact-id,omitempty"`
+	SourceRun      string `json:"source-run,omitempty"`
+	SourceRevision string `json:"source-revision,omitempty"`
+	SourceVersion  string `json:"source-version,omitempty"`
 }
 type matrix struct {
 	Include []job `json:"include"`
@@ -75,6 +81,7 @@ func discover() ([]component, error) {
 type rebuildHistory struct {
 	paths []string
 	all   bool
+	base  string
 }
 
 func sourcePath(path string) bool {
@@ -103,13 +110,23 @@ func unreleasedChanges(head string) (rebuildHistory, error) {
 			return rebuildHistory{}, err
 		}
 		paths, err := workflow.Paths(strings.TrimSpace(base), head)
-		return rebuildHistory{paths: paths}, err
+		return rebuildHistory{paths: paths, base: strings.TrimSpace(base)}, err
 	}
 	return rebuildHistory{all: true}, nil
 }
 
 func selectImages(components []component, paths []string, full bool, histories ...rebuildHistory) (matrix, error) {
 	r := matrix{Include: []job{}}
+	ignoreChanges := make([]*ignoreChange, len(histories))
+	for i, history := range histories {
+		if history.base != "" && (hasIgnorePath(paths) || hasIgnorePath(history.paths)) {
+			var err error
+			ignoreChanges[i], err = loadIgnoreChange(history.base, history.paths)
+			if err != nil {
+				return r, err
+			}
+		}
+	}
 	for _, c := range components {
 		dependencies, err := buildDependencies(c.directory)
 		if err != nil {
@@ -125,8 +142,21 @@ func selectImages(components []component, paths []string, full bool, histories .
 			if p == "grype-review.json" || strings.HasPrefix(p, "shared/review/") {
 				selected, scan = true, true
 			}
-			if p == c.directory+"/Containerfile" || p == ".containerignore" || p == ".dockerignore" {
+			if p == c.directory+"/Containerfile" {
 				selected, rebuild = true, true
+				continue
+			}
+			if isIgnorePath(p) {
+				selected = true
+				impact := len(histories) == 0
+				for i := range histories {
+					affected, err := ignoreChanges[i].affects(dependencies)
+					if err != nil {
+						return r, err
+					}
+					impact = impact || affected
+				}
+				rebuild = rebuild || impact
 				continue
 			}
 			affected, err := dependencies.affected(p)
@@ -147,17 +177,25 @@ func selectImages(components []component, paths []string, full bool, histories .
 		if !selected {
 			continue
 		}
-		for _, history := range histories {
+		for i, history := range histories {
 			rebuild = rebuild || history.all
 			for _, p := range history.paths {
 				if !sourcePath(p) {
+					continue
+				}
+				if isIgnorePath(p) {
+					affected, err := ignoreChanges[i].affects(dependencies)
+					if err != nil {
+						return r, err
+					}
+					rebuild = rebuild || affected
 					continue
 				}
 				affected, err := dependencies.affected(p)
 				if err != nil {
 					return r, err
 				}
-				if affected || p == c.directory+"/Containerfile" || p == ".containerignore" || p == ".dockerignore" {
+				if affected || p == c.directory+"/Containerfile" {
 					rebuild = true
 				}
 			}
@@ -181,7 +219,7 @@ func buildMatrix(tests matrix) matrix {
 	builds := matrix{Include: []job{}}
 	reviewers := map[string]bool{}
 	for _, j := range tests.Include {
-		if j.Rebuild {
+		if j.Rebuild && j.ArtifactID == "" {
 			builds.Include = append(builds.Include, j)
 			if j.Image == "workflow-new-vulnerability-review" {
 				reviewers[j.Arch] = true
@@ -207,6 +245,8 @@ func run() error {
 	ref := flag.String("ref", workflow.Default("INPUT_REF", os.Getenv("GITHUB_REF")), "Git ref")
 	plan := flag.String("release-plan", os.Getenv("INPUT_RELEASE-PLAN"), "release plan JSON path")
 	reuse := flag.Bool("reuse-artifacts", os.Getenv("INPUT_REUSE-ARTIFACTS") == "true", "skip builds after artifact validation")
+	reuseBuilds := flag.Bool("reuse-builds", os.Getenv("MATRIX_REUSE_BUILDS") == "true", "reuse source-equivalent successful development builds")
+	repository := flag.String("repository", workflow.Default("INPUT_REPOSITORY", os.Getenv("GITHUB_REPOSITORY")), "build cache repository")
 	flag.Parse()
 	if flag.NArg() != 0 {
 		return fmt.Errorf("unexpected arguments")
@@ -300,6 +340,14 @@ func run() error {
 	if mode == "prepare" && *reuse {
 		m.Include = []job{}
 	}
+	if *reuseBuilds && mode == "development" && !*full {
+		cache := buildCache{client: &http.Client{Timeout: 60 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}, endpoint: "https://api.github.com", token: os.Getenv("INPUT_TOKEN"), repository: *repository}
+		if err := cache.reuse(&m, head, strings.TrimPrefix(*ref, "refs/heads/")); err != nil {
+			// Cache availability never authorizes stale images or skipped tests.
+			// On any lookup failure retain the original build plan.
+			fmt.Fprintf(os.Stderr, "build cache unavailable; rebuilding candidates: %v\n", err)
+		}
+	}
 	if len(m.Include) > 256 {
 		return fmt.Errorf("matrix exceeds 256 jobs")
 	}
@@ -310,6 +358,16 @@ func run() error {
 		}
 	}
 	builds := buildMatrix(m)
+	reusedBuilds, published := 0, 0
+	for _, j := range m.Include {
+		if j.ArtifactID != "" {
+			reusedBuilds++
+		}
+		if !j.Rebuild {
+			published++
+		}
+	}
+	fmt.Fprintf(os.Stderr, "Image plan: %d qualification jobs, %d build jobs, %d reused build archives, %d published variants\n", len(m.Include), len(builds.Include), reusedBuilds, published)
 	if len(builds.Include) > 256 {
 		return fmt.Errorf("build matrix exceeds 256 jobs")
 	}

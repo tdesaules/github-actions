@@ -19,6 +19,15 @@ inputs:
   reuse-artifacts:
     description: Skip builds after independent exact-source artifact validation
     default: 'false'
+  reuse-builds:
+    description: Reuse successful source-equivalent development builds and requalify them
+    default: 'false'
+  repository:
+    description: GitHub owner/repository for development build reuse
+    default: ''
+  token:
+    description: Read-only Actions token for development build reuse
+    default: ''
 outputs:
   test-registry-image:
     description: Test registry service reference discovered from its action metadata
@@ -37,6 +46,10 @@ outputs:
 runs:
   using: docker
   image: docker://ghcr.io/tdesaules/github-actions/workflow-get-image-matrix@sha256:0f77d0f8eab42a1b6579b7948d7c713cbc25186273b693081bb29623d47ef769
+  env:
+    INPUT_TOKEN: ${{ inputs.token }}
+    MATRIX_REUSE_BUILDS: ${{ inputs.reuse-builds }}
+    INPUT_REPOSITORY: ${{ inputs.repository }}
   args:
     - --files=${{ inputs.files }}
     - --full=${{ inputs.full }}

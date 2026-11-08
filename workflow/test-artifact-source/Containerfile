@@ -7,7 +7,7 @@ COPY go.mod go.sum ./
 COPY shared/workflow/ ./shared/workflow/
 COPY shared/catalog/ ./shared/catalog/
 COPY workflow/test-artifact-source/main.go workflow/test-artifact-source/artifacts.go ./workflow/test-artifact-source/
-COPY workflow/get-image-matrix/main.go workflow/get-image-matrix/dependencies.go ./workflow/get-image-matrix/
+COPY workflow/get-image-matrix/main.go workflow/get-image-matrix/dependencies.go workflow/get-image-matrix/ignore.go workflow/get-image-matrix/cache.go ./workflow/get-image-matrix/
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/test-artifact-source \
     && CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /matrix ./workflow/get-image-matrix \
     && mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp

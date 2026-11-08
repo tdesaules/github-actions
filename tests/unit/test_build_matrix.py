@@ -1,5 +1,8 @@
 import copy
 import sys
+import os
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -8,6 +11,13 @@ import ci
 
 
 class BuildMatrixTests(unittest.TestCase):
+    def test_cached_candidate_is_qualified_but_not_built_again(self):
+        job = dict(image='oci-new-sbom', arch='amd64', runner='ubuntu-24.04',
+                   rebuild=True, scan=True, **{'artifact-id': '123'})
+        builds = ci.build_matrix({'include': [job]})['include']
+        self.assertEqual([j['image'] for j in builds], ['workflow-new-vulnerability-review'])
+        self.assertTrue(job['rebuild'])
+
     def test_published_only_and_empty_need_no_builds(self):
         for jobs in ([], [{'image': 'oci-export-image', 'arch': 'amd64',
                            'runner': 'ubuntu-24.04', 'rebuild': False}]):
@@ -29,3 +39,36 @@ class BuildMatrixTests(unittest.TestCase):
         job = dict(image='workflow-new-vulnerability-review', arch='amd64',
                    runner='ubuntu-24.04', rebuild=True, scan=True)
         self.assertEqual(ci.build_matrix({'include': [job]}), {'include': [job]})
+
+
+class IgnoreImpactTests(unittest.TestCase):
+    def test_retired_directory_rule_does_not_invalidate_unrelated_images(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            env = dict(os.environ, GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL='/dev/null',
+                       GIT_AUTHOR_NAME='Fixture', GIT_AUTHOR_EMAIL='fixture@example.invalid',
+                       GIT_COMMITTER_NAME='Fixture', GIT_COMMITTER_EMAIL='fixture@example.invalid')
+            def git(*args):
+                return subprocess.check_output(['git', *args], cwd=root, env=env, stderr=subprocess.DEVNULL, text=True).strip()
+            git('init', '-b', 'main')
+            for name in ('a', 'b'):
+                directory = root / 'oci' / name
+                directory.mkdir(parents=True)
+                (directory / 'action.yml').write_text('runs:\n  using: docker\n  image: docker://example/oci-'+name+'@sha256:'+'a'*64+'\n')
+                (directory / 'Containerfile').write_text('FROM scratch AS final\nCOPY oci/'+name+'/ /app/\n')
+                (directory / 'main.go').write_text('released')
+            (root / '.containerignore').write_text('.source-actions\n')
+            git('add', '.'); git('commit', '-m', 'release'); git('tag', '1.0.0')
+            baseline = git('rev-parse', 'HEAD')
+            (root / '.containerignore').write_text('')
+            git('add', '.'); git('commit', '-m', 'remove temporary rule')
+            history, _ = ci.unreleased_changes(git('rev-parse', 'HEAD'), root)
+            for paths in (['.containerignore'], ['.github/workflows/main.yml']):
+                matrix = ci.select(paths, root=root, unreleased=history, baseline=baseline)
+                self.assertEqual(len(matrix['include']), 4)
+                self.assertFalse(any(j['rebuild'] for j in matrix['include']))
+            (root / '.containerignore').write_text('oci/a/main.go\n')
+            git('add', '.'); git('commit', '-m', 'exclude actual input')
+            history, _ = ci.unreleased_changes(git('rev-parse', 'HEAD'), root)
+            matrix = ci.select(['.github/workflows/main.yml'], root=root, unreleased=history, baseline=baseline)
+            self.assertEqual({j['image'] for j in matrix['include'] if j['rebuild']}, {'oci-a'})

@@ -236,7 +236,7 @@ func TestBuildAndQualificationAreSeparate(t *testing.T) {
 			t.Fatalf("%s: qualification matrix constraints lost", name)
 		}
 	}
-	if document.Jobs["build"].Env["VERSION"] != document.Jobs["test"].Env["VERSION"] || strings.Contains(document.Jobs["build"].Env["VERSION"], "run_attempt") {
+	if document.Jobs["build"].Env["VERSION"] != "${{ needs.check.outputs.version }}-${{ github.run_id }}" || document.Jobs["test"].Env["VERSION"] != "${{ matrix.source-version || format('{0}-{1}', needs.check.outputs.version, github.run_id) }}" {
 		t.Fatal("test-only retries must retain the built candidate version")
 	}
 	for job, dependency := range map[string]string{"test": "build", "release": "test"} {

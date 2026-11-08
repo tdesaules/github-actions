@@ -88,8 +88,8 @@ def source_path(path):
     return Path(path).suffix.lower() not in ('.md', '.markdown') and Path(path).name != 'action.yml'
 
 
-def unreleased_changes(head, root=ROOT):
-    """Return source-baseline paths and conservative rebuild flag; never fetch."""
+def release_baseline(head, root=ROOT):
+    """Find the latest reachable stable release; never fetch."""
     def local_git(*args):
         return subprocess.check_output(['git', *args], cwd=root, text=True).strip()
     if local_git('rev-parse', '--is-shallow-repository') != 'false':
@@ -98,13 +98,26 @@ def unreleased_changes(head, root=ROOT):
         if not SEMVER.fullmatch(tag) or '-' in tag or '+' in tag:
             continue
         base = local_git('rev-parse', '--verify', '--end-of-options', 'refs/tags/' + tag + '^{commit}')
-        data = subprocess.check_output(['git', 'diff', '--name-only', '--no-renames', '-z', base, head, '--'], cwd=root)
-        return [p.decode() for p in data.split(b'\0') if p], False
-    return [], True
+        return base
+    return ''
 
 
-def select(paths, full=False, root=ROOT, unreleased=(), rebuild_selected=False):
+def unreleased_changes(head, root=ROOT):
+    """Return source-baseline paths and conservative rebuild flag; never fetch."""
+    base = release_baseline(head, root)
+    if not base:
+        return [], True
+    data = subprocess.check_output(['git', 'diff', '--name-only', '--no-renames', '-z', base, head, '--'], cwd=root)
+    return [p.decode() for p in data.split(b'\0') if p], False
+
+
+def select(paths, full=False, root=ROOT, unreleased=(), rebuild_selected=False, baseline=''):
     actions, owners = discover(root)
+    ignore_paths = {'.containerignore', '.dockerignore'}
+    ignore_impacts = {image: True for image in owners}
+    if baseline and ignore_paths.intersection([*paths, *unreleased]):
+        change = ignore_change(root, baseline, unreleased)
+        ignore_impacts = {image: ignore_affects(root, directory, change) for image, directory in owners.items()}
     images, selected_actions = set(), set()
     if full:
         images.update(owners)
@@ -115,8 +128,9 @@ def select(paths, full=False, root=ROOT, unreleased=(), rebuild_selected=False):
         if path == 'grype-review.json' or path.startswith('shared/review/'):
             selected_actions.update(actions)
         if path in (".containerignore", ".dockerignore"):
-            images.update(owners)
+            images.update(image for image in owners if ignore_impacts[image])
             selected_actions.update(actions)
+            continue
         for directory, image in actions.items():
             if source_path(path) and (path == directory + '/Containerfile' or build_dependency(root, directory, path)):
                 images.add(image)
@@ -133,8 +147,8 @@ def select(paths, full=False, root=ROOT, unreleased=(), rebuild_selected=False):
     matrix = []
     for image in sorted({actions[a] for a in selected_actions} | images):
         _, reference = image_reference(root / owners[image] / 'action.yml')
-        stale = any(source_path(path) and (path in (owners[image] + '/Containerfile', '.containerignore', '.dockerignore') or
-                    build_dependency(root, owners[image], path)) for path in unreleased)
+        stale = any(source_path(path) and (ignore_impacts[image] if path in ignore_paths else
+                    path == owners[image] + '/Containerfile' or build_dependency(root, owners[image], path)) for path in unreleased)
         rebuild = image in images or rebuild_selected or stale or not reference or reference.endswith(':unpublished')
         scan = rebuild or full or any(path == 'grype-review.json' or path.startswith('shared/review/') for path in paths)
         for arch in ("amd64", "arm64"):
@@ -147,7 +161,7 @@ def select(paths, full=False, root=ROOT, unreleased=(), rebuild_selected=False):
 
 
 def build_matrix(tests):
-    builds = [dict(job) for job in tests['include'] if job['rebuild']]
+    builds = [dict(job) for job in tests['include'] if job['rebuild'] and not job.get('artifact-id')]
     reviewers = {job['arch'] for job in builds if job['image'] == 'workflow-new-vulnerability-review'}
     for job in tests['include']:
         if (job.get('scan', False) or job['rebuild']) and job['arch'] not in reviewers:
@@ -159,13 +173,41 @@ def build_matrix(tests):
     return {'include': builds}
 
 
-def build_dependency(root, directory, changed):
+def ignore_change(root, baseline, changed):
+    paths = [p for p in changed if p in ('.containerignore', '.dockerignore')]
+    if not paths:
+        return [], [], []
+    def tree(revision):
+        data = subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', '-z', revision], cwd=root)
+        return {p.decode() for p in data.split(b'\0') if p}
+    before = tree(baseline)
+    patterns = []
+    for name in ('.containerignore', '.dockerignore'):
+        if name in before:
+            patterns = subprocess.check_output(['git', 'show', baseline+':'+name], cwd=root, text=True).splitlines()
+            break
+    return paths, before | tree('HEAD'), patterns
+
+
+def ignore_affects(root, directory, change):
+    paths, files, patterns = change
+    if not paths:
+        return False
+    if '$' in (root / directory / 'Containerfile').read_text():
+        return True  # Unknown context expansion remains conservative.
+    for path in paths:
+        if build_dependency(root, directory, path, patterns) or build_dependency(root, directory, path):
+            return True
+    return any(build_dependency(root, directory, path, patterns) != build_dependency(root, directory, path) for path in files)
+
+
+def build_dependency(root, directory, changed, ignore_patterns=None):
     """Mirror context COPY/ADD and bind dependencies, including deleted files."""
     for ignore in ('.containerignore', '.dockerignore'):
         file = root / ignore
-        if file.exists():
+        if ignore_patterns is not None or file.exists():
             ignored = False
-            for pattern in file.read_text().splitlines():
+            for pattern in (ignore_patterns if ignore_patterns is not None else file.read_text().splitlines()):
                 pattern = pattern.strip()
                 if not pattern or pattern.startswith('#'):
                     continue
@@ -335,7 +377,8 @@ def main():
     matrix = {"include": []}
     if pipeline_mode in ('development', 'prepare', 'qualification'):
         unreleased, rebuild_selected = ([], False) if full else unreleased_changes(after)
-        matrix = select(paths, full, unreleased=unreleased, rebuild_selected=rebuild_selected)
+        baseline = '' if full else release_baseline(after)
+        matrix = select(paths, full, unreleased=unreleased, rebuild_selected=rebuild_selected, baseline=baseline)
     if pipeline_mode == 'prepare' and os.environ.get('ARTIFACT_RUN_ID'):
         # The workflow validates the source run before selecting this empty matrix.
         matrix = {'include': []}

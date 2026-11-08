@@ -158,6 +158,9 @@ jobs:
           ref: ${{ github.ref }}
           release-plan: ${{ steps.plan.outcome == 'success' && '.build/publication/release-plan.json' || '' }}
           reuse-artifacts: ${{ steps.resume.outcome == 'success' }}
+          reuse-builds: ${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/') }}
+          repository: ${{ github.repository }}
+          token: ${{ github.token }}
       - name: Validate action metadata
         if: ${{ !cancelled() && steps.sources.outputs.action-metadata-changed == 'true' }}
         uses: ./check/test-action-metadata
@@ -317,9 +320,10 @@ jobs:
         image: ${{ contains(fromJSON('["oci-publish-image","oci-merge-image-index","oci-new-image-signature","oci-test-image-signature","workflow-new-registry-fixtures","workflow-test-index-result"]'), matrix.image) && needs.check.outputs.test-registry-image || '' }}
     permissions:
       contents: read
+      actions: read
       packages: read
     env:
-      VERSION: ${{ needs.check.outputs.version }}-${{ github.run_id }}
+      VERSION: ${{ matrix.source-version || format('{0}-{1}', needs.check.outputs.version, github.run_id) }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -331,11 +335,20 @@ jobs:
         with:
           directory: .build/fixtures
       - name: Download untested build artifact
-        if: matrix.rebuild
+        if: matrix.rebuild && !matrix.artifact-id
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: build-${{ matrix.image }}-${{ matrix.arch }}-${{ github.run_id }}
           path: .build/${{ matrix.image }}/${{ matrix.arch }}
+      - name: Download source-equivalent previous build
+        if: matrix.rebuild && matrix.artifact-id
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          artifact-ids: ${{ matrix.artifact-id }}
+          run-id: ${{ matrix.source-run }}
+          github-token: ${{ github.token }}
+          path: .build/${{ matrix.image }}/${{ matrix.arch }}
+          merge-multiple: true
       - name: Verify downloaded build archive
         if: matrix.rebuild
         id: receipt
@@ -345,7 +358,7 @@ jobs:
           receipt: .build/${{ matrix.image }}/${{ matrix.arch }}/build.json
           image: ${{ matrix.image }}
           architecture: ${{ matrix.arch }}
-          revision: ${{ github.sha }}
+          revision: ${{ matrix.source-revision || github.sha }}
           version: ${{ env.VERSION }}
       - name: Test native runtime, negative fixtures and source permissions
         uses: ./workflow/test-candidate-runtime
@@ -355,7 +368,7 @@ jobs:
           reference: ${{ matrix.reference }}
           image: ${{ matrix.image }}
           architecture: ${{ matrix.arch }}
-          revision: ${{ matrix.rebuild && github.sha || '' }}
+          revision: ${{ matrix.rebuild && (matrix.source-revision || github.sha) || '' }}
           output: .build/${{ matrix.image }}/${{ matrix.arch }}/runtime-tests.json
       - name: Transfer exact candidate to the private registry
         if: matrix.rebuild
@@ -1271,7 +1284,7 @@ jobs:
           image: workflow-new-vulnerability-review
           architecture: ${{ matrix.arch }}
           revision: ${{ github.sha }}
-          version: ${{ env.VERSION }}
+          version: ${{ needs.check.outputs.version }}-${{ github.run_id }}
       - name: Qualify source reviewer runtime
         id: security-review-runtime
         continue-on-error: true
@@ -1347,7 +1360,7 @@ jobs:
           receipt: .build/${{ matrix.image }}/${{ matrix.arch }}/build.json
           image: ${{ matrix.image }}
           architecture: ${{ matrix.arch }}
-          revision: ${{ github.sha }}
+          revision: ${{ matrix.source-revision || github.sha }}
           version: ${{ env.VERSION }}
       - name: Record successful matrix result
         if: matrix.rebuild
@@ -1356,7 +1369,7 @@ jobs:
           archive: .build/${{ matrix.image }}/${{ matrix.arch }}/image.oci.tar
           image: ${{ matrix.image }}
           architecture: ${{ matrix.arch }}
-          revision: ${{ github.sha }}
+          revision: ${{ matrix.source-revision || github.sha }}
           version: ${{ env.VERSION }}
           output: .build/${{ matrix.image }}/${{ matrix.arch }}/metadata.json
       - name: Upload exact archive and functional receipts

@@ -21,6 +21,24 @@ produit restent bloquants lorsqu'il est lui-même à qualifier. Son archive util
 le même nom `build-workflow-new-vulnerability-review-<architecture>-<run>` dans les
 deux cas, sans ajouter ce helper à la sélection de publication.
 
+Sur les pushes de développement, le sélecteur recherche aussi les archives des
+builds réussis parmi les 20 derniers runs push terminés de la même branche. Il
+vérifie l'identité du dépôt, l'ascendance Git et l'équivalence des entrées réelles
+de chaque recette. Un run globalement échoué peut fournir une archive si le job
+de build correspondant a réussi. Les artefacts expirés, manquants, ambigus ou
+issus d'un job échoué ne sont pas réutilisés ; une panne API conserve les builds.
+
+Ces archives sont téléchargées par ID et requalifiées dans `test`. Le reçu, le
+checksum, la plateforme et la révision d'origine sont vérifiés avant exécution
+et après qualification. Révision et version d'origine restent attachées aux
+archives ; elles ne deviennent pas artificiellement des builds du commit courant.
+La préparation de release et la qualification complète n'utilisent pas ce cache.
+
+Les changements de `.containerignore` et `.dockerignore` ne déclenchent une
+reconstruction que s'ils affectent les entrées utilisées par une recette, ou si
+la recette copie elle-même ces fichiers. La suppression de l'ancienne exclusion
+`.source-actions` ne suffit donc plus à reconstruire tout le catalogue.
+
 Transition : l'image publiée du sélecteur ne fournit pas encore `build-matrix`.
 `check` construit donc un seul sélecteur de contrôle AMD64 pour les pushes et
 préparations, puis l'exécute via le registre candidat. Les tags utilisent encore

@@ -16,6 +16,35 @@ required product build failures remain blocking. `has-build` reports whether thi
 filtered matrix is nonempty. Published-image tests without scans allocate no
 build jobs. Filtering does not alter qualification or publication selection.
 
+Ignore-file changes are compared against the release's effective COPY/ADD/bind
+inputs, using both Git trees and the same ignore precedence as the builder.
+Removing an unused temporary-directory rule does not invalidate every image.
+Copied ignore-file bytes, actual inclusion changes and unresolved dependencies
+still require rebuilding.
+
+On development pushes, `reuse-builds` can reuse build archives from the latest
+20 completed push runs of this workflow on the same repository and branch.
+Only successful per-image build jobs in the recorded attempt qualify, including
+successful jobs in an otherwise failed run. The source commit must be an ancestor
+with identical recipe and effective build inputs. Changed copied documentation,
+deleted inputs and builder-launcher changes invalidate reuse too.
+
+Artifact and job listings are paginated; expired, ambiguous, foreign or missing
+artifacts are ignored. The source run is rechecked against concurrent retries.
+API errors fall back to the original build plan. Reused rows retain `rebuild: true`
+for candidate qualification but expose `artifact-id`, `source-run`,
+`source-revision` and `source-version`, and are excluded from `build-matrix`.
+The test job downloads the exact artifact ID, verifies its original build receipt
+and OCI provenance, reruns qualification and retains the original source identity.
+It never relabels an old archive with the current commit. Source reviewer helpers
+are still built from the current source.
+
+This cache is disabled for release preparation, artifact-source validation, tags
+and full qualification. Release publication retains its exact-source checks.
+`repository` and an Actions-read `token` are required when enabling reuse; the
+token is passed only through the environment. Local Python selection remains
+offline, mirrors effective ignore handling, and does not query GitHub for builds.
+
 Inputs: `files` (JSON array), `full`, `event`, `ref`, optional `release-plan`,
 and `reuse-artifacts`. The latter is only used after independent exact-source
 artifact validation. A release plan must match the checkout revision.
