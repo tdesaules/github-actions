@@ -159,6 +159,7 @@ jobs:
           release-plan: ${{ steps.plan.outcome == 'success' && '.build/publication/release-plan.json' || '' }}
           reuse-artifacts: ${{ steps.resume.outcome == 'success' }}
           reuse-builds: ${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/') }}
+          before: ${{ github.event.before }}
           repository: ${{ github.repository }}
           token: ${{ github.token }}
       - name: Validate action metadata

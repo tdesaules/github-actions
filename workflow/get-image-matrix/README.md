@@ -8,6 +8,22 @@ metadata, without a separate image catalogue or lockfile.
 Metadata-only changes reuse published images; unpublished images are rebuilt.
 An empty selection produces `{"include":[]}`. The workflow controls concurrency.
 
+Development qualification follows actual consumers. Source and action metadata
+changes select their owners; local scripts and Task changes run repository checks
+without automatically selecting every image. Fixture paths are matched to the
+test steps that reference them. Shared qualification actions select their consumers
+through their recipes and metadata, so shared harness changes remain conservative.
+
+For `.github/workflows/main.yml`, `before` supplies the previous push commit.
+The selector compares each image's applicable test steps and the test/build runtime
+context. Changes limited to maintenance, release or check routing do not qualify
+every image. Per-image equality and explicit `contains(fromJSON(...), matrix.image)`
+conditions scope changes; unknown expressions, missing history and shared runtime
+changes conservatively widen qualification. The workflow itself still passes
+actionlint and repository regression checks. New/deleted test steps are compared
+in both versions. Nonempty release preparation and explicit full qualification
+retain catalogue-wide coverage. Reused untested archives are still qualified.
+
 `matrix` remains the complete qualification matrix. `build-matrix` contains only
 rows with `rebuild: true`, plus one source reviewer dependency per architecture
 requiring a scan. A reviewer already being rebuilt as a product is not duplicated.

@@ -76,12 +76,14 @@ func discover() ([]component, error) {
 	return result, nil
 }
 
-// rebuildHistory affects only images selected by the current diff. A missing
-// release baseline requires conservative construction, not an expanded selection.
+// Development history affects only selected images; release preparation opts
+// into allTests. A missing release baseline conservatively rebuilds that selection.
 type rebuildHistory struct {
-	paths []string
-	all   bool
-	base  string
+	paths    []string
+	all      bool
+	base     string
+	before   string
+	allTests bool
 }
 
 func sourcePath(path string) bool {
@@ -117,6 +119,14 @@ func unreleasedChanges(head string) (rebuildHistory, error) {
 
 func selectImages(components []component, paths []string, full bool, histories ...rebuildHistory) (matrix, error) {
 	r := matrix{Include: []job{}}
+	before := ""
+	if len(histories) > 0 {
+		before = histories[0].before
+	}
+	qualification, err := qualificationChanges(components, paths, before)
+	if err != nil {
+		return r, err
+	}
 	ignoreChanges := make([]*ignoreChange, len(histories))
 	for i, history := range histories {
 		if history.base != "" && (hasIgnorePath(paths) || hasIgnorePath(history.paths)) {
@@ -132,8 +142,12 @@ func selectImages(components []component, paths []string, full bool, histories .
 		if err != nil {
 			return r, err
 		}
-		selected, rebuild := full, full
+		selected, rebuild := full || qualification[c.image], full
 		scan := full
+		for _, history := range histories {
+			selected = selected || history.allTests
+			scan = scan || history.allTests
+		}
 		for _, p := range paths {
 			ext := strings.ToLower(filepath.Ext(p))
 			if ext == ".md" || ext == ".markdown" {
@@ -147,7 +161,6 @@ func selectImages(components []component, paths []string, full bool, histories .
 				continue
 			}
 			if isIgnorePath(p) {
-				selected = true
 				impact := len(histories) == 0
 				for i := range histories {
 					affected, err := ignoreChanges[i].affects(dependencies)
@@ -157,6 +170,7 @@ func selectImages(components []component, paths []string, full bool, histories .
 					impact = impact || affected
 				}
 				rebuild = rebuild || impact
+				selected = selected || impact
 				continue
 			}
 			affected, err := dependencies.affected(p)
@@ -166,9 +180,6 @@ func selectImages(components []component, paths []string, full bool, histories .
 			if affected && sourcePath(p) {
 				selected, rebuild = true, true
 				continue
-			}
-			if strings.HasPrefix(p, ".github/workflows/") || strings.HasPrefix(p, "scripts/") || strings.HasPrefix(p, "tasks/") || strings.HasPrefix(p, "tests/fixtures/") || p == "taskfile.yml" {
-				selected = true
 			}
 			if strings.HasPrefix(p, c.directory+"/") {
 				selected = true
@@ -247,6 +258,7 @@ func run() error {
 	reuse := flag.Bool("reuse-artifacts", os.Getenv("INPUT_REUSE-ARTIFACTS") == "true", "skip builds after artifact validation")
 	reuseBuilds := flag.Bool("reuse-builds", os.Getenv("MATRIX_REUSE_BUILDS") == "true", "reuse source-equivalent successful development builds")
 	repository := flag.String("repository", workflow.Default("INPUT_REPOSITORY", os.Getenv("GITHUB_REPOSITORY")), "build cache repository")
+	before := flag.String("before", os.Getenv("MATRIX_BEFORE"), "previous push commit for qualification changes")
 	flag.Parse()
 	if flag.NArg() != 0 {
 		return fmt.Errorf("unexpected arguments")
@@ -278,6 +290,7 @@ func run() error {
 			return fmt.Errorf("tag must be SemVer without v")
 		}
 	}
+	qualifyAll := mode == "prepare"
 	if mode == "prepare" {
 		*full = true
 		if *plan != "" {
@@ -298,6 +311,7 @@ func run() error {
 			}
 			if !p.Changed {
 				*full = false
+				qualifyAll = false
 				paths = []string{}
 			} else if p.Previous != "" {
 				*full = false
@@ -332,6 +346,8 @@ func run() error {
 				return err
 			}
 		}
+		history.before = *before
+		history.allTests = qualifyAll
 		m, err = selectImages(components, paths, *full, history)
 		if err != nil {
 			return err

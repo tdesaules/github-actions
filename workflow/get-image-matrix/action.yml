@@ -28,6 +28,9 @@ inputs:
   token:
     description: Read-only Actions token for development build reuse
     default: ''
+  before:
+    description: Previous push commit for identifying affected qualification steps
+    default: ''
 outputs:
   test-registry-image:
     description: Test registry service reference discovered from its action metadata
@@ -50,6 +53,7 @@ runs:
     INPUT_TOKEN: ${{ inputs.token }}
     MATRIX_REUSE_BUILDS: ${{ inputs.reuse-builds }}
     INPUT_REPOSITORY: ${{ inputs.repository }}
+    MATRIX_BEFORE: ${{ inputs.before }}
   args:
     - --files=${{ inputs.files }}
     - --full=${{ inputs.full }}

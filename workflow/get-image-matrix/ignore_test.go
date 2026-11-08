@@ -73,7 +73,14 @@ func TestIgnoreChangesOnlyInvalidateEffectiveInputs(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if len(m.Include) != 4 {
+				wantCount := 4
+				if paths[0] == ".containerignore" {
+					wantCount = 0
+					if tc.wantA {
+						wantCount = 2
+					}
+				}
+				if len(m.Include) != wantCount {
 					t.Fatalf("qualification selection lost: %+v", m)
 				}
 				for _, j := range m.Include {

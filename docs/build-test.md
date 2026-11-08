@@ -9,6 +9,20 @@ maintenance (déclenchement séparé)
 
 ## Frontière des artefacts
 
+En développement, les tests natifs sont sélectionnés par dépendances : sources et
+métadonnées d'une action, fixtures utilisées par ses étapes de test, ou outils de
+qualification partagés. Les modifications de scripts locaux et de Task ne lancent
+plus automatiquement tous les tests d'images ; les contrôles du dépôt restent actifs.
+
+Pour un changement de workflow, le sélecteur compare la version précédant le push
+avec la version courante. Un changement limité à la maintenance ou aux releases
+ne sélectionne aucune image à lui seul. Un changement d'étape explicitement liée
+à une image sélectionne cette image. Un changement d'environnement commun, une
+condition non analysable ou un historique manquant élargit prudemment la sélection.
+La préparation d'une release non vide et la qualification complète explicite
+conservent les contrôles de toutes les images. Les archives de builds réutilisées
+passent toujours leurs tests lorsqu'elles sont sélectionnées.
+
 Le sélecteur émet deux matrices : `matrix` conserve les tests de toutes les images
 sélectionnées ; `build-matrix` ne contient que les reconstructions nécessaires et
 les dépendances de scan. `has-build` dépend de cette seconde matrice. Une image

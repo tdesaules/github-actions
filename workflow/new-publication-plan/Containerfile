@@ -8,7 +8,7 @@ COPY shared/publication/ ./shared/publication/
 COPY shared/runtime/ ./shared/runtime/
 COPY shared/workflow/ ./shared/workflow/
 COPY workflow/new-publication-plan/main.go ./workflow/new-publication-plan/main.go
-COPY workflow/get-image-matrix/main.go workflow/get-image-matrix/dependencies.go workflow/get-image-matrix/ignore.go workflow/get-image-matrix/cache.go ./workflow/get-image-matrix/
+COPY workflow/get-image-matrix/main.go workflow/get-image-matrix/dependencies.go workflow/get-image-matrix/ignore.go workflow/get-image-matrix/cache.go workflow/get-image-matrix/qualification.go ./workflow/get-image-matrix/
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/new-publication-plan \
     && CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /matrix ./workflow/get-image-matrix
 FROM quay.io/fedora/fedora:44@sha256:5aae8bdc5f40bf70f8f189a70770e6f1fabcb04976e841262431c3bbfdbe3538 AS final

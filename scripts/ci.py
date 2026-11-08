@@ -12,6 +12,7 @@ import subprocess
 import sys
 
 from oci_archive import inspect_archive
+import qualification
 
 ROOT = Path(__file__).resolve().parents[1]
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$")
@@ -111,14 +112,17 @@ def unreleased_changes(head, root=ROOT):
     return [p.decode() for p in data.split(b'\0') if p], False
 
 
-def select(paths, full=False, root=ROOT, unreleased=(), rebuild_selected=False, baseline=''):
+def select(paths, full=False, root=ROOT, unreleased=(), rebuild_selected=False, baseline='', before='', qualify_all=False):
     actions, owners = discover(root)
     ignore_paths = {'.containerignore', '.dockerignore'}
     ignore_impacts = {image: True for image in owners}
     if baseline and ignore_paths.intersection([*paths, *unreleased]):
         change = ignore_change(root, baseline, unreleased)
         ignore_impacts = {image: ignore_affects(root, directory, change) for image, directory in owners.items()}
-    images, selected_actions = set(), set()
+    images = set()
+    selected_actions = qualification.select(root, actions, paths, before, build_dependency)
+    if qualify_all:
+        selected_actions.update(actions)
     if full:
         images.update(owners)
         selected_actions.update(actions)
@@ -129,15 +133,13 @@ def select(paths, full=False, root=ROOT, unreleased=(), rebuild_selected=False, 
             selected_actions.update(actions)
         if path in (".containerignore", ".dockerignore"):
             images.update(image for image in owners if ignore_impacts[image])
-            selected_actions.update(actions)
+            selected_actions.update(directory for directory, image in actions.items() if ignore_impacts[image])
             continue
         for directory, image in actions.items():
             if source_path(path) and (path == directory + '/Containerfile' or build_dependency(root, directory, path)):
                 images.add(image)
                 selected_actions.add(directory)
                 continue
-            if path.startswith(('.github/workflows/', 'tests/fixtures/', 'scripts/', 'tasks/')) or path == 'taskfile.yml':
-                selected_actions.add(directory)
             if path.startswith(directory + "/"):
                 selected_actions.add(directory)
     for directory, image in actions.items():
@@ -150,7 +152,7 @@ def select(paths, full=False, root=ROOT, unreleased=(), rebuild_selected=False, 
         stale = any(source_path(path) and (ignore_impacts[image] if path in ignore_paths else
                     path == owners[image] + '/Containerfile' or build_dependency(root, owners[image], path)) for path in unreleased)
         rebuild = image in images or rebuild_selected or stale or not reference or reference.endswith(':unpublished')
-        scan = rebuild or full or any(path == 'grype-review.json' or path.startswith('shared/review/') for path in paths)
+        scan = rebuild or full or qualify_all or any(path == 'grype-review.json' or path.startswith('shared/review/') for path in paths)
         for arch in ("amd64", "arm64"):
             matrix.append({"image": image, "directory": owners[image], "arch": arch,
                            "runner": "ubuntu-24.04" if arch == "amd64" else "ubuntu-24.04-arm",
@@ -351,7 +353,9 @@ def main():
     pipeline_mode = mode(event, ref, os.environ.get('QUALIFY_CATALOG') == 'true')
     after = os.environ.get("GITHUB_SHA") or git("rev-parse", "HEAD")
     paths = args.paths
+    before = os.environ.get('GITHUB_EVENT_BEFORE', '')
     full = pipeline_mode in ("prepare", "qualification")
+    qualify_all = pipeline_mode == 'prepare'
     plan_path = ROOT / '.build/publication/release-plan.json'
     if pipeline_mode == 'prepare' and plan_path.exists():
         plan = json.loads(plan_path.read_text())
@@ -359,6 +363,7 @@ def main():
             raise ValueError('release plan does not match checkout')
         if not plan['changed']:
             full, paths = False, []
+            qualify_all = False
         elif plan['previous']:
             full = False
             paths = changed_paths(plan['previous'], after)
@@ -378,7 +383,7 @@ def main():
     if pipeline_mode in ('development', 'prepare', 'qualification'):
         unreleased, rebuild_selected = ([], False) if full else unreleased_changes(after)
         baseline = '' if full else release_baseline(after)
-        matrix = select(paths, full, unreleased=unreleased, rebuild_selected=rebuild_selected, baseline=baseline)
+        matrix = select(paths, full, unreleased=unreleased, rebuild_selected=rebuild_selected, baseline=baseline, before=before, qualify_all=qualify_all)
     if pipeline_mode == 'prepare' and os.environ.get('ARTIFACT_RUN_ID'):
         # The workflow validates the source run before selecting this empty matrix.
         matrix = {'include': []}

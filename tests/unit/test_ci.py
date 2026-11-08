@@ -50,7 +50,7 @@ class SelectionTests(unittest.TestCase):
             git('tag', '-a', '1.10.0', '-m', 'published')
             write('shared/a/runtime.go', 'earlier unreleased change; previous run failed\n')
             commit()
-            write('.github/workflows/main.yml', 'current workflow fix\n')
+            write('.github/workflows/main.yml', 'jobs:\n  test:\n    steps: []\n')
             head = commit()
             git('tag', '2.0.0-rc.1')
             unmerged = git('commit-tree', 'HEAD^{tree}', '-m', 'unrelated release')
@@ -116,8 +116,8 @@ class SelectionTests(unittest.TestCase):
         jobs = ci.select(["shared/runtime/main.go"])["include"]
         owners = ci.discover()[1]
         expected = {name for name, directory in owners.items() if ci.build_dependency(ci.ROOT, directory, 'shared/runtime/main.go')}
-        self.assertEqual({j['image'] for j in jobs}, expected)
-        self.assertTrue(all(j["rebuild"] for j in jobs))
+        self.assertEqual({j['image'] for j in jobs if j['rebuild']}, expected)
+        self.assertTrue(expected <= {j['image'] for j in jobs})
         self.assertEqual({j["arch"] for j in jobs}, {"amd64", "arm64"})
 
     def test_owned_source_bootstrap_requires_rebuild_and_matching_title(self):
@@ -145,7 +145,8 @@ class SelectionTests(unittest.TestCase):
 
     def test_action_change_does_not_rebuild(self):
         jobs = ci.select(["oci/new-sbom/action.yml"])["include"]
-        self.assertEqual(len(jobs), 2)
+        self.assertEqual({j['image'] for j in jobs}, {'oci-new-sbom', 'oci-test-vulnerabilities', 'workflow-test-reviewed-vulnerabilities'})
+        self.assertEqual(len(jobs), 6)
         self.assertTrue(all(not j["rebuild"] for j in jobs))
 
     def test_unpublished_selection_cannot_reuse_a_registry_image(self):
@@ -165,7 +166,8 @@ class SelectionTests(unittest.TestCase):
 
     def test_rename_selects_both_sides(self):
         jobs = ci.select(["oci/new-sbom/Containerfile", "oci/publish-image/Containerfile"])["include"]
-        self.assertEqual({j["image"] for j in jobs}, {"oci-new-sbom", "oci-publish-image"})
+        self.assertEqual({j["image"] for j in jobs if j['rebuild']}, {"oci-new-sbom", "oci-publish-image"})
+        self.assertEqual({j["image"] for j in jobs}, {"oci-new-sbom", "oci-publish-image", "oci-test-vulnerabilities", "workflow-test-reviewed-vulnerabilities"})
 
     def test_first_release_full_selection(self):
         self.assertEqual(len(ci.select([], full=True)["include"]), 2*len(ci.discover()[1]))

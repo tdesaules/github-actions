@@ -46,7 +46,7 @@ func TestUnreleasedSourcesOnlyRebuildCurrentSelection(t *testing.T) {
 	git("tag", "-a", "1.10.0", "-m", "published")
 	write("shared/a/runtime.go", "earlier unreleased change; previous run failed\n")
 	commit()
-	write(".github/workflows/main.yml", "current workflow fix\n")
+	write(".github/workflows/main.yml", "jobs:\n  test:\n    steps: []\n")
 	head := commit()
 	git("tag", "2.0.0-rc.1")
 	unmerged := git("commit-tree", "HEAD^{tree}", "-m", "unrelated release")

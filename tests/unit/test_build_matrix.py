@@ -65,7 +65,7 @@ class IgnoreImpactTests(unittest.TestCase):
             history, _ = ci.unreleased_changes(git('rev-parse', 'HEAD'), root)
             for paths in (['.containerignore'], ['.github/workflows/main.yml']):
                 matrix = ci.select(paths, root=root, unreleased=history, baseline=baseline)
-                self.assertEqual(len(matrix['include']), 4)
+                self.assertEqual(len(matrix['include']), 0 if paths == ['.containerignore'] else 4)
                 self.assertFalse(any(j['rebuild'] for j in matrix['include']))
             (root / '.containerignore').write_text('oci/a/main.go\n')
             git('add', '.'); git('commit', '-m', 'exclude actual input')
