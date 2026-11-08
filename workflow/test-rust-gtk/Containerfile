@@ -9,7 +9,7 @@ COPY shared/rustgtk/ ./shared/rustgtk/
 COPY workflow/test-rust-gtk/main.go ./workflow/test-rust-gtk/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/test-rust-gtk
 
-FROM quay.io/fedora/fedora:44@sha256:50ab7dd5a71732975b6a1f19108df021b61254f3a507e68ac8abb5fb0bceb308 AS final
+FROM quay.io/fedora/fedora:44@sha256:5aae8bdc5f40bf70f8f189a70770e6f1fabcb04976e841262431c3bbfdbe3538 AS final
 # Native source tests plus real GTK mapping require compiler, compositor and fonts.
 # hadolint ignore=DL3041
 RUN dnf install -y --setopt=install_weak_deps=False rust-1.99.1-2.fc44 cargo-1.99.1-2.fc44 gcc gtk4-devel pkgconf-pkg-config nodejs22 nodejs22-bin nodejs22-npm nodejs22-npm-bin python3 python3-pyyaml git ca-certificates weston dbus-daemon mesa-dri-drivers google-noto-sans-fonts \

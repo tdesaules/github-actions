@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:44@sha256:50ab7dd5a71732975b6a1f19108df021b61254f3a507e68ac8abb5fb0bceb308 AS build
+FROM quay.io/fedora/fedora:44@sha256:5aae8bdc5f40bf70f8f189a70770e6f1fabcb04976e841262431c3bbfdbe3538 AS build
 # Supporting RPMs follow signed Fedora updates; publication never rebuilds them.
 # hadolint ignore=DL3041
 RUN dnf install -y golang-1.26.10-1.fc44 curl tar gzip && dnf clean all
@@ -20,7 +20,7 @@ RUN case "$(uname -m)" in \
     && printf '%s  /tmp/cliff.tar.gz\n' "$sum" > /tmp/cliff.sha256 \
     && sha256sum -c /tmp/cliff.sha256 \
     && mkdir /cliff && tar -xzf /tmp/cliff.tar.gz --strip-components=1 -C /cliff
-FROM quay.io/fedora/fedora:44@sha256:50ab7dd5a71732975b6a1f19108df021b61254f3a507e68ac8abb5fb0bceb308 AS final
+FROM quay.io/fedora/fedora:44@sha256:5aae8bdc5f40bf70f8f189a70770e6f1fabcb04976e841262431c3bbfdbe3538 AS final
 # Retain signed-repository updates and their RPM ownership metadata.
 # hadolint ignore=DL3041
 RUN dnf install -y --setopt=install_weak_deps=False git ca-certificates && dnf clean all

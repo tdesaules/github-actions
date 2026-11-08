@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:44@sha256:50ab7dd5a71732975b6a1f19108df021b61254f3a507e68ac8abb5fb0bceb308 AS build
+FROM quay.io/fedora/fedora:44@sha256:5aae8bdc5f40bf70f8f189a70770e6f1fabcb04976e841262431c3bbfdbe3538 AS build
 RUN dnf install -y golang-1.26.10-1.fc44 && dnf clean all
 ENV GOTOOLCHAIN=local
 WORKDIR /src
@@ -11,7 +11,7 @@ COPY workflow/new-publication-plan/main.go ./workflow/new-publication-plan/main.
 COPY workflow/get-image-matrix/main.go workflow/get-image-matrix/dependencies.go ./workflow/get-image-matrix/
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/new-publication-plan \
     && CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /matrix ./workflow/get-image-matrix
-FROM quay.io/fedora/fedora:44@sha256:50ab7dd5a71732975b6a1f19108df021b61254f3a507e68ac8abb5fb0bceb308 AS final
+FROM quay.io/fedora/fedora:44@sha256:5aae8bdc5f40bf70f8f189a70770e6f1fabcb04976e841262431c3bbfdbe3538 AS final
 # Retain distribution transport libraries, Git and registry trust configuration.
 # hadolint ignore=DL3041
 RUN dnf install -y skopeo git ca-certificates && dnf clean all
