@@ -109,10 +109,37 @@ jobs:
           name: release-plan
           path: .build/publication/release-plan.json
           include-hidden-files: true
+      # Keep artifact reuse on the same source selector as check. Remove this
+      # control bootstrap after publishing the updated artifact-source image.
+      - name: Build current artifact-source validator
+        if: github.event_name == 'workflow_dispatch' && !inputs.qualify-catalog && !inputs.qualify-runner && inputs.artifact-run-id != ''
+        uses: ./oci/build-image
+        with:
+          context: .
+          containerfile: workflow/test-artifact-source/Containerfile
+          image: localhost/github-actions/workflow-test-artifact-source
+          version: 0.0.0-control-${{ github.run_id }}
+          platform: linux/amd64
+          output: .build/control/artifact-source.oci.tar
+      - name: Transfer artifact-source validator to private registry
+        if: github.event_name == 'workflow_dispatch' && !inputs.qualify-catalog && !inputs.qualify-runner && inputs.artifact-run-id != ''
+        id: artifact-source-image
+        uses: ./workflow/import-candidate-image
+        with:
+          archive: .build/control/artifact-source.oci.tar
+          repository: workflow-test-artifact-source
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Prepare current artifact-source validator action
+        if: github.event_name == 'workflow_dispatch' && !inputs.qualify-catalog && !inputs.qualify-runner && inputs.artifact-run-id != ''
+        uses: ./workflow/new-candidate-action
+        with:
+          directory: workflow/test-artifact-source
+          image: ${{ steps.artifact-source-image.outputs.image }}
+          destination: .candidate-actions/workflow/test-artifact-source
       - name: Validate publication artifact source
         id: resume
-        if: github.event_name == 'workflow_dispatch' && !inputs.qualify-catalog && inputs.artifact-run-id != ''
-        uses: ./workflow/test-artifact-source
+        if: github.event_name == 'workflow_dispatch' && !inputs.qualify-catalog && !inputs.qualify-runner && inputs.artifact-run-id != ''
+        uses: ./.candidate-actions/workflow/test-artifact-source
         with:
           run-id: ${{ inputs.artifact-run-id }}
           release-plan: ${{ steps.plan.outcome == 'success' && '.build/publication/release-plan.json' || '' }}
@@ -121,7 +148,7 @@ jobs:
           token: ${{ github.token }}
       # Bootstrap the new selector output until its qualified image is published.
       # Remove these three steps and restore the published selector uses below
-      # once its digest exposes build-matrix and has-build.
+      # once its qualified digest implements the current selection semantics.
       - name: Build current matrix selector
         if: ${{ (!inputs.qualify-runner || inputs.qualify-catalog) && !startsWith(github.ref, 'refs/tags/') }}
         uses: ./oci/build-image
@@ -1480,8 +1507,42 @@ jobs:
         with:
           name: release-plan
           path: .build/publication
-      - name: Validate exact-source publication artifacts
-        if: needs.check.outputs.mode == 'prepare'
+      # A rebuilt planner embeds the selector used for this source revision.
+      # Execute its tested AMD64 archive rather than a stale published planner.
+      - name: Verify qualified publication planner archive
+        id: planner-receipt
+        if: needs.check.outputs.mode == 'prepare' && hashFiles(format('.build/publication/oci-workflow-new-publication-plan-amd64-{0}/image.oci.tar', inputs.artifact-run-id || github.run_id)) != ''
+        uses: ./workflow/test-build-artifact
+        with:
+          archive: .build/publication/oci-workflow-new-publication-plan-amd64-${{ inputs.artifact-run-id || github.run_id }}/image.oci.tar
+          receipt: .build/publication/oci-workflow-new-publication-plan-amd64-${{ inputs.artifact-run-id || github.run_id }}/build.json
+          image: workflow-new-publication-plan
+          architecture: amd64
+          revision: ${{ github.sha }}
+          version: ${{ needs.check.outputs.version }}-${{ inputs.artifact-run-id || github.run_id }}
+      - name: Transfer qualified publication planner to private registry
+        id: planner-image
+        if: steps.planner-receipt.outcome == 'success'
+        uses: ./workflow/import-candidate-image
+        with:
+          archive: .build/publication/oci-workflow-new-publication-plan-amd64-${{ inputs.artifact-run-id || github.run_id }}/image.oci.tar
+          repository: workflow-new-publication-plan
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Prepare qualified publication planner action
+        if: steps.planner-image.outcome == 'success'
+        uses: ./workflow/new-candidate-action
+        with:
+          directory: workflow/new-publication-plan
+          image: ${{ steps.planner-image.outputs.image }}
+          destination: .candidate-actions/workflow/new-publication-plan
+      - name: Validate exact-source publication artifacts with qualified planner
+        if: steps.planner-image.outcome == 'success'
+        uses: ./.candidate-actions/workflow/new-publication-plan
+        with:
+          owner: ${{ github.repository_owner }}
+          release-plan: .build/publication/release-plan.json
+      - name: Validate exact-source publication artifacts with unchanged planner
+        if: needs.check.outputs.mode == 'prepare' && hashFiles(format('.build/publication/oci-workflow-new-publication-plan-amd64-{0}/image.oci.tar', inputs.artifact-run-id || github.run_id)) == ''
         uses: ./workflow/new-publication-plan
         with:
           owner: ${{ github.repository_owner }}

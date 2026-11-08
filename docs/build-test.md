@@ -125,6 +125,25 @@ job, sans commande Docker de démarrage ou de suppression sur le runner.
 
 ## Activation des images
 
+Le planificateur de publication embarque lui aussi le sélecteur dans `/matrix`.
+Lorsqu'il est reconstruit, `release` vérifie son archive AMD64 qualifiée (checksum,
+image, révision et version du run d'origine), la transfère au registre privé et
+exécute cette archive exacte. Le planificateur publié n'est utilisé que s'il n'y
+a pas de candidat reconstruit. Un échec de validation ne permet pas de basculer
+silencieusement vers l'ancien planificateur.
+
+Cela corrige le décalage observé dans le run `42497691260` : l'ancien sélecteur
+embarqué attendait 160 archives alors que la sélection courante en nécessitait
+128. Le candidat qualifié de ce même run attend bien 128 archives. Les contrôles
+de provenance et d'intégrité restent bloquants.
+
+Le chemin optionnel `artifact-run-id` utilise temporairement un validateur de
+source construit depuis le checkout, afin d'embarquer les mêmes règles de sélection.
+Après publication de sa nouvelle image, retirer ses trois étapes de bootstrap et
+rétablir l'appel direct à `workflow/test-artifact-source`. La validation continue
+d'exiger un run réussi au commit exact ; un ancien run échoué ne devient pas une
+source de publication autorisée.
+
 Les neuf images ont été qualifiées et publiées par le run `40352155319` dans
 `1.2.0`. Les six jobs sont maintenant composés d'appels `uses`, sans step `run`.
 La construction écrit le reçu via l'action publiée ; les tests passent par le
