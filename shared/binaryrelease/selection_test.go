@@ -118,6 +118,58 @@ func TestCaseInsensitiveBumps(t *testing.T) {
 	}
 }
 
+func TestBumpReadsGitHistoryBehindMergeCommit(t *testing.T) {
+	for _, tc := range []struct{ message, want string }{
+		{"fix(deps): update gtk", "patch"},
+		{"feat: add tabs", "minor"},
+		{"chore!: remove legacy configuration", "major"},
+		{"docs: migration\n\nBREAKING CHANGE: remove legacy configuration", "major"},
+		{"docs: clarify usage", ""},
+	} {
+		t.Run(tc.want+tc.message, func(t *testing.T) {
+			base := fixtureRepo(t)
+			if _, err := Git("switch", "-c", "dependency"); err != nil {
+				t.Fatal(err)
+			}
+			write(t, "change.txt", "dependency update\n")
+			commit(t, tc.message)
+			if _, err := Git("switch", "main"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Git("merge", "--no-ff", "dependency", "-m", "Merge pull request #2 from owner/dependency"); err != nil {
+				t.Fatal(err)
+			}
+			raw, err := gitRaw("log", base+"..HEAD", "--format=%B%x00")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := Bump(strings.Split(string(raw), "\x00")); got != tc.want {
+				t.Fatalf("got %q, want %q from Git history %q", got, tc.want, raw)
+			}
+		})
+	}
+}
+
+func TestNoBumpReasonDistinguishesInitialRelease(t *testing.T) {
+	for _, tag := range []string{"", "0.1.0", "1.0.0"} {
+		t.Run("tag="+tag, func(t *testing.T) {
+			source := fixtureRepo(t)
+			if tag != "" {
+				if _, err := Git("tag", tag); err != nil {
+					t.Fatal(err)
+				}
+			}
+			p, err := MakePlan(PlanOptions{Event: "workflow_dispatch", Ref: "refs/heads/main", Mode: "prepare", SourceSHA: source})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if p.HasRelease || strings.Contains(p.Reason, "initial-release") != (tag == "") {
+				t.Fatalf("unexpected no-bump plan: %+v", p)
+			}
+		})
+	}
+}
+
 func TestJSONConfigurationRequiresSyntaxLintWithoutBinaryRebuild(t *testing.T) {
 	before := fixtureRepo(t)
 	write(t, "renovate.json", "{invalid JSON\n")

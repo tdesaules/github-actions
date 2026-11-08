@@ -63,6 +63,8 @@ func latestStable() (string, error) {
 func Bump(messages []string) string {
 	level := 0
 	for _, m := range messages {
+		// git log separates formatted records with a newline after our NUL.
+		m = strings.TrimSpace(m)
 		line := strings.ToLower(strings.SplitN(m, "\n", 2)[0])
 		colon := strings.Index(line, ":")
 		if colon < 0 {
@@ -260,7 +262,16 @@ func MakePlan(o PlanOptions) (Plan, error) {
 		p.HasRelease = release
 		p.Reason = "complete release qualification"
 		if !release {
-			p.Reason = "no release bump; initial 1.0.0 requires explicit initial-release"
+			p.Reason = "no release bump: no version-changing commits since the latest stable tag"
+			if p.Version == "0.1.0" {
+				previous, err := latestStable()
+				if err != nil {
+					return p, err
+				}
+				if previous == "" {
+					p.Reason = "initial 1.0.0 requires explicit initial-release"
+				}
+			}
 		}
 		build = release
 		if !release {
