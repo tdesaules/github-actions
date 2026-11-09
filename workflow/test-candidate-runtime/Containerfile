@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:44@sha256:5aae8bdc5f40bf70f8f189a70770e6f1fabcb04976e841262431c3bbfdbe3538 AS build
+FROM quay.io/fedora/fedora:44@sha256:526646a990bb8442f936827d98253677dd7a4c28fad33f938e32c7ffdadb72c1 AS build
 RUN dnf install -y golang-1.26.10-1.fc44 && dnf clean all
 ENV GOTOOLCHAIN=local
 WORKDIR /src
@@ -10,7 +10,7 @@ COPY shared/workflow/ ./shared/workflow/
 COPY workflow/test-candidate-runtime/ ./workflow/test-candidate-runtime/
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/test-candidate-runtime \
     && echo 'disposable-candidate-runtime' > /candidate-runtime-marker
-FROM quay.io/fedora/fedora:44@sha256:5aae8bdc5f40bf70f8f189a70770e6f1fabcb04976e841262431c3bbfdbe3538 AS final
+FROM quay.io/fedora/fedora:44@sha256:526646a990bb8442f936827d98253677dd7a4c28fad33f938e32c7ffdadb72c1 AS final
 # Skopeo's distribution policy, trust store and transport libraries are retained.
 # hadolint ignore=DL3041
 RUN dnf install -y skopeo git ca-certificates && dnf clean all
