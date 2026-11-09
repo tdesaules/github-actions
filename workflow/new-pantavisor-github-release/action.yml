@@ -8,7 +8,7 @@ inputs:
   token: {description: GitHub token with contents write permission, required: true}
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-pantavisor-github-release@sha256:09a7a804b5cbfb37b865cc64a162730daf3fb012e79e5f963e294af5be23ea57
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-pantavisor-github-release@sha256:daa69b7d3be1bdb5310d691c22de7be4e1b1c4d75929f5ee26d21217b48dd598
   env:
     INPUT_TOKEN: ${{ inputs.token }}
   args:

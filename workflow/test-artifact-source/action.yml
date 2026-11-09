@@ -21,7 +21,7 @@ outputs:
     description: Immutable artifact IDs covering the required native builds across successful retries
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-artifact-source@sha256:0c6cad81e61a1ee83dc3ff1bd1db3645ca45ec9b49a19451df3c22b84fadc19e
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-artifact-source@sha256:a33609218ddddceeebe5327914fb5869adde1264ae9aed154ae3dfc3e2ab233c
   env:
     INPUT_TOKEN: ${{ inputs.token }}
     INPUT_RELEASE-PLAN: ${{ inputs.release-plan }}

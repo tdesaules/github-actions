@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.6.1
+
+- activate published Rust GTK catalog controls (ccd2be1)
+
+- recognize version bumps behind merge commits (8d8d9ac)
+
+- share bot App credentials for release and Renovate (dc47ca8)
+
+- replace unavailable Fedora 44 image digest (281b404)
+
+- allocate build jobs only for required images (5cc221c)
+
+- refresh the unavailable Fedora 45 base digest (c6aacfe)
+
+- reuse source-equivalent successful build archives (962c413)
+
+- select image tests from qualification dependencies (d73130b)
+
+- activate the qualified publication planner (b574cc7)
+
+- generate lintable release changelog spacing (033a4d7)
+
+- simplify manual dispatch to release preparation (de4fd33)
+
 ## 1.6.0
 
 - use approved bases for application CI tools (f30fb41)

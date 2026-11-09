@@ -9,7 +9,7 @@ inputs:
     default: .build/lint/rust-gtk.json
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/lint-rust-gtk@sha256:c6fd5866f40b5944a3ea7e5686a03682ff4a8e7d4fcd3cf2d31d6f510f64e884
+  image: docker://ghcr.io/tdesaules/github-actions/lint-rust-gtk@sha256:33eb6ff7cc2503416ea2bfe7e2e736e1f36faa87deed1786ffe118b5e63b83a2
   args:
     - --directory=${{ inputs.directory }}
     - --output=${{ inputs.output }}

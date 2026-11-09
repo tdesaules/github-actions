@@ -9,6 +9,6 @@ outputs:
     description: Deterministic synthetic Rust application source commit
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-test-fixtures@sha256:311cea2b5b719e8a047d4a854c13894fe1b23101b50e11373d4daa61be31fe52
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-test-fixtures@sha256:11ae0f0643a3593b0f379483b20c4c66aaf43fee607b29bbe5d1643b12314e2e
   args:
     - --directory=${{ inputs.directory }}

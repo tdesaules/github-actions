@@ -19,7 +19,7 @@ outputs:
     description: TLS digest destination transport for publication
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-registry-fixtures@sha256:9ec6e2e8a25688814965f859339e7aaceab8749aa565ccdb9d35784a6f02bfc3
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-registry-fixtures@sha256:9930f83368e3404c3a299aea1a625d51b2dc47449d3e12a5fa228739f4cbb7c3
   args:
     - --directory=${{ inputs.directory }}
     - --seed=${{ inputs.seed }}

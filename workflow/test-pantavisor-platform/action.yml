@@ -15,7 +15,7 @@ inputs:
     default: artifacts/public-reports
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-pantavisor-platform@sha256:c52c4ef784271bc916f781694c338913be21a5793a08b3c62bc1b16a47c06c09
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-pantavisor-platform@sha256:b9e313366bbb9e2c78c8655148366deda11c3c1d116a2fb22ba6154d98e2c763
   args:
     - --directory=${{ inputs.directory }}
     - --bundle=${{ inputs.bundle }}
