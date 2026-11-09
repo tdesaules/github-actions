@@ -34,6 +34,13 @@ class ConsumerTests(unittest.TestCase):
         self.assertNotIn('oci/publish-image@', text)
         self.assertIn('registry: ghcr.io/${{ github.repository }}/bsp', text)
 
+    def test_publication_checkout_preserves_annotated_tag(self):
+        for project in ('core', 'k0s', 'system'):
+            release = module.render(project, '1.6.1').split('  release:\n', 1)[1].split('  maintenance:\n', 1)[0]
+            checkout = release.split('      - name: Validate release tag and preparation run', 1)[0]
+            self.assertIn("ref: ${{ github.ref_type == 'tag' && github.ref || github.sha }}", checkout)
+            self.assertIn('fetch-depth: 0', checkout)
+
     def test_missing_catalogue_release_prevents_activation(self):
         import tempfile
         with tempfile.TemporaryDirectory() as directory:
