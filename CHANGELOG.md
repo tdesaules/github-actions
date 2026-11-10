@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.2
+
+- preserve annotated tags during publication checkout (acfb74b)
+
+- refresh unavailable Fedora base digests (4fb98a8)
+
+- update Fedora manifests after upstream disappearance (0cb5d2b)
+
 ## 1.6.1
 
 - activate published Rust GTK catalog controls (ccd2be1)
