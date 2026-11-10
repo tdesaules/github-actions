@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:45@sha256:b3bfa9b46c1a42b87020ea9053b56d24d713a0c551427669dee177230f1c720e AS build
+FROM quay.io/fedora/fedora:45@sha256:3632de47c2cef45d6a6ea6a420280ff9ce452e225a1b291299c105b9d9bae471 AS build
 # hadolint ignore=DL3041
 RUN dnf install -y golang-1.27.3-1.fc45 ca-certificates && dnf clean all
 ENV GOTOOLCHAIN=local
@@ -9,7 +9,7 @@ COPY maintenance/update-dependencies/checksums/main.go ./maintenance/update-depe
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./maintenance/update-dependencies \
     && CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /update-tool-checksums ./maintenance/update-dependencies/checksums
 
-FROM quay.io/fedora/fedora:45@sha256:b3bfa9b46c1a42b87020ea9053b56d24d713a0c551427669dee177230f1c720e AS dependencies
+FROM quay.io/fedora/fedora:45@sha256:3632de47c2cef45d6a6ea6a420280ff9ce452e225a1b291299c105b9d9bae471 AS dependencies
 # hadolint ignore=DL3041
 RUN dnf install -y nodejs24-24.18.0-4.fc45 nodejs24-npm ca-certificates && dnf clean all \
     && ln -s /usr/bin/node-24 /usr/local/bin/node \
@@ -44,7 +44,7 @@ COPY maintenance/update-dependencies/update-undici.cjs /update-undici.cjs
 RUN /usr/local/renovate/node /patch-braces.cjs \
     && /usr/local/renovate/node /update-undici.cjs
 
-FROM quay.io/fedora/fedora:45@sha256:b3bfa9b46c1a42b87020ea9053b56d24d713a0c551427669dee177230f1c720e AS final
+FROM quay.io/fedora/fedora:45@sha256:3632de47c2cef45d6a6ea6a420280ff9ce452e225a1b291299c105b9d9bae471 AS final
 # Renovate needs a maintained Node, Git/HTTPS, shell and Go environment.
 # Retain the distro's runtime closure, RPM metadata, trust roots and licenses.
 # hadolint ignore=DL3041

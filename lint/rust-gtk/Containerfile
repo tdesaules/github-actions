@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:45@sha256:b3bfa9b46c1a42b87020ea9053b56d24d713a0c551427669dee177230f1c720e AS build
+FROM quay.io/fedora/fedora:45@sha256:3632de47c2cef45d6a6ea6a420280ff9ce452e225a1b291299c105b9d9bae471 AS build
 # hadolint ignore=DL3041
 RUN dnf install -y golang-1.27.3-1.fc45 && dnf clean all
 ENV GOTOOLCHAIN=local
@@ -9,7 +9,7 @@ COPY shared/rustgtk/ ./shared/rustgtk/
 COPY lint/rust-gtk/main.go ./lint/rust-gtk/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./lint/rust-gtk
 
-FROM quay.io/fedora/fedora:44@sha256:526646a990bb8442f936827d98253677dd7a4c28fad33f938e32c7ffdadb72c1 AS final
+FROM quay.io/fedora/fedora:44@sha256:17c99e30075386f9385685a22ad1924e2c22faee5863272c0379c81b80b9d258 AS final
 # Packaged compiler and GTK headers are required by Clippy; never bootstrap rustup.
 # hadolint ignore=DL3041
 RUN dnf install -y --setopt=install_weak_deps=False rust-1.99.1-2.fc44 cargo-1.99.1-2.fc44 rustfmt-1.99.1-2.fc44 clippy-1.99.1-2.fc44 gcc gtk4-devel pkgconf-pkg-config nodejs22 nodejs22-bin nodejs22-npm nodejs22-npm-bin python3 desktop-file-utils git ca-certificates \
