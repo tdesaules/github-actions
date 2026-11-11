@@ -19,10 +19,6 @@ jobs:
   check:
     if: github.event_name != 'schedule'
     runs-on: ubuntu-24.04
-    services:
-      candidate-registry:
-        image: ghcr.io/tdesaules/github-actions/workflow-start-test-registry@sha256:c6732ab79e17ac5e6f51bbb58a3f95425dc60c345ca1ecf8b9a2b8933be2a976
-        ports: ['5000/tcp']
     permissions:
       contents: read
       actions: read
@@ -83,36 +79,9 @@ jobs:
           name: release-plan
           path: .build/publication/release-plan.json
           include-hidden-files: true
-      # Bootstrap the new selector output until its qualified image is published.
-      # Remove these three steps and restore the published selector uses below
-      # once its qualified digest implements the current selection semantics.
-      - name: Build current matrix selector
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        uses: ./oci/build-image
-        with:
-          context: .
-          containerfile: workflow/get-image-matrix/Containerfile
-          image: localhost/github-actions/workflow-get-image-matrix
-          version: 0.0.0-control-${{ github.run_id }}
-          platform: linux/amd64
-          output: .build/control/selector.oci.tar
-      - name: Transfer matrix selector to private registry
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        id: selector-image
-        uses: ./workflow/import-candidate-image
-        with:
-          archive: .build/control/selector.oci.tar
-          repository: workflow-get-image-matrix
-          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
-      - name: Prepare current matrix selector action
-        uses: ./workflow/new-candidate-action
-        with:
-          directory: workflow/get-image-matrix
-          image: ${{ steps.selector-image.outputs.image || 'ghcr.io/tdesaules/github-actions/workflow-get-image-matrix@sha256:0f77d0f8eab42a1b6579b7948d7c713cbc25186273b693081bb29623d47ef769' }}
-          destination: .candidate-actions/workflow/get-image-matrix
       - name: Select mode and dynamic matrices
         id: select
-        uses: ./.candidate-actions/workflow/get-image-matrix
+        uses: ./workflow/get-image-matrix
         with:
           files: ${{ steps.sources.outputs.files }}
           full: ${{ steps.sources.outputs.full }}

@@ -165,7 +165,10 @@ func TestMigratedJobsUsePublishedActions(t *testing.T) {
 			if uses == "./workflow/prepare-source-action" || strings.HasPrefix(uses, "./.source-actions/") || with["allow-source"] != nil || env["ALLOW_SOURCE_ACTIONS"] != nil {
 				t.Fatalf("%s: retired source bootstrap in %v", job, step["name"])
 			}
-			candidate := (job == "test" || (job == "check" && uses == "./.candidate-actions/workflow/get-image-matrix")) && strings.HasPrefix(uses, "./.candidate-actions/")
+			candidate := job == "test" && strings.HasPrefix(uses, "./.candidate-actions/")
+			if job == "check" && (strings.HasPrefix(uses, "./.candidate-actions/") || uses == "./oci/build-image" || uses == "./workflow/import-candidate-image" || uses == "./workflow/new-candidate-action") {
+				t.Fatalf("check must plan with published actions without a bootstrap build: %v", step["name"])
+			}
 			// Candidate actions preserve the source directory beneath this prefix.
 			uses = strings.Replace(uses, "./.candidate-actions/", "./", 1)
 			if !strings.HasPrefix(uses, "./") {
