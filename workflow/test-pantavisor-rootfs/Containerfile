@@ -6,7 +6,7 @@ COPY shared/pantavisor/ ./shared/pantavisor/
 COPY shared/component/ ./shared/component/
 COPY workflow/test-pantavisor-rootfs/main.go ./workflow/test-pantavisor-rootfs/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/test-pantavisor-rootfs
-FROM docker.io/library/ubuntu:24.04@sha256:534baea6a22c03a63003dbc8dbe78fe34bc0d7e595d9a9dc9834884ff530eb55 AS qemu
+FROM docker.io/library/ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852 AS qemu
 ARG DEBIAN_FRONTEND=noninteractive
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential ca-certificates curl libglib2.0-dev ninja-build python3 python3-venv python3-tomli xz-utils && rm -rf /var/lib/apt/lists/*
@@ -17,7 +17,7 @@ RUN curl -fL https://download.qemu.org/qemu-10.2.2.tar.xz -o qemu.tar.xz \
     && tar -xf qemu.tar.xz --strip-components=1 \
     && ./configure --prefix=/opt/qemu --target-list=aarch64-linux-user --disable-docs --disable-tools --disable-guest-agent \
     && make -j4 && make install
-FROM docker.io/library/ubuntu:24.04@sha256:534baea6a22c03a63003dbc8dbe78fe34bc0d7e595d9a9dc9834884ff530eb55 AS tools
+FROM docker.io/library/ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852 AS tools
 ARG DEBIAN_FRONTEND=noninteractive
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libglib2.0-0t64 python3 squashfs-tools && rm -rf /var/lib/apt/lists/*
