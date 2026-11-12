@@ -6,7 +6,7 @@ COPY shared/component/ ./shared/component/
 COPY shared/pantavisor/ ./shared/pantavisor/
 COPY workflow/complete-pantavisor-release/main.go ./workflow/complete-pantavisor-release/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/complete-pantavisor-release \
-    && apk add --no-cache git=2.54.0-r0
+    && apk add --no-cache git=2.54.1-r0
 COPY shared/collect-binaries.sh /collect-binaries.sh
 RUN sh /collect-binaries.sh /usr/bin/git /bin/sh /usr/libexec/git-core/git-remote-http
 FROM scratch AS final

@@ -4,7 +4,7 @@ COPY go.mod go.sum ./
 COPY shared/testsuite/ ./shared/testsuite/
 COPY check/test-go/main.go ./check/test-go/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./check/test-go \
-    && apk add --no-cache git=2.54.0-r0
+    && apk add --no-cache git=2.54.1-r0
 COPY shared/collect-binaries.sh /collect-binaries.sh
 RUN sh /collect-binaries.sh /usr/bin/git /bin/sh
 

@@ -4,7 +4,7 @@ COPY go.mod go.sum ./
 COPY shared/testsuite/ ./shared/testsuite/
 COPY check/test-pantavisor-system/main.go ./check/test-pantavisor-system/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./check/test-pantavisor-system \
-    && apk add --no-cache bash=5.3.9-r1 cpio=2.15-r0 git=2.54.0-r0 grub=2.14-r0 python3=3.14.10-r1
+    && apk add --no-cache bash=5.3.9-r1 cpio=2.15-r0 git=2.54.1-r0 grub=2.14-r0 python3=3.14.10-r1
 COPY shared/collect-binaries.sh /collect-binaries.sh
 RUN sh /collect-binaries.sh /usr/bin/python3 /usr/bin/git /bin/sh /bin/bash /usr/bin/env /usr/bin/cpio /usr/bin/grub-script-check /usr/bin/grub-editenv \
     && find /usr/lib/python3.14/lib-dynload -name '*.so' -exec sh /collect-binaries.sh {} +
