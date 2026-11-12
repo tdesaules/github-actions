@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:44@sha256:17c99e30075386f9385685a22ad1924e2c22faee5863272c0379c81b80b9d258 AS build
+FROM quay.io/fedora/fedora:44@sha256:102f5031dc46ed1975bd2cd98bdf19c59617f3f0026310022f3cb680abe056d3 AS build
 # hadolint ignore=DL3041
 RUN dnf install -y golang-1.26.10-1.fc44 curl tar gzip && dnf clean all
 ENV GOTOOLCHAIN=local
@@ -16,7 +16,7 @@ RUN case "$(uname -m)" in \
     && printf '%s  /tmp/cliff.tar.gz\n' "$sum" > /tmp/cliff.sha256 \
     && sha256sum -c /tmp/cliff.sha256 \
     && mkdir /cliff && tar -xzf /tmp/cliff.tar.gz --strip-components=1 -C /cliff
-FROM quay.io/fedora/fedora:44@sha256:17c99e30075386f9385685a22ad1924e2c22faee5863272c0379c81b80b9d258 AS final
+FROM quay.io/fedora/fedora:44@sha256:102f5031dc46ed1975bd2cd98bdf19c59617f3f0026310022f3cb680abe056d3 AS final
 # Atomic git push and git-cliff retain their distribution runtime.
 # hadolint ignore=DL3041
 RUN dnf install -y --setopt=install_weak_deps=False git ca-certificates && dnf clean all

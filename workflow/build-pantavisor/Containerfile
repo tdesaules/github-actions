@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:45@sha256:3632de47c2cef45d6a6ea6a420280ff9ce452e225a1b291299c105b9d9bae471 AS build
+FROM quay.io/fedora/fedora:45@sha256:fa773d10382c082ff2cccaf7982a5c162f11f296f91274b994357f2d3d473770 AS build
 # Distribution-maintained compiler; no system compiler/library source builds.
 # Resolve supporting RPMs from signed Fedora repositories; promote exact archives.
 # hadolint ignore=DL3041
@@ -22,7 +22,7 @@ RUN go mod init github.com/tdesaules/git-lfs-build \
     && CGO_ENABLED=0 go build -mod=mod -trimpath -ldflags='-s -w' -o /git-lfs github.com/git-lfs/git-lfs/v3 \
     && cp /root/go/pkg/mod/github.com/git-lfs/git-lfs/v3@v3.8.1/LICENSE.md /LICENSE.md
 
-FROM quay.io/fedora/fedora:45@sha256:3632de47c2cef45d6a6ea6a420280ff9ce452e225a1b291299c105b9d9bae471 AS final
+FROM quay.io/fedora/fedora:45@sha256:fa773d10382c082ff2cccaf7982a5c162f11f296f91274b994357f2d3d473770 AS final
 COPY workflow/build-pantavisor/requirements.txt /opt/pantavisor/requirements.txt
 # A Yocto builder needs a full shell/toolchain environment. Keep RPM metadata and
 # dependency management instead of reconstructing a distribution inside scratch.
