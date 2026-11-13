@@ -48,7 +48,7 @@ outputs:
     description: Qualification version or release tag
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-image-matrix@sha256:a32426bc0a3ef3e637bdac24fcc0847f622aa02d2eabf4d89efbb5fcb0c70b23
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-image-matrix@sha256:21902dad949b38183d203fc53d64d7b697b7232b04cef89995dc22a261f5f3b9
   env:
     INPUT_TOKEN: ${{ inputs.token }}
     MATRIX_REUSE_BUILDS: ${{ inputs.reuse-builds }}

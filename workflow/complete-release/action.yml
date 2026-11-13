@@ -9,7 +9,7 @@ inputs:
     required: true
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-complete-release@sha256:aba5fdebf310cc35ba2904f9fbb9783b86548b728f0a4ade1ee5c4f7981c72de
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-complete-release@sha256:15efd3f62f1328ce9c84ae42d265b71cfab105b40133aba62f4a893347138e19
   env:
     INPUT_TOKEN: ${{ inputs.token }}
   args:

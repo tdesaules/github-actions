@@ -53,7 +53,7 @@ outputs:
     description: Unique plan artifact name
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-plan-rust-gtk-release@sha256:5bb5851330cf2e5323113b82a76f951e9a4e1fe21bb8a79ff6da4f2910d67076
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-plan-rust-gtk-release@sha256:6e73052e1b4101e26eeb0914f57eff4b12e7889abbf614ff77db2f5031d0fbab
   env:
     INPUT_DIRECTORY: ${{ inputs.directory }}
     INPUT_EVENT: ${{ inputs.event }}

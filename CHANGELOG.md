@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.6.3
+
+- update docker.io/library/golang:1.27.3-alpine3.24 docker digest to fa3d596 (7cc6511)
+
+- update docker.io/library/ubuntu:24.04 docker digest to fe81560 (a0b3893)
+
+- activate the published matrix selector (5904437)
+
+- refresh Fedora bases and available Git RPM (58a428c)
+
+- use the available Alpine Git package (ec689a4)
+
 ## 1.6.2
 
 - preserve annotated tags during publication checkout (acfb74b)

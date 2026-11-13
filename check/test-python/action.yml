@@ -9,7 +9,7 @@ inputs:
     default: tests/unit
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/check-test-python@sha256:c472db34086e0242d3e486ab915bba06826aa73a3fb40ec1d4c645e21ab3b9cb
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-python@sha256:4f81efc0dd71434ca35b5661ce3704d026aacc283de3d1913f7d51c990d7b6cd
   env:
     INPUT_TESTS-DIRECTORY: ${{ inputs.tests-directory }}
   args:

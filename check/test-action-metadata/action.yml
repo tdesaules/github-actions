@@ -11,6 +11,6 @@ outputs:
     description: Whether every file passed
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/check-test-action-metadata@sha256:906335783e85a3c1d71207d16319ec7f676685fcffeb8c4130ea9b0da08570c8
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-action-metadata@sha256:bb53c568d11874990925debd2e9360e270fa3515576cb0d80a3b0572ca8a7c78
   args:
     - --files=${{ inputs.files }}
