@@ -61,16 +61,41 @@ func verifyConfig(data []byte, arch, revision string) error {
 
 func run() error {
 	archive := flag.String("archive", "", "exact built OCI archive")
+	reference := flag.String("reference", "", "immutable published image")
+	archiveOutput := flag.String("archive-output", ".build/published.oci.tar", "downloaded native archive")
 	expected := flag.String("sha256", "", "expected archive checksum")
 	revision := flag.String("revision", "", "expected source revision")
 	arch := flag.String("architecture", "", "native architecture")
 	version := flag.String("fedora-version", "45", "expected Fedora version")
 	output := flag.String("output", "qualification.json", "qualification receipt")
+	versionLabel := flag.String("version", "", "candidate or release version")
 	flag.Parse()
-	if flag.NArg() != 0 || *archive == "" || !hashPattern.MatchString(*expected) ||
+	if flag.NArg() != 0 || (*archive == "") == (*reference == "") ||
 		!revisionPattern.MatchString(*revision) || (*arch != "amd64" && *arch != "arm64") ||
 		*arch != runtime.GOARCH || !regexp.MustCompile(`^[0-9]+$`).MatchString(*version) {
-		return fmt.Errorf("archive, checksum, source revision and matching native architecture required")
+		return fmt.Errorf("one archive or immutable reference, source revision and matching native architecture required")
+	}
+	if *archive != "" && !hashPattern.MatchString(*expected) {
+		return fmt.Errorf("archive checksum required")
+	}
+	if *reference != "" {
+		if !regexp.MustCompile(`^ghcr\.io/[a-z0-9][a-z0-9._/-]+@sha256:[a-f0-9]{64}$`).MatchString(*reference) {
+			return fmt.Errorf("published reference must be an immutable GHCR digest")
+		}
+		if *archiveOutput == "" {
+			return fmt.Errorf("download archive path required")
+		}
+		if _, err := os.Lstat(*archiveOutput); !os.IsNotExist(err) {
+			return fmt.Errorf("download archive must not already exist")
+		}
+		if err := os.MkdirAll(filepath.Dir(*archiveOutput), 0755); err != nil {
+			return err
+		}
+		if _, err := command("skopeo", "--override-arch", *arch, "copy", "--preserve-digests",
+			"docker://"+*reference, "oci-archive:"+*archiveOutput); err != nil {
+			return err
+		}
+		*archive = *archiveOutput
 	}
 	archivePath, err := filepath.Abs(*archive)
 	if err != nil {
@@ -87,7 +112,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	if before != *expected {
+	if *reference == "" && before != *expected {
 		return fmt.Errorf("archive checksum mismatch")
 	}
 	tmp, err := os.MkdirTemp("", "atomic-qualification-")
@@ -103,8 +128,13 @@ func run() error {
 	if err := verifyConfig(config, *arch, *revision); err != nil {
 		return err
 	}
+	manifest, err := command("skopeo", "inspect", "--raw", source)
+	if err != nil {
+		return err
+	}
+	manifestDigest := fmt.Sprintf("sha256:%x", sha256.Sum256(manifest))
 	layout := filepath.Join(tmp, "layout")
-	if _, err := command("skopeo", "copy", source, "oci:"+layout+":candidate"); err != nil {
+	if _, err := command("skopeo", "copy", "--preserve-digests", source, "oci:"+layout+":candidate"); err != nil {
 		return err
 	}
 	bundle := filepath.Join(tmp, "bundle")
@@ -148,7 +178,9 @@ func run() error {
 	}
 	report := map[string]any{
 		"schema_version": 1, "source_sha": *revision, "arch": *arch,
-		"archive": filepath.Base(*archive), "sha256": before, "tested": true,
+		"component": "os", "version": *versionLabel, "reference": *reference,
+		"manifest_digest": manifestDigest,
+		"archive":         filepath.Base(*archive), "sha256": before, "tested": true,
 		"qualification": "userspace", "boot_tested": false,
 		"run_id": os.Getenv("GITHUB_RUN_ID"), "run_attempt": os.Getenv("GITHUB_RUN_ATTEMPT"),
 		"checks": results, "packages": strings.Split(strings.TrimSpace(string(inventory)), "\n"),
@@ -161,6 +193,15 @@ func run() error {
 		return err
 	}
 	if err := os.WriteFile(outputPath, append(data, '\n'), 0644); err != nil {
+		return err
+	}
+	if err := workflow.Output("archive", *archive); err != nil {
+		return err
+	}
+	if err := workflow.Output("sha256", before); err != nil {
+		return err
+	}
+	if err := workflow.Output("manifest-digest", manifestDigest); err != nil {
 		return err
 	}
 	return workflow.Output("receipt", *output)

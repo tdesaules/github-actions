@@ -3,10 +3,15 @@ description: Qualify native Niri Atomic userspace from an exact OCI archive with
 inputs:
   archive:
     description: OCI archive to qualify
-    required: true
+  reference:
+    description: Immutable published GHCR reference, mutually exclusive with archive
+  archive-output:
+    description: Downloaded native archive for a published reference
+    default: .build/published.oci.tar
   sha256:
     description: Expected archive checksum from the build receipt
-    required: true
+  version:
+    description: Candidate or release version recorded in the receipt
   revision:
     description: Expected source commit
     required: true
@@ -20,6 +25,12 @@ inputs:
     description: Qualification report and RPM inventory
     default: qualification.json
 outputs:
+  archive:
+    description: Native archive used for qualification and subsequent scans
+  sha256:
+    description: Verified native archive checksum
+  manifest-digest:
+    description: Native manifest digest to verify the ISO's embedded OS
   receipt:
     description: Workspace-relative qualification report
 runs:
@@ -27,7 +38,10 @@ runs:
   image: Containerfile
   args:
     - --archive=${{ inputs.archive }}
+    - --reference=${{ inputs.reference }}
+    - --archive-output=${{ inputs.archive-output }}
     - --sha256=${{ inputs.sha256 }}
+    - --version=${{ inputs.version }}
     - --revision=${{ inputs.revision }}
     - --architecture=${{ inputs.architecture }}
     - --fedora-version=${{ inputs.fedora-version }}

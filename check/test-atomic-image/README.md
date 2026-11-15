@@ -6,6 +6,11 @@ disposable root with Skopeo/umoci; execute Niri configuration validation, PAM
 library checks and package/service/profile checks in that root; then verify the
 original checksum again.
 
+Tag qualification can instead supply an immutable public GHCR `reference`.
+The native manifest is downloaded to `archive-output` and qualified without
+rebuilding it. The returned archive can also be used for SBOM generation.
+Archive inputs still require the expected checksum from their build receipt.
+
 The output records the RPM inventory and userspace checks. `tested: true` means
 these checks passed. `boot_tested: false` explicitly excludes boot, graphical
 login, hardware and installer qualification. SBOMs and vulnerability scans are

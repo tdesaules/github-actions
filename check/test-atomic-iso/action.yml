@@ -1,0 +1,50 @@
+name: Test Atomic installer media
+description: Verify ISO media and every embedded OCI blob against the qualified native OS
+inputs:
+  iso:
+    description: ISO payload
+    required: true
+  receipt:
+    description: Original untested build receipt at ISO.build.json alongside the ISO
+    required: true
+  revision:
+    description: Expected source commit
+    required: true
+  version:
+    description: Expected candidate version
+    required: true
+  os-archive-sha256:
+    description: Qualified AMD64 OS archive checksum
+    required: true
+  os-manifest-digest:
+    description: Qualified AMD64 OS manifest digest
+    required: true
+  image-name:
+    description: Embedded OCI directory name
+    default: niri-tomic-os
+  output:
+    description: Installer media qualification report
+    default: .build/iso-qualification.json
+outputs:
+  receipt:
+    description: Qualification report
+  directory:
+    description: Qualified payload directory
+  files:
+    description: Checksum-bound ORAS payload array
+  sha256:
+    description: ISO checksum
+  size:
+    description: ISO byte size
+runs:
+  using: docker
+  image: Containerfile
+  args:
+    - --iso=${{ inputs.iso }}
+    - --receipt=${{ inputs.receipt }}
+    - --revision=${{ inputs.revision }}
+    - --version=${{ inputs.version }}
+    - --os-archive-sha256=${{ inputs.os-archive-sha256 }}
+    - --os-manifest-digest=${{ inputs.os-manifest-digest }}
+    - --image-name=${{ inputs.image-name }}
+    - --output=${{ inputs.output }}
