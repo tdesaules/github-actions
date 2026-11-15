@@ -1,0 +1,33 @@
+name: Summarize advisory signatures
+description: Record actual signing and subject-bound verification outcomes without a security gate
+inputs:
+  subject:
+    description: Immutable GHCR image or artifact reference
+    required: true
+  sign-outcome:
+    description: Actual signing step outcome
+    default: skipped
+  signed:
+    description: Actual signing action signed output
+    default: 'false'
+  verify-outcome:
+    description: Actual verification step outcome
+    default: skipped
+  report:
+    description: Cosign verification JSON report path
+  output:
+    description: Workspace-relative durable summary path
+    default: .build/security/signatures.json
+outputs:
+  report:
+    description: Subject-bound advisory status report
+runs:
+  using: docker
+  image: Containerfile
+  args:
+    - --subject=${{ inputs.subject }}
+    - --sign-outcome=${{ inputs.sign-outcome }}
+    - --signed=${{ inputs.signed }}
+    - --verify-outcome=${{ inputs.verify-outcome }}
+    - --report=${{ inputs.report }}
+    - --output=${{ inputs.output }}

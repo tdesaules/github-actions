@@ -1,0 +1,14 @@
+FROM docker.io/library/golang:1.27.3-alpine3.24@sha256:fa3d596898d9f126af7c01d14ee7597bab3f39cccf392ef36b69fe77cd681f18 AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/workflow/ ./shared/workflow/
+COPY workflow/summarize-signatures/ ./workflow/summarize-signatures/
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/summarize-signatures \
+    && mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
+FROM scratch AS final
+COPY --from=build /runtime/ /
+COPY --from=build /entrypoint /entrypoint
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="workflow-summarize-signatures" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

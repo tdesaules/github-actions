@@ -1,0 +1,31 @@
+name: Get immutable image platforms
+description: Resolve one GHCR index into an exact AMD64 and ARM64 manifest set
+inputs:
+  image:
+    description: GHCR tag or immutable multi-platform image reference
+    required: true
+  registry-username:
+    description: Optional registry user
+  registry-password:
+    description: Optional job-scoped registry token
+outputs:
+  reference:
+    description: Immutable index reference
+  digest:
+    description: Index digest
+  image-amd64:
+    description: Immutable AMD64 reference
+  image-arm64:
+    description: Immutable ARM64 reference
+  digest-amd64:
+    description: AMD64 native manifest digest
+  digest-arm64:
+    description: ARM64 native manifest digest
+runs:
+  using: docker
+  image: Containerfile
+  env:
+    INPUT_REGISTRY_PASSWORD: ${{ inputs.registry-password }}
+  args:
+    - --image=${{ inputs.image }}
+    - --registry-username=${{ inputs.registry-username }}
