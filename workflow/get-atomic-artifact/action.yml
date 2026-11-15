@@ -19,6 +19,8 @@ inputs:
   architecture:
     description: amd64 or arm64
     required: true
+  expected-artifact-id:
+    description: Optional ID returned by a successful upload; retry only delayed visibility of this exact artifact, never expiry or identity errors
   token:
     description: Current repository token with actions read permission
     required: true
@@ -42,3 +44,4 @@ runs:
     - --max-attempt=${{ inputs.max-attempt }}
     - --kind=${{ inputs.kind }}
     - --architecture=${{ inputs.architecture }}
+    - --expected-artifact-id=${{ inputs.expected-artifact-id }}

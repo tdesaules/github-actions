@@ -810,6 +810,7 @@ jobs:
           registry-password: unused-fixture-token
       - name: Upload small current-run selector qualification fixture
         if: matrix.image == 'workflow-get-atomic-artifact'
+        id: atomic-artifact-upload
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: candidate-os-${{ matrix.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -828,6 +829,7 @@ jobs:
           max-attempt: ${{ github.run_attempt }}
           kind: candidate
           architecture: ${{ matrix.arch }}
+          expected-artifact-id: ${{ steps.atomic-artifact-upload.outputs.artifact-id }}
           token: ${{ github.token }}
       - name: Download selected current-run fixture by immutable artifact ID
         if: matrix.image == 'workflow-get-atomic-artifact'

@@ -16,7 +16,7 @@ type transport func(*http.Request) (*http.Response, error)
 func (f transport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 func fixture() options {
-	return options{"owner/repo", "42", strings.Repeat("a", 40), "3", "candidate", "amd64"}
+	return options{Repository: "owner/repo", RunID: "42", SHA: strings.Repeat("a", 40), Attempt: "3", Kind: "candidate", Architecture: "amd64"}
 }
 
 func envFor(o options) map[string]string {

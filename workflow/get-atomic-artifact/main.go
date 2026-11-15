@@ -17,8 +17,11 @@ import (
 
 const api = "https://api.github.com"
 
+var errArtifactMissing = errors.New("no matching artifact in current workflow run")
+
 type options struct {
 	Repository, RunID, SHA, Attempt, Kind, Architecture string
+	ExpectedID                                          string
 }
 
 type artifact struct {
@@ -59,6 +62,11 @@ func validate(o options, env func(string) string) error {
 	}
 	if _, err := positive(o.Attempt); err != nil {
 		return errors.New("invalid maximum attempt")
+	}
+	if o.ExpectedID != "" {
+		if _, err := positive(o.ExpectedID); err != nil {
+			return errors.New("invalid expected producer artifact ID")
+		}
 	}
 	if o.Kind != "candidate" && o.Kind != "qualified" {
 		return errors.New("kind must be candidate or qualified")
@@ -123,11 +131,13 @@ func selectArtifact(ctx context.Context, client *http.Client, token string, o op
 	}
 	runID, _ := positive(o.RunID)
 	max, _ := positive(o.Attempt)
+	expectedID, _ := positive(o.ExpectedID)
 	if run.ID != runID || run.HeadSHA != o.SHA || run.Repository.FullName != o.Repository || run.RunAttempt < max {
 		return selected{}, errors.New("API workflow run identity does not match current workflow")
 	}
 	pattern := regexp.MustCompile(`^` + o.Kind + `-os-` + o.Architecture + `-` + o.RunID + `-([1-9][0-9]*)$`)
 	best := selected{}
+	expectedSeen := false
 	seen := map[int64]bool{}
 	total, count := -1, 0
 	for page := 1; page <= 1000; page++ {
@@ -154,6 +164,9 @@ func selectArtifact(ctx context.Context, client *http.Client, token string, o op
 		for _, a := range list.Artifacts {
 			m := pattern.FindStringSubmatch(a.Name)
 			if m == nil {
+				if expectedID != 0 && a.ID == expectedID {
+					return selected{}, errors.New("expected producer artifact has the wrong identity")
+				}
 				continue
 			}
 			attempt, err := positive(m[1])
@@ -161,6 +174,9 @@ func selectArtifact(ctx context.Context, client *http.Client, token string, o op
 				return selected{}, errors.New("invalid artifact attempt")
 			}
 			if attempt > max {
+				if expectedID != 0 && a.ID == expectedID {
+					return selected{}, errors.New("expected producer artifact exceeds current attempt")
+				}
 				continue
 			}
 			if seen[attempt] {
@@ -170,21 +186,67 @@ func selectArtifact(ctx context.Context, client *http.Client, token string, o op
 			if a.ID < 1 || (a.Run != nil && (a.Run.ID != runID || a.Run.HeadSHA != o.SHA)) {
 				return selected{}, errors.New("artifact workflow identity mismatch")
 			}
+			if a.ID == expectedID {
+				expectedSeen = true
+			}
 			if attempt > best.Attempt {
 				best = selected{a, attempt}
 			}
 		}
 		if count == total {
 			if best.ID == 0 {
-				return selected{}, errors.New("no matching artifact in current workflow run")
+				return selected{}, errArtifactMissing
 			}
 			if best.Expired {
 				return selected{}, errors.New("newest matching artifact expired; rerun its producer")
+			}
+			if expectedID != 0 {
+				if !expectedSeen {
+					// A successful upload's ID is not visible yet. Do not return
+					// an older producer while waiting for that known new upload.
+					return selected{}, errArtifactMissing
+				}
+				if best.ID != expectedID {
+					return selected{}, errors.New("expected producer artifact is not the newest eligible artifact")
+				}
 			}
 			return best, nil
 		}
 	}
 	return selected{}, errors.New("artifact pagination limit exceeded")
+}
+
+func waitForVisibility(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+// Opt-in retries require an artifact ID emitted by a successful producer.
+// Each lookup revalidates identity and paginates from scratch. Only absent
+// artifacts retry: expiry, duplicates, HTTP errors and identity failures do not.
+func selectVisibleArtifact(ctx context.Context, client *http.Client, token string, o options, wait func(context.Context, time.Duration) error) (selected, error) {
+	for lookup := 0; lookup < 6; lookup++ {
+		if err := ctx.Err(); err != nil {
+			return selected{}, err
+		}
+		result, err := selectArtifact(ctx, client, token, o)
+		if err == nil || !errors.Is(err, errArtifactMissing) || o.ExpectedID == "" {
+			return result, err
+		}
+		if lookup == 5 {
+			return selected{}, fmt.Errorf("uploaded artifact not visible after 6 lookups: %w", err)
+		}
+		if err := wait(ctx, time.Second<<lookup); err != nil {
+			return selected{}, err
+		}
+	}
+	panic("unreachable visibility loop")
 }
 
 func run(args []string) error {
@@ -201,6 +263,7 @@ func run(args []string) error {
 	f.StringVar(&o.Attempt, "max-attempt", "", "current workflow attempt")
 	f.StringVar(&o.Kind, "kind", "", "candidate or qualified")
 	f.StringVar(&o.Architecture, "architecture", "", "amd64 or arm64")
+	f.StringVar(&o.ExpectedID, "expected-artifact-id", "", "artifact ID returned by a successful producer; enables bounded visibility retries")
 	if err := f.Parse(args); err != nil || f.NArg() != 0 {
 		return errors.New("invalid action arguments")
 	}
@@ -215,7 +278,7 @@ func run(args []string) error {
 			return errors.New("redirects forbidden")
 		},
 	}
-	result, err := selectArtifact(ctx, client, os.Getenv("INPUT_TOKEN"), o)
+	result, err := selectVisibleArtifact(ctx, client, os.Getenv("INPUT_TOKEN"), o, waitForVisibility)
 	if err != nil {
 		return err
 	}

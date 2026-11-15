@@ -20,6 +20,15 @@ Artifact-level workflow identity is checked when supplied by GitHub.
 
 Outputs: `artifact-name`, `artifact-id`, `producer-attempt`.
 
+Optional `expected-artifact-id` accepts the ID returned by a **successful**
+producer upload. Supply it only after that upload succeeds. This enables up to
+six complete visibility lookups with cancellable 1/2/4/8/16-second backoff, within
+the existing 90-second operation deadline. Only a missing expected artifact is
+retried. While waiting, an older visible artifact cannot substitute for the known
+upload. Expiry, duplicate attempts, identity mismatches, malformed pagination and
+HTTP/transport errors fail immediately. With no producer ID the ordinary
+rerun-selection behavior is unchanged, including immediate missing-artifact failure.
+
 Only exact `{candidate|qualified}-os-{amd64|arm64}-{run_id}-{attempt}` names are
 eligible. The highest attempt at most the current attempt wins. Future attempts,
 other runs, other architectures and other kinds are ignored. Duplicate eligible
@@ -52,5 +61,7 @@ podman run --rm localhost/get-atomic-artifact:bootstrap --tool-version
 Tests use an injected HTTP transport without exposing an alternate API URL in
 the action. They cover rerun selection, pagination, duplicate/expired/missing
 artifacts, foreign/future names, run/SHA/context validation and safe token errors.
+Delayed-visibility tests inject virtual waits rather than sleeping; they cover
+older-visible/newer-delayed uploads, bounded absence and cancellation.
 Local tests and rootless container smoke tests do not prove hosted execution,
 registry publication, credentials or native ARM64 qualification.
