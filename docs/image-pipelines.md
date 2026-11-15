@@ -1,5 +1,33 @@
 # Independent image pipelines
 
+## Atomic integration qualification
+
+Atomic OS actions are being integrated on the dedicated
+`niri/atomic-release-integration` branch. Source `image: Containerfile` metadata
+is bootstrap-only until native qualification and immutable publication complete.
+
+- The image verifier uses the published `new-test-fixtures` compressed-layer
+  exporter. This avoids VFS snapshots of the real 269-layer OS.
+- The dedicated Atomic BuildKit constructor is tested separately against that
+  real parent on native runners. Its runner-socket access is an explicit
+  user-approved exception; the catalog's existing Buildah launcher is unchanged.
+- Lorax has a separate explicit privilege exception. Its coordinator launches
+  the same immutable local image as a worker with workspace and output mounts,
+  without forwarding credentials or the engine socket to the worker.
+- Small fixtures under `.github/scripts/atomic-fixtures/` exercise media and
+  receipt protocols only. Their dummy BIOS/UEFI payloads are not bootable;
+  synthetic receipts must never be published as OS qualification.
+- Local real-media evidence includes an installer of 4,966,055,936 bytes,
+  matching embedded OCI blobs, and BIOS/UEFI installation and greetd/Niri startup.
+  This does not replace hosted native action qualification, production ORAS
+  transfer checks, or physical hardware and graphical user-login testing.
+
+Consumer activation still requires the published action references and observed
+App-token, release, and retry execution. Development qualification does not
+authorize production image publication.
+
+## Orchestration
+
 The catalogue keeps a single Git version and three entry workflows:
 
 - `main.yml`: branch pushes, with incremental source selection.
