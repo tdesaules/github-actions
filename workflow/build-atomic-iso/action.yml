@@ -1,0 +1,42 @@
+name: Build Atomic installer ISO
+description: Build a Fedora 45 installer embedding a checksum-bound native OS archive
+inputs:
+  archive:
+    description: Native AMD64 OS OCI archive
+    required: true
+  sha256:
+    description: Expected OS archive checksum
+    required: true
+  repository:
+    description: GHCR owner/image used for installed-system updates
+    required: true
+  revision:
+    description: Expected OS source commit
+    required: true
+  version:
+    description: Candidate or release version
+    required: true
+  output:
+    description: Output ISO path
+    default: .build/niri-tomic-os-x86_64.iso
+outputs:
+  receipt:
+    description: Workspace-relative untested ISO receipt bound to the OS archive, source revision and run identity
+  iso:
+    description: Workspace-relative output ISO path
+  sha256:
+    description: ISO SHA-256
+  size:
+    description: Exact ISO size in bytes
+  os_archive_sha256:
+    description: Embedded source archive checksum
+runs:
+  using: docker
+  image: Containerfile
+  args:
+    - --archive=${{ inputs.archive }}
+    - --sha256=${{ inputs.sha256 }}
+    - --repository=${{ inputs.repository }}
+    - --revision=${{ inputs.revision }}
+    - --version=${{ inputs.version }}
+    - --output=${{ inputs.output }}

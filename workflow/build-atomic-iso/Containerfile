@@ -1,0 +1,45 @@
+FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS build
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+# hadolint ignore=DL3041
+RUN dnf install -y --setopt=install_weak_deps=False golang-1.27.4-2.fc45 git-core curl && dnf clean all
+ENV GOTOOLCHAIN=local
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/workflow/ ./shared/workflow/
+COPY workflow/build-atomic-iso/ ./workflow/build-atomic-iso/
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/build-atomic-iso
+RUN curl --fail --location https://raw.githubusercontent.com/docker/cli/5457199aa57c45e990c59c89cab5f02b817238d7/LICENSE -o /docker-LICENSE \
+    && echo '2d81ea060825006fc8f3fe28aa5dc0ffeb80faf325b612c955229157b8c10dc0  /docker-LICENSE' | sha256sum -c \
+    && curl --fail --location https://raw.githubusercontent.com/docker/cli/5457199aa57c45e990c59c89cab5f02b817238d7/NOTICE -o /docker-NOTICE \
+    && echo 'a8c869fbda819afb8d80e0ac19bac52e766bc6c19cb38cf94f52d64c4be2aab6  /docker-NOTICE' | sha256sum -c
+
+FROM docker.io/library/docker:29.9.3-cli@sha256:5a7af0dcb0e46c803efe9b45371dd21cb500e5b4453250394ac6f06d49b6e6f1 AS docker
+
+FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS sources
+# hadolint ignore=DL3041
+RUN dnf install -y --setopt=install_weak_deps=False git-core && dnf clean all \
+    && git clone https://github.com/jasonn3/build-container-installer.git /installer \
+    && git -C /installer checkout bed71f841c250650a70f1ed8315ba92da1591ba6 \
+    && git clone https://github.com/weldr/lorax.git /installer/external/lorax \
+    && git -C /installer/external/lorax checkout 692928e2701400ac38000111612dfe3da5b041b3 \
+    && touch /installer/external/lorax/branch-45
+
+FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS final
+# Fedora supplies Lorax and its complete Python/runtime dependency closure.
+# The unused Flatpak feature is not installed or included in the resulting ISO.
+# hadolint ignore=DL3041
+RUN dnf install -y --setopt=install_weak_deps=False lorax-45.4-1.fc45 xorriso \
+    coreutils gettext syslinux-nonlinux skopeo umoci jq git-core make \
+    ostree dbus-daemon isomd5sum util-linux findutils \
+    && dnf clean all \
+    && mkdir -p /etc/yum.repos.d \
+    && cp /usr/share/dnf5/repos.d/*.repo /etc/yum.repos.d/
+COPY --from=sources /installer /usr/share/atomic-installer
+COPY --from=build /entrypoint /entrypoint
+COPY --from=docker /usr/local/bin/docker /usr/bin/docker
+COPY --from=build /docker-LICENSE /usr/share/licenses/docker-cli/LICENSE
+COPY --from=build /docker-NOTICE /usr/share/licenses/docker-cli/NOTICE
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="workflow-build-atomic-iso" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND Apache-2.0"
