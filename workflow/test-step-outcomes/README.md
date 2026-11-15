@@ -23,4 +23,12 @@ Inputs: `outcomes` (serialized GitHub steps context), `expected-failures` and
 `absent-files` (JSON arrays, default `[]`). Outputs `verified`. Explicit flags
 override `INPUT_*`. No shell or arbitrary command is executed.
 
+Docker action metadata forwards all three JSON inputs explicitly through the
+environment, without CLI overrides. This preserves embedded JSON strings,
+backslashes, quotes and multiline outputs in `toJSON(steps)` across the runner's
+Docker argument boundary. The existing pinned executable already supports these
+environment defaults; its digest is unchanged. No outcomes are filtered out:
+required negative assertions and advisory security summaries consume the full
+original context.
+
 The fixed Go scratch image was published in `1.2.0` and is called by `test`.
