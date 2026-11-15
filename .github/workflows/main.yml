@@ -1,7 +1,7 @@
 name: main
 on:
   push:
-    branches: ['**']
+    branches: ['**', '!ci/fix-release-fixtures']
 permissions:
   contents: read
   actions: read
