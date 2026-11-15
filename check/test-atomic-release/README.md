@@ -25,7 +25,7 @@ Required layout:
     iso-qualification.json
     installer.iso             # actual basename comes from iso-qualification.json
     installer.iso-CHECKSUM
-    iso-build.json            # actual basename comes from receipt files
+    installer.iso.build.json  # must be <ISO basename>.build.json
   arm64/
     qualification.json
     image.oci.tar
@@ -33,7 +33,9 @@ Required layout:
 
 OS receipts require schema 1, component `os`, the expected architecture,
 source/version, `tested: true`, `qualification: userspace`, `boot_tested: false`,
-native manifest digest, archive checksum, checks and package inventory.
+native manifest digest, archive checksum, all eight named functional checks from
+`check/test-atomic-image`, and package inventory. Empty command output is valid;
+missing check names are not.
 ISO receipts require `qualification: installer-media`, `boot_tested: false`,
 size, original OS archive checksum and the same AMD64 native manifest.
 Qualification `run_id` must equal `GITHUB_RUN_ID`; positive `run_attempt` may
@@ -43,7 +45,7 @@ untested build receipt.
 
 The receipt's `files` array must contain exactly one ISO (`application/x-iso9660-image`),
 its checksum sidecar (`text/plain`), and the original untested build receipt
-(`application/json`), each with `path`, `sha256`, `media_type`. Paths are
+(`<ISO basename>.build.json`, `application/json`), each with `path`, `sha256`, `media_type`. Paths are
 flat basenames. Every transferred payload is rehashed; the ISO's size, sidecar,
 build receipt and embedded-OS identity must agree.
 

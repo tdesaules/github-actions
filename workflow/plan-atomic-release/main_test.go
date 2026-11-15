@@ -87,6 +87,11 @@ func TestReleaseEvidence(t *testing.T) {
 		Architectures: []string{"amd64", "arm64"},
 	}
 	r := atomicrelease.Receipt{SchemaVersion: 1, SourceSHA: e.SourceSHA, Version: e.Version, Component: "os", Arch: "amd64", Archive: "image.oci.tar", SHA256: strings.Repeat("e", 64), ManifestDigest: "sha256:" + strings.Repeat("f", 64), Tested: true, Qualification: "userspace", RunID: "42", RunAttempt: "1", Checks: map[string]string{"test": "passed"}, Packages: []string{"niri"}}
+	r.Checks = map[string]string{
+		"Fedora version": "", "Niri configuration": "", "desktop and keyring packages": "",
+		"PAM dynamic dependencies": "", "enabled greeter": "", "enabled GPU profile": "",
+		"GPU helper syntax": "", "GPU memory ceiling": "",
+	}
 	e.Qualified.AMD64 = r
 	r.Arch = "arm64"
 	e.Qualified.ARM64 = r
@@ -100,7 +105,7 @@ func TestReleaseEvidence(t *testing.T) {
 	r.BuildRunID = "42"
 	r.BuildRunAttempt = "1"
 	e.Qualified.ISO = r
-	e.ISOFiles = []atomicrelease.Payload{{Path: e.ISOFile, SHA256: e.ISOSHA256, MediaType: "application/x-iso9660-image"}, {Path: e.ISOFile + "-CHECKSUM", SHA256: strings.Repeat("a", 64), MediaType: "text/plain"}, {Path: "iso-build.json", SHA256: strings.Repeat("b", 64), MediaType: "application/json"}}
+	e.ISOFiles = []atomicrelease.Payload{{Path: e.ISOFile, SHA256: e.ISOSHA256, MediaType: "application/x-iso9660-image"}, {Path: e.ISOFile + "-CHECKSUM", SHA256: strings.Repeat("a", 64), MediaType: "text/plain"}, {Path: e.ISOFile + ".build.json", SHA256: strings.Repeat("b", 64), MediaType: "application/json"}}
 	if err := validateEvidence(e, "1.0.0", "niri-tonic/niri-tomic-os"); err != nil {
 		t.Fatal(err)
 	}

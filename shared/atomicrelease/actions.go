@@ -135,18 +135,7 @@ func PrepareAction(o Options) error {
 	if err = ValidateNotes(notes, version); err != nil {
 		return err
 	}
-	// Existing untracked paths cannot silently become release metadata.
-	for _, name := range []string{"CHANGELOG.md", ".github/atomic-release.json"} {
-		if _, err := os.Lstat(name); err == nil {
-			if _, err = git("ls-files", "--error-unmatch", "--", name); err != nil {
-				return fmt.Errorf("untracked release metadata already exists")
-			}
-		}
-	}
-	if err = Write(".github/atomic-release.json", e); err != nil {
-		return err
-	}
-	if err = os.WriteFile("CHANGELOG.md", []byte(notes+"\n"), 0644); err != nil {
+	if err = writeReleaseMetadata(e, notes); err != nil {
 		return err
 	}
 	if _, err = git("add", "--", "CHANGELOG.md", ".github/atomic-release.json"); err != nil {
@@ -179,6 +168,38 @@ func PrepareAction(o Options) error {
 	}
 	return nil
 }
+
+func writeReleaseMetadata(e Evidence, notes string) error {
+	// Validate every destination before either write, including the evidence
+	// parent: Lstat on a file alone would follow a symlinked .github directory.
+	if info, err := os.Lstat(".github"); err == nil {
+		if !info.IsDir() {
+			return fmt.Errorf("release metadata parent must be a real directory")
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	for _, name := range []string{"CHANGELOG.md", ".github/atomic-release.json"} {
+		info, err := os.Lstat(name)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("release metadata must be regular files: %s", name)
+		}
+		if _, err = git("ls-files", "--error-unmatch", "--", name); err != nil {
+			return fmt.Errorf("untracked release metadata already exists")
+		}
+	}
+	if err := Write(".github/atomic-release.json", e); err != nil {
+		return err
+	}
+	return os.WriteFile("CHANGELOG.md", []byte(notes+"\n"), 0644)
+}
+
 func CheckRemote(refs, source string) error {
 	if strings.TrimSpace(refs) != source+"\trefs/heads/main" {
 		return fmt.Errorf("main advanced or release tag already exists")

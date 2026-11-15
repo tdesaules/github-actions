@@ -28,7 +28,7 @@ func fixture(t *testing.T) (string, Bundle, []Payload) {
 		}
 		return Receipt{SchemaVersion: 1, Component: component, Arch: arch, SourceSHA: source, Version: "1.2.3",
 			Archive: name, SHA256: sum, Size: int64(len(data)), ManifestDigest: "sha256:" + strings.Repeat("b", 64),
-			Tested: true, Qualification: "userspace", RunID: "42", RunAttempt: "1", Checks: map[string]string{"check": "ok"}, Packages: []string{"niri"}}
+			Tested: true, Qualification: "userspace", RunID: "42", RunAttempt: "1", Checks: completeChecks(), Packages: []string{"niri"}}
 	}
 	b := Bundle{AMD64: makeReceipt("amd64", "os", "image.oci.tar"), ARM64: makeReceipt("arm64", "os", "image.oci.tar"), ISO: makeReceipt("amd64", "iso", "installer.iso")}
 	b.ISO.Qualification = "installer-media"
@@ -42,14 +42,14 @@ func fixture(t *testing.T) (string, Bundle, []Payload) {
 	}
 	build := b.ISO
 	build.Tested = false
-	if err := Write(filepath.Join(dir, "amd64", "iso-build.json"), build); err != nil {
+	if err := Write(filepath.Join(dir, "amd64", "installer.iso.build.json"), build); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "amd64", "installer.iso-CHECKSUM"), []byte(b.ISO.SHA256+"  installer.iso\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	files := []Payload{}
-	for name, typ := range map[string]string{"installer.iso": "application/x-iso9660-image", "installer.iso-CHECKSUM": "text/plain", "iso-build.json": "application/json"} {
+	for name, typ := range map[string]string{"installer.iso": "application/x-iso9660-image", "installer.iso-CHECKSUM": "text/plain", "installer.iso.build.json": "application/json"} {
 		sum, _, err := checksum(filepath.Join(dir, "amd64", name))
 		if err != nil {
 			t.Fatal(err)
@@ -160,7 +160,7 @@ func TestGateDerivesPersistedFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(data), "iso_files=") || !strings.Contains(string(data), "iso-build.json") {
+	if !strings.Contains(string(data), "iso_files=") || !strings.Contains(string(data), "installer.iso.build.json") {
 		t.Fatal("persisted payload list not exported")
 	}
 	b.ISO.Files = nil
@@ -211,7 +211,7 @@ func TestEvidenceAndManifestBinding(t *testing.T) {
 	if err := verifyIndex(raw, e.Qualified); err == nil {
 		t.Fatal("duplicate architecture accepted")
 	}
-	iso := manifest{}
+	iso := manifest{ArtifactType: "application/vnd.niri-tonic.installer.v1"}
 	for _, f := range e.ISOFiles {
 		d := descriptor{MediaType: f.MediaType, Digest: "sha256:" + f.SHA256, Annotations: map[string]string{"org.opencontainers.image.title": f.Path}}
 		if f.Path == e.ISOFile {

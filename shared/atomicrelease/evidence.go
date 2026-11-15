@@ -121,6 +121,18 @@ func ValidateReceipt(r Receipt, component, arch, source, version, run, attempt s
 	if component == "os" && (r.Qualification != "userspace" || len(r.Checks) == 0 || len(r.Packages) == 0) {
 		return fmt.Errorf("missing OS functional evidence")
 	}
+	if component == "os" {
+		// Values are command output and may legitimately be empty on success.
+		for _, name := range []string{
+			"Fedora version", "Niri configuration", "desktop and keyring packages",
+			"PAM dynamic dependencies", "enabled greeter", "enabled GPU profile",
+			"GPU helper syntax", "GPU memory ceiling",
+		} {
+			if _, ok := r.Checks[name]; !ok {
+				return fmt.Errorf("missing OS functional check: %s", name)
+			}
+		}
+	}
 	if component == "iso" && (r.Qualification != "installer-media" || r.Size <= 0 || !strings.HasSuffix(r.Archive, ".iso")) {
 		return fmt.Errorf("missing ISO media evidence")
 	}
@@ -255,8 +267,8 @@ func ValidatePayloads(files []Payload, r Receipt) error {
 				return fmt.Errorf("ISO sidecar name mismatch")
 			}
 		case "application/json":
-			if f.Path == "qualification.json" || f.Path == "iso-qualification.json" {
-				return fmt.Errorf("original untested build receipt required")
+			if f.Path != r.Archive+".build.json" {
+				return fmt.Errorf("original untested build receipt must be named after the ISO")
 			}
 		default:
 			return fmt.Errorf("unexpected ISO payload media type")

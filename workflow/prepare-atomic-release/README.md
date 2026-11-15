@@ -43,12 +43,15 @@ The operation:
 
 1. Rehashes the complete current-run qualified bundle and ISO publication files.
 2. Validates the App installation token's repository access.
-3. Downloads the exact published index and ISO manifest. Checks both native
-   manifest digests and the complete three-file ISO checksum/media-type set.
+3. Downloads the exact published OCI index/Docker manifest list and ISO manifest.
+   Checks both native manifest digests, installer artifact type
+   `application/vnd.niri-tonic.installer.v1`, and the complete three-file ISO
+   checksum/media-type set.
 4. Rejects main advancement or any existing destination tag.
 5. Generates notes with `git-cliff --offline --no-exec`; requires dated Keep a
    Changelog version and Unreleased headings plus the version comparison link.
-6. Commits only `CHANGELOG.md` and `.github/atomic-release.json`, as a direct
+6. Rejects symlink/nonregular metadata destinations before writing either file.
+   Commits only `CHANGELOG.md` and `.github/atomic-release.json`, as a direct
    child of the qualified source; rechecks remote refs.
 7. Creates an annotated no-v stable tag, then pushes main and tag together with
    `--atomic` and an exact main lease. Tag collisions never force-update tags.

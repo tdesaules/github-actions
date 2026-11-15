@@ -20,7 +20,7 @@ func TestRemoteIntegrityPromotionAndRetry(t *testing.T) {
 	}
 	raw, _ := json.Marshal(index)
 	e.Image = "ghcr.io/owner/os@" + fmtDigest(raw)
-	iso := manifest{MediaType: "application/vnd.oci.image.manifest.v1+json"}
+	iso := manifest{MediaType: "application/vnd.oci.image.manifest.v1+json", ArtifactType: "application/vnd.niri-tonic.installer.v1"}
 	for _, f := range e.ISOFiles {
 		d := descriptor{Digest: "sha256:" + f.SHA256, MediaType: f.MediaType, Annotations: map[string]string{"org.opencontainers.image.title": f.Path}}
 		if f.Path == e.ISOFile {

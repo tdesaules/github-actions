@@ -129,9 +129,10 @@ type descriptor struct {
 	Annotations map[string]string                 `json:"annotations"`
 }
 type manifest struct {
-	MediaType string       `json:"mediaType"`
-	Manifests []descriptor `json:"manifests"`
-	Layers    []descriptor `json:"layers"`
+	ArtifactType string       `json:"artifactType,omitempty"`
+	MediaType    string       `json:"mediaType"`
+	Manifests    []descriptor `json:"manifests"`
+	Layers       []descriptor `json:"layers"`
 }
 
 func (a *Remote) getManifest(repo, ref, token string) ([]byte, error) {
@@ -152,6 +153,9 @@ func verifyIndex(raw []byte, b Bundle) error {
 	if err := json.Unmarshal(raw, &index); err != nil {
 		return err
 	}
+	if index.MediaType != "application/vnd.oci.image.index.v1+json" && index.MediaType != "application/vnd.docker.distribution.manifest.list.v2+json" {
+		return fmt.Errorf("unsupported OS index media type")
+	}
 	if len(index.Manifests) != 2 {
 		return fmt.Errorf("published OS index must have exactly two native manifests")
 	}
@@ -168,6 +172,9 @@ func verifyISO(raw []byte, r Receipt, files []Payload) error {
 	var m manifest
 	if err := json.Unmarshal(raw, &m); err != nil {
 		return err
+	}
+	if m.ArtifactType != "application/vnd.niri-tonic.installer.v1" {
+		return fmt.Errorf("unexpected installer artifact type")
 	}
 	if len(m.Layers) != len(files) {
 		return fmt.Errorf("published ISO payload set differs")
@@ -311,6 +318,9 @@ func (a *Remote) Release(e Evidence, final, notes string, latest bool) (string, 
 	}
 	if err = json.Unmarshal(raw, &response); err != nil {
 		return "", err
+	}
+	if strings.TrimSpace(response.URL) == "" {
+		return "", fmt.Errorf("GitHub Release publication response lacks html_url")
 	}
 	return response.URL, nil
 }
