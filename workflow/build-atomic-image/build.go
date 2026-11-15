@@ -23,8 +23,8 @@ const buildkitImage = "docker.io/moby/buildkit@sha256:aa632b921ef07411d2cb77292c
 const dockerSocket = "unix:///var/run/docker.sock"
 
 type result struct {
-	Archive, SHA256 string
-	Size            int64
+	Archive, SHA256, ManifestDigest string
+	Size                            int64
 }
 type command struct {
 	Config, Workspace, Step string
@@ -301,7 +301,7 @@ func build(ctx context.Context, workspace, arch string, o options, run dockerRun
 		if e != nil {
 			return e
 		}
-		r.SHA256, r.Size, e = verifyArchive(ctx, f, arch, wantedLabels)
+		r, e = verifyArchive(ctx, f, arch, wantedLabels)
 		if e == nil {
 			// The native Docker action may run as root while artifact transfer
 			// runs as the host runner user. Permissions do not change tar bytes.

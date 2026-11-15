@@ -108,6 +108,27 @@ func TestFixedBuildExportsExactArchiveAndRemovesOwnedBuilder(t *testing.T) {
 	if r.Archive != o.Output || r.Size != int64(len(data)) || r.SHA256 != fmt.Sprintf("%x", sha256.Sum256(data)) {
 		t.Fatal("wrong archive outputs")
 	}
+	native, config := fixtureManifestDigests(t, data)
+	if r.ManifestDigest != native || r.ManifestDigest == config {
+		t.Fatal("build returned incorrect manifest identity")
+	}
+	outputFile := filepath.Join(root, "github-output")
+	if err := os.WriteFile(outputFile, nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GITHUB_OUTPUT", outputFile)
+	if err := outputs(r); err != nil {
+		t.Fatal(err)
+	}
+	outputData, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range []string{"archive=" + o.Output, "archive-sha256=" + r.SHA256, "manifest-digest=" + native, fmt.Sprintf("size=%d", len(data))} {
+		if !strings.Contains("\n"+string(outputData), "\n"+line+"\n") {
+			t.Fatalf("missing action output %s", line)
+		}
+	}
 	got, err := os.ReadFile(filepath.Join(root, o.Output))
 	if err != nil || !bytes.Equal(got, data) {
 		t.Fatal("export bytes changed")
