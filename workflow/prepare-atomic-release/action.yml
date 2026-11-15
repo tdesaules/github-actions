@@ -1,0 +1,61 @@
+name: Prepare Atomic release
+description: Bind qualified published artifacts to release metadata and atomically push main and an annotated tag
+inputs:
+  qualified-directory:
+    description: Exact qualified bundle already verified before publication
+    default: .build/qualified
+  source-sha:
+    description: Captured main source SHA
+    required: true
+  repository:
+    description: GitHub owner/repository and GHCR OS repository
+    required: true
+  image:
+    description: Exact immutable index reference output from oci/merge-image-index
+    required: true
+  iso:
+    description: Exact immutable reference output from oci/publish-artifact
+    required: true
+  plan:
+    description: Plan from workflow/plan-atomic-release
+    default: .build/plan.json
+  config:
+    description: git-cliff Keep a Changelog configuration
+    default: cliff.toml
+  token:
+    description: Job-local repository-scoped App installation token from the official App-token action
+    required: true
+  registry-username:
+    description: GitHub registry actor
+    required: true
+  registry-password:
+    description: Job-local packages read token
+    required: true
+outputs:
+  changed:
+    description: Whether a release was prepared; false is an explicit no-op
+  tag:
+    description: Annotated stable no-v release tag
+  source_sha:
+    description: Qualified source commit
+  final_sha:
+    description: Release metadata commit
+  image:
+    description: Verified immutable OS index reference
+  iso:
+    description: Verified immutable installer reference
+runs:
+  using: docker
+  image: Containerfile
+  env:
+    INPUT_TOKEN: ${{ inputs.token }}
+    INPUT_REGISTRY_USERNAME: ${{ inputs.registry-username }}
+    INPUT_REGISTRY_PASSWORD: ${{ inputs.registry-password }}
+  args:
+    - --qualified-directory=${{ inputs.qualified-directory }}
+    - --source-sha=${{ inputs.source-sha }}
+    - --repository=${{ inputs.repository }}
+    - --image=${{ inputs.image }}
+    - --iso=${{ inputs.iso }}
+    - --plan=${{ inputs.plan }}
+    - --config=${{ inputs.config }}

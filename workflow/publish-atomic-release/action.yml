@@ -1,0 +1,35 @@
+name: Publish Atomic release
+description: Verify fresh tag qualification, promote exact OS index to 45/latest and publish GitHub Release without rebuilding
+inputs:
+  qualified-directory:
+    description: Fresh tag-run native and ISO qualification bundle
+    default: .build/qualified
+  version:
+    description: Exact stable no-v pushed tag
+    required: true
+  repository:
+    description: GitHub owner/repository and GHCR OS repository
+    required: true
+  token:
+    description: Job-local token with contents write permission
+    required: true
+  registry-username:
+    description: GitHub registry actor
+    required: true
+  registry-password:
+    description: Job-local packages write token
+    required: true
+outputs:
+  release_url:
+    description: Published GitHub Release URL
+runs:
+  using: docker
+  image: Containerfile
+  env:
+    INPUT_TOKEN: ${{ inputs.token }}
+    INPUT_REGISTRY_USERNAME: ${{ inputs.registry-username }}
+    INPUT_REGISTRY_PASSWORD: ${{ inputs.registry-password }}
+  args:
+    - --qualified-directory=${{ inputs.qualified-directory }}
+    - --version=${{ inputs.version }}
+    - --repository=${{ inputs.repository }}

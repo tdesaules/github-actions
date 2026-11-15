@@ -1,0 +1,42 @@
+name: Verify Atomic release bundle
+description: Verify exact native OS archives and source-bound installer qualification before publication
+inputs:
+  qualified-directory:
+    description: Directory with amd64 and arm64 qualified payloads and receipts
+    default: .build/qualified
+  source-sha:
+    description: Exact qualified Git source SHA
+    required: true
+  version:
+    description: Stable no-v release version
+    required: true
+  output:
+    description: Verified bundle JSON
+    default: .build/atomic-qualified.json
+outputs:
+  bundle:
+    description: Verified bundle JSON
+  amd64_archive:
+    description: Qualified AMD64 OCI archive
+  arm64_archive:
+    description: Qualified ARM64 OCI archive
+  amd64_sha256:
+    description: AMD64 archive SHA256
+  arm64_sha256:
+    description: ARM64 archive SHA256
+  iso_directory:
+    description: Directory to pass to oci/publish-artifact
+  iso_files:
+    description: JSON path/sha256/media_type array to pass to oci/publish-artifact
+  iso_file:
+    description: ISO payload basename
+  iso_sha256:
+    description: ISO payload checksum
+runs:
+  using: docker
+  image: Containerfile
+  args:
+    - --qualified-directory=${{ inputs.qualified-directory }}
+    - --source-sha=${{ inputs.source-sha }}
+    - --version=${{ inputs.version }}
+    - --output=${{ inputs.output }}

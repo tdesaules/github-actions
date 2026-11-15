@@ -1,0 +1,59 @@
+name: Plan Atomic release
+description: Select native OS builds and applicable source checks from immutable Git history
+inputs:
+  event:
+    description: GitHub event name
+    required: true
+  ref:
+    description: Full Git ref
+    required: true
+  before:
+    description: Previous push revision
+  version:
+    description: Development candidate version; preparation computes its own git-cliff version
+    default: 0.1.0
+  repository:
+    description: GitHub owner/repository for release identity verification
+    required: true
+  initial-release:
+    description: Explicitly prepare the first stable release as 1.0.0
+    default: 'false'
+  maintenance:
+    description: Validate main-only scheduled/manual maintenance and enumerate tracked Markdown without registry access
+    default: 'false'
+outputs:
+  markdown-files:
+    description: JSON array of tracked Markdown paths in maintenance mode
+  mode:
+    description: development, prepare, publish or maintenance
+  source_sha:
+    description: Exact source revision
+  version:
+    description: Planned release version
+  has_lint:
+    description: Whether lint is selected
+  has_images:
+    description: Whether builds are selected
+  has_tests:
+    description: Whether functional qualification is selected
+  has_release:
+    description: Whether release is selected
+  lint_matrix:
+    description: Explicit linter matrix
+  build_matrix:
+    description: Native AMD64 and ARM64 build matrix
+  test_matrix:
+    description: Source-bound qualification matrix
+  plan_artifact:
+    description: Execution-plan artifact name
+runs:
+  using: docker
+  image: Containerfile
+  args:
+    - --event=${{ inputs.event }}
+    - --ref=${{ inputs.ref }}
+    - --before=${{ inputs.before }}
+    - --version=${{ inputs.version }}
+    - --repository=${{ inputs.repository }}
+    - --initial-release=${{ inputs.initial-release }}
+    - --maintenance=${{ inputs.maintenance }}
