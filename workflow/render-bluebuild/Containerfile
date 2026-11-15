@@ -17,7 +17,9 @@ RUN dnf install -y --setopt=install_weak_deps=False git-core ca-certificates pod
 COPY --from=bluebuild /out/bluebuild /usr/bin/bluebuild
 COPY --from=build /entrypoint /entrypoint
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
-ENV STORAGE_DRIVER=vfs
+# Generation probes Podman's real version but never starts containers. Avoid its
+# namespace re-exec during that probe under GitHub Docker's default seccomp.
+ENV STORAGE_DRIVER=vfs _CONTAINERS_USERNS_CONFIGURED=done
 WORKDIR /github/workspace
 ENTRYPOINT ["/entrypoint"]
 LABEL org.opencontainers.image.title="workflow-render-bluebuild" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

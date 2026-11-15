@@ -15,7 +15,7 @@ import (
 var repositoryPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]*(/[a-z0-9][a-z0-9._-]*)+$`)
 
 func localPath(value string) error {
-	if value == "" || filepath.IsAbs(value) || filepath.Clean(value) == ".." ||
+	if value == "" || strings.HasPrefix(value, "-") || filepath.IsAbs(value) || filepath.Clean(value) == ".." ||
 		strings.HasPrefix(filepath.Clean(value), ".."+string(filepath.Separator)) {
 		return fmt.Errorf("expected a workspace-relative path: %q", value)
 	}
