@@ -1,0 +1,49 @@
+name: Build native Atomic OCI archive
+description: Use a private pinned BuildKit builder on the runner Docker socket to export one native Atomic OS archive
+inputs:
+  context:
+    description: Build context relative to the workspace
+    default: .
+  containerfile:
+    description: Containerfile relative to the workspace, not the context
+    default: Containerfile
+  image:
+    description: Image name without a tag
+    required: true
+  version:
+    description: Candidate image tag or release version without a v prefix
+    required: true
+  platform:
+    description: linux/amd64 or linux/arm64 matching both action runtime and Docker server
+    required: true
+  target:
+    description: Optional build stage
+  labels:
+    description: Trusted JSON object of OCI labels
+    default: '{}'
+  build-args:
+    description: JSON object of non-secret build arguments
+    default: '{}'
+  output:
+    description: New OCI archive path relative to the workspace
+    default: image.oci.tar
+outputs:
+  archive:
+    description: Workspace-relative exact OCI archive path
+  archive-sha256:
+    description: SHA-256 of the exact archive bytes, not the manifest
+  size:
+    description: Archive size in bytes
+runs:
+  using: docker
+  image: Containerfile
+  args:
+    - --context=${{ inputs.context }}
+    - --containerfile=${{ inputs.containerfile }}
+    - --image=${{ inputs.image }}
+    - --version=${{ inputs.version }}
+    - --platform=${{ inputs.platform }}
+    - --target=${{ inputs.target }}
+    - --labels=${{ inputs.labels }}
+    - --build-args=${{ inputs.build-args }}
+    - --output=${{ inputs.output }}
