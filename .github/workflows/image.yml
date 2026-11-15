@@ -331,7 +331,7 @@ jobs:
           outcomes: ${{ toJSON(steps) }}
           expected-failures: '["atomic-render-invalid"]'
       - name: Export native Atomic test fixture without VFS expansion
-        if: matrix.image == 'check-test-atomic-image'
+        if: matrix.image == 'check-test-atomic-image' || (matrix.image == 'workflow-build-atomic-iso' && matrix.arch == 'amd64')
         id: atomic-fixture
         uses: ./workflow/new-test-fixtures
         with:
@@ -364,6 +364,248 @@ jobs:
           outcomes: ${{ toJSON(steps) }}
           expected-failures: '["atomic-check-invalid"]'
           absent-files: '[".build/atomic-invalid.json"]'
+      # Harness images are test infrastructure, never publication candidates.
+      # Only the Atomic builder candidate receives the approved BuildKit/socket
+      # exception; the published Buildah action still builds action/harness images.
+      - name: Build native Atomic image verifier harness
+        if: matrix.image == 'workflow-build-atomic-image' || (matrix.image == 'workflow-build-atomic-iso' && matrix.arch == 'amd64')
+        id: atomic-image-harness-build
+        uses: ./oci/build-image
+        with:
+          context: .
+          containerfile: check/test-atomic-image/Containerfile
+          image: localhost/atomic-image-verifier-harness
+          version: fixture
+          platform: linux/${{ matrix.arch }}
+          output: .build/atomic-harness/image-verifier.oci.tar
+      - name: Import native Atomic image verifier harness
+        if: steps.atomic-image-harness-build.outcome == 'success'
+        id: atomic-image-harness
+        uses: ./workflow/import-candidate-image
+        with:
+          archive: .build/atomic-harness/image-verifier.oci.tar
+          repository: atomic-image-verifier-harness
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Prepare native Atomic image verifier harness
+        if: steps.atomic-image-harness.outcome == 'success'
+        uses: ./workflow/new-candidate-action
+        with:
+          directory: check/test-atomic-image
+          image: ${{ steps.atomic-image-harness.outputs.image }}
+          destination: .candidate-actions/check/test-atomic-image
+      - name: Build real native Atomic fixture through candidate BuildKit action
+        if: matrix.image == 'workflow-build-atomic-image'
+        id: atomic-built
+        timeout-minutes: 90
+        uses: ./.candidate-actions/workflow/build-atomic-image
+        with:
+          context: .
+          containerfile: tests/fixtures/atomic/Containerfile
+          image: localhost/atomic-build-fixture
+          version: 1.0.0
+          platform: linux/${{ matrix.arch }}
+          labels: '{"org.opencontainers.image.revision":"${{ github.sha }}"}'
+          output: .build/atomic-fixture/built.oci.tar
+      - name: Qualify real native OS archive and capture its exact manifest
+        if: matrix.image == 'workflow-build-atomic-image' || (matrix.image == 'workflow-build-atomic-iso' && matrix.arch == 'amd64')
+        id: atomic-real-qualified
+        timeout-minutes: 30
+        uses: ./.candidate-actions/check/test-atomic-image
+        with:
+          archive: ${{ matrix.image == 'workflow-build-atomic-image' && steps.atomic-built.outputs.archive || steps.atomic-fixture.outputs.atomic-archive }}
+          sha256: ${{ matrix.image == 'workflow-build-atomic-image' && steps.atomic-built.outputs.archive-sha256 || steps.atomic-fixture.outputs.atomic-sha256 }}
+          revision: ${{ github.sha }}
+          architecture: ${{ matrix.arch }}
+          version: 1.0.0
+          fedora-version: '45'
+          output: .build/atomic-real-qualification.json
+      - name: Reject unsupported native Atomic build platform
+        if: matrix.image == 'workflow-build-atomic-image'
+        id: atomic-build-invalid
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/build-atomic-image
+        with:
+          context: .
+          containerfile: tests/fixtures/atomic/Containerfile
+          image: localhost/atomic-build-fixture
+          version: 1.0.0
+          platform: linux/386
+          output: .build/atomic-rejected-platform.oci.tar
+      - name: Propagate failing RUN from candidate Atomic builder
+        if: matrix.image == 'workflow-build-atomic-image'
+        id: atomic-build-run-invalid
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/build-atomic-image
+        with:
+          context: .build/fixtures/fixture with spaces
+          containerfile: .build/fixtures/fixture with spaces/Containerfile.fail
+          image: localhost/atomic-build-failure
+          version: 1.0.0
+          platform: linux/${{ matrix.arch }}
+          output: .build/atomic-rejected-run.oci.tar
+      - name: Construct real AMD64 ISO from exact exported OS through candidate Lorax action
+        if: matrix.image == 'workflow-build-atomic-iso' && matrix.arch == 'amd64'
+        id: atomic-real-iso
+        timeout-minutes: 150
+        uses: ./.candidate-actions/workflow/build-atomic-iso
+        with:
+          archive: ${{ steps.atomic-fixture.outputs.atomic-archive }}
+          sha256: ${{ steps.atomic-fixture.outputs.atomic-sha256 }}
+          repository: ghcr.io/niri-tonic/niri-tomic-os
+          revision: ${{ github.sha }}
+          version: 1.0.0
+          output: .build/atomic-real-iso/qualification-only.iso
+      - name: Build native media verifier harness for real Lorax output
+        if: matrix.image == 'workflow-build-atomic-iso' && matrix.arch == 'amd64'
+        id: atomic-media-harness-build
+        uses: ./oci/build-image
+        with:
+          context: .
+          containerfile: check/test-atomic-iso/Containerfile
+          image: localhost/atomic-media-verifier-harness
+          version: fixture
+          platform: linux/${{ matrix.arch }}
+          output: .build/atomic-harness/media-verifier.oci.tar
+      - name: Import native media verifier harness
+        if: steps.atomic-media-harness-build.outcome == 'success'
+        id: atomic-media-harness
+        uses: ./workflow/import-candidate-image
+        with:
+          archive: .build/atomic-harness/media-verifier.oci.tar
+          repository: atomic-media-verifier-harness
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Prepare native media verifier harness
+        if: steps.atomic-media-harness.outcome == 'success'
+        uses: ./workflow/new-candidate-action
+        with:
+          directory: check/test-atomic-iso
+          image: ${{ steps.atomic-media-harness.outputs.image }}
+          destination: .candidate-actions/check/test-atomic-iso
+      - name: Verify real Lorax media and exact embedded native manifest
+        if: matrix.image == 'workflow-build-atomic-iso' && matrix.arch == 'amd64'
+        uses: ./.candidate-actions/check/test-atomic-iso
+        with:
+          iso: ${{ steps.atomic-real-iso.outputs.iso }}
+          receipt: ${{ steps.atomic-real-iso.outputs.receipt }}
+          revision: ${{ github.sha }}
+          version: 1.0.0
+          os-archive-sha256: ${{ steps.atomic-fixture.outputs.atomic-sha256 }}
+          os-manifest-digest: ${{ steps.atomic-real-qualified.outputs.manifest-digest }}
+          output: .build/atomic-real-media-qualification.json
+      - name: Reject tampered real OS before Lorax construction
+        if: matrix.image == 'workflow-build-atomic-iso' && matrix.arch == 'amd64'
+        id: atomic-iso-tampered
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/build-atomic-iso
+        with:
+          archive: ${{ steps.atomic-fixture.outputs.atomic-archive }}
+          sha256: '0000000000000000000000000000000000000000000000000000000000000000'
+          repository: ghcr.io/niri-tonic/niri-tomic-os
+          revision: ${{ github.sha }}
+          version: 1.0.0
+          output: .build/atomic-rejected-tampered.iso
+      - name: Reject unsupported ARM64 Lorax construction
+        if: matrix.image == 'workflow-build-atomic-iso' && matrix.arch == 'arm64'
+        id: atomic-iso-unsupported
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/build-atomic-iso
+        with:
+          archive: .build/fixtures/fixture.oci.tar
+          sha256: '0000000000000000000000000000000000000000000000000000000000000000'
+          repository: ghcr.io/niri-tonic/niri-tomic-os
+          revision: ${{ github.sha }}
+          version: 1.0.0
+          output: .build/atomic-rejected-arm64.iso
+      - name: Assert Atomic builder and constructor failures
+        if: matrix.image == 'workflow-build-atomic-image' || matrix.image == 'workflow-build-atomic-iso'
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: ${{ matrix.image == 'workflow-build-atomic-image' && '["atomic-build-invalid","atomic-build-run-invalid"]' || (matrix.arch == 'amd64' && '["atomic-iso-tampered"]' || '["atomic-iso-unsupported"]') }}
+          absent-files: '[".build/atomic-rejected-platform.oci.tar",".build/atomic-rejected-run.oci.tar",".build/atomic-rejected-tampered.iso",".build/atomic-rejected-arm64.iso"]'
+      - name: Build native repository-only SYNTHETIC protocol helper
+        if: contains(fromJSON('["check-test-atomic-iso","check-test-atomic-release","oci-get-artifact","oci-publish-artifact"]'), matrix.image)
+        id: atomic-protocol-build
+        uses: ./oci/build-image
+        with:
+          context: .
+          containerfile: .github/scripts/atomic-fixtures/Containerfile
+          image: localhost/atomic-protocol-fixtures
+          version: fixture
+          platform: linux/${{ matrix.arch }}
+          output: .build/atomic-harness/protocol.oci.tar
+      - name: Import native SYNTHETIC protocol helper
+        if: steps.atomic-protocol-build.outcome == 'success'
+        id: atomic-protocol-image
+        uses: ./workflow/import-candidate-image
+        with:
+          archive: .build/atomic-harness/protocol.oci.tar
+          repository: atomic-protocol-fixtures
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Prepare native SYNTHETIC protocol helper
+        if: steps.atomic-protocol-image.outcome == 'success'
+        uses: ./workflow/new-candidate-action
+        with:
+          directory: .github/scripts/atomic-fixtures
+          image: ${{ steps.atomic-protocol-image.outputs.image }}
+          destination: .candidate-actions/.github/scripts/atomic-fixtures
+      - name: Generate SYNTHETIC media and receipt protocol fixtures, not OS qualification
+        if: steps.atomic-protocol-image.outcome == 'success'
+        id: atomic-protocol
+        uses: ./.candidate-actions/.github/scripts/atomic-fixtures
+        with:
+          directory: .build/atomic protocol fixtures
+          source-sha: ${{ github.sha }}
+          version: 1.0.0
+      - name: Verify synthetic media format through native candidate action
+        if: matrix.image == 'check-test-atomic-iso'
+        uses: ./.candidate-actions/check/test-atomic-iso
+        with:
+          iso: ${{ steps.atomic-protocol.outputs.iso }}
+          receipt: ${{ steps.atomic-protocol.outputs.build-receipt }}
+          revision: ${{ github.sha }}
+          version: 1.0.0
+          os-archive-sha256: ${{ steps.atomic-protocol.outputs.os-archive-sha256 }}
+          os-manifest-digest: ${{ steps.atomic-protocol.outputs.os-manifest-digest }}
+          output: .build/atomic-synthetic-media-result.json
+      - name: Reject mismatched embedded native manifest
+        if: matrix.image == 'check-test-atomic-iso'
+        id: atomic-media-invalid
+        continue-on-error: true
+        uses: ./.candidate-actions/check/test-atomic-iso
+        with:
+          iso: ${{ steps.atomic-protocol.outputs.iso }}
+          receipt: ${{ steps.atomic-protocol.outputs.build-receipt }}
+          revision: ${{ github.sha }}
+          version: 1.0.0
+          os-archive-sha256: ${{ steps.atomic-protocol.outputs.os-archive-sha256 }}
+          os-manifest-digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+          output: .build/atomic-rejected-media.json
+      - name: Verify SYNTHETIC receipt protocol through native release gate
+        if: matrix.image == 'check-test-atomic-release'
+        uses: ./.candidate-actions/check/test-atomic-release
+        with:
+          qualified-directory: ${{ steps.atomic-protocol.outputs.qualified-directory }}
+          source-sha: ${{ github.sha }}
+          version: 1.0.0
+          output: .build/atomic-synthetic-bundle-result.json
+      - name: Reject wrong-source synthetic release bundle
+        if: matrix.image == 'check-test-atomic-release'
+        id: atomic-bundle-invalid
+        continue-on-error: true
+        uses: ./.candidate-actions/check/test-atomic-release
+        with:
+          qualified-directory: ${{ steps.atomic-protocol.outputs.qualified-directory }}
+          source-sha: '0000000000000000000000000000000000000000'
+          version: 1.0.0
+          output: .build/atomic-rejected-bundle.json
+      - name: Assert synthetic media and bundle rejection
+        if: matrix.image == 'check-test-atomic-iso' || matrix.image == 'check-test-atomic-release'
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: ${{ matrix.image == 'check-test-atomic-iso' && '["atomic-media-invalid"]' || '["atomic-bundle-invalid"]' }}
+          absent-files: '[".build/atomic-rejected-media.json",".build/atomic-rejected-bundle.json"]'
       - name: Reject unqualified artifact payload
         if: matrix.image == 'oci-publish-artifact'
         id: artifact-invalid
@@ -380,8 +622,8 @@ jobs:
         if: matrix.image == 'oci-publish-artifact'
         uses: ./.candidate-actions/oci/publish-artifact
         with:
-          directory: .
-          files: '[{"path":"LICENSE","sha256":"3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986","media_type":"text/plain"}]'
+          directory: ${{ steps.atomic-protocol.outputs.transfer-directory }}
+          files: ${{ steps.atomic-protocol.outputs.transfer-files }}
           reference: ghcr.io/tdesaules/github-actions/qualification-artifact:run-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.arch }}
           artifact-type: application/vnd.github-actions.qualification.v1
           registry-username: ${{ github.actor }}
@@ -392,6 +634,226 @@ jobs:
         with:
           outcomes: ${{ toJSON(steps) }}
           expected-failures: '["artifact-invalid"]'
+      - name: Build native ORAS publisher harness for downloader round trip
+        if: matrix.image == 'oci-get-artifact'
+        id: artifact-publisher-build
+        uses: ./oci/build-image
+        with:
+          context: .
+          containerfile: oci/publish-artifact/Containerfile
+          image: localhost/artifact-publisher-harness
+          version: fixture
+          platform: linux/${{ matrix.arch }}
+          output: .build/atomic-harness/artifact-publisher.oci.tar
+      - name: Import native ORAS publisher harness
+        if: steps.artifact-publisher-build.outcome == 'success'
+        id: artifact-publisher-image
+        uses: ./workflow/import-candidate-image
+        with:
+          archive: .build/atomic-harness/artifact-publisher.oci.tar
+          repository: artifact-publisher-harness
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Prepare native ORAS publisher harness
+        if: steps.artifact-publisher-image.outcome == 'success'
+        uses: ./workflow/new-candidate-action
+        with:
+          directory: oci/publish-artifact
+          image: ${{ steps.artifact-publisher-image.outputs.image }}
+          destination: .candidate-actions/oci/publish-artifact
+      - name: Publish synthetic transfer fixture to isolated qualification repository
+        if: matrix.image == 'oci-get-artifact'
+        id: artifact-transfer
+        uses: ./.candidate-actions/oci/publish-artifact
+        with:
+          directory: ${{ steps.atomic-protocol.outputs.transfer-directory }}
+          files: ${{ steps.atomic-protocol.outputs.transfer-files }}
+          reference: ghcr.io/tdesaules/github-actions/qualification-artifact:get-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.arch }}
+          artifact-type: application/vnd.github-actions.qualification.v1
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ github.token }}
+      - name: Download exact synthetic payload with native candidate ORAS action
+        if: matrix.image == 'oci-get-artifact'
+        uses: ./.candidate-actions/oci/get-artifact
+        with:
+          reference: ${{ steps.artifact-transfer.outputs.reference }}
+          files: ${{ steps.atomic-protocol.outputs.transfer-files }}
+          output: .build/atomic downloaded payload
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ github.token }}
+      - name: Reject tampered expected ORAS payload checksum
+        if: matrix.image == 'oci-get-artifact'
+        id: artifact-get-invalid
+        continue-on-error: true
+        uses: ./.candidate-actions/oci/get-artifact
+        with:
+          reference: ${{ steps.artifact-transfer.outputs.reference }}
+          files: ${{ steps.atomic-protocol.outputs.tampered-transfer-files }}
+          output: .build/atomic rejected payload
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ github.token }}
+      - name: Assert native ORAS downloader rejection
+        if: matrix.image == 'oci-get-artifact'
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: '["artifact-get-invalid"]'
+      - name: Resolve real published native Atomic index
+        if: matrix.image == 'oci-get-image-platforms'
+        id: atomic-platforms
+        uses: ./.candidate-actions/oci/get-image-platforms
+        with:
+          # Same observed immutable multi-platform index as the real OS fixture.
+          image: ghcr.io/niri-tonic/niri-tomic-os@sha256:fb708fbd3a1ec6b7c2e20aedf701326185e0c9a72db15b916a2bfec16f921ae6
+      - name: Reject a single native manifest as a multi-platform release index
+        if: matrix.image == 'oci-get-image-platforms'
+        id: atomic-platforms-invalid
+        continue-on-error: true
+        uses: ./.candidate-actions/oci/get-image-platforms
+        with:
+          image: ${{ steps.atomic-platforms.outputs.image-amd64 }}
+      - name: Assert native platform resolver rejection
+        if: matrix.image == 'oci-get-image-platforms'
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: '["atomic-platforms-invalid"]'
+      - name: Summarize unsigned unverified subject without claiming a signature
+        if: matrix.image == 'workflow-summarize-signatures'
+        uses: ./.candidate-actions/workflow/summarize-signatures
+        with:
+          subject: ghcr.io/niri-tonic/niri-tomic-os@sha256:fb708fbd3a1ec6b7c2e20aedf701326185e0c9a72db15b916a2bfec16f921ae6
+          sign-outcome: skipped
+          signed: 'false'
+          verify-outcome: skipped
+          output: .build/fixtures/signature-not-run.json
+      - name: Preserve signature verification errors as advisory reports
+        if: matrix.image == 'workflow-summarize-signatures'
+        uses: ./.candidate-actions/workflow/summarize-signatures
+        with:
+          subject: ghcr.io/niri-tonic/niri-tomic-os@sha256:fb708fbd3a1ec6b7c2e20aedf701326185e0c9a72db15b916a2bfec16f921ae6
+          sign-outcome: failure
+          signed: 'false'
+          verify-outcome: success
+          report: .build/fixtures/missing-signature-report.json
+          output: .build/fixtures/signature-error.json
+      - name: Reject mutable signature summary subject
+        if: matrix.image == 'workflow-summarize-signatures'
+        id: atomic-signature-summary-invalid
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/summarize-signatures
+        with:
+          subject: ghcr.io/niri-tonic/niri-tomic-os:45
+          output: .build/fixtures/rejected-signature-summary.json
+      - name: Assert signature summary subject rejection
+        if: matrix.image == 'workflow-summarize-signatures'
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: '["atomic-signature-summary-invalid"]'
+          absent-files: '[".build/fixtures/rejected-signature-summary.json"]'
+      - name: Test native Atomic action source fixture suites with no remote writes
+        if: contains(fromJSON('["check-test-atomic-image","check-test-atomic-iso","check-test-atomic-release","workflow-build-atomic-image","workflow-build-atomic-iso","workflow-plan-atomic-release","workflow-prepare-atomic-release","workflow-publish-atomic-release","workflow-get-atomic-artifact","oci-get-artifact","oci-get-image-platforms","workflow-summarize-signatures"]'), matrix.image)
+        uses: ./check/test-go
+        with:
+          directory: ${{ matrix.directory }}
+      - name: Test native shared Atomic release controls against local Git and mock APIs
+        if: contains(fromJSON('["check-test-atomic-release","workflow-plan-atomic-release","workflow-prepare-atomic-release","workflow-publish-atomic-release"]'), matrix.image)
+        # The published Go-test runtime may lack git-cliff; its real-cliff test
+        # then explicitly skips. These local/mock suites are not positive remote
+        # release preparation/publication evidence.
+        uses: ./check/test-go
+        with:
+          directory: shared/atomicrelease
+      - name: Plan empty native Atomic development change
+        if: matrix.image == 'workflow-plan-atomic-release'
+        uses: ./.candidate-actions/workflow/plan-atomic-release
+        with:
+          event: push
+          ref: refs/heads/main
+          before: ${{ github.sha }}
+          repository: ${{ github.repository }}
+      - name: Reject wrong-ref manual Atomic release preparation
+        if: matrix.image == 'workflow-plan-atomic-release'
+        id: atomic-plan-invalid
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/plan-atomic-release
+        with:
+          event: workflow_dispatch
+          ref: refs/heads/qualification-not-main
+          repository: ${{ github.repository }}
+      - name: Reject absent Atomic preparation evidence before any remote writes
+        if: matrix.image == 'workflow-prepare-atomic-release'
+        id: atomic-prepare-invalid
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/prepare-atomic-release
+        with:
+          qualified-directory: .build/nonexistent-atomic-qualification
+          source-sha: ${{ github.sha }}
+          repository: ${{ github.repository }}
+          image: invalid
+          iso: invalid
+          plan: .build/nonexistent-atomic-plan.json
+          token: unused-fixture-token
+          registry-username: fixture
+          registry-password: unused-fixture-token
+      - name: Reject invalid Atomic tag publication before any remote writes
+        if: matrix.image == 'workflow-publish-atomic-release'
+        id: atomic-publish-invalid
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/publish-atomic-release
+        with:
+          qualified-directory: .build/nonexistent-atomic-qualification
+          version: v1.0.0
+          repository: ${{ github.repository }}
+          token: unused-fixture-token
+          registry-username: fixture
+          registry-password: unused-fixture-token
+      - name: Upload small current-run selector qualification fixture
+        if: matrix.image == 'workflow-get-atomic-artifact'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: candidate-os-${{ matrix.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .build/fixtures/fixture.oci.tar
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+      - name: Select actual current-run fixture through candidate GitHub API action
+        if: matrix.image == 'workflow-get-atomic-artifact'
+        id: atomic-artifact-selected
+        uses: ./.candidate-actions/workflow/get-atomic-artifact
+        with:
+          repository: ${{ github.repository }}
+          run-id: ${{ github.run_id }}
+          workflow-sha: ${{ github.sha }}
+          max-attempt: ${{ github.run_attempt }}
+          kind: candidate
+          architecture: ${{ matrix.arch }}
+          token: ${{ github.token }}
+      - name: Download selected current-run fixture by immutable artifact ID
+        if: matrix.image == 'workflow-get-atomic-artifact'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          artifact-ids: ${{ steps.atomic-artifact-selected.outputs.artifact-id }}
+          path: .build/atomic-selected-artifact
+      - name: Reject missing current-run artifact token without contacting GitHub
+        if: matrix.image == 'workflow-get-atomic-artifact'
+        id: atomic-artifact-token-invalid
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/get-atomic-artifact
+        with:
+          repository: ${{ github.repository }}
+          run-id: ${{ github.run_id }}
+          workflow-sha: ${{ github.sha }}
+          max-attempt: ${{ github.run_attempt }}
+          kind: candidate
+          architecture: ${{ matrix.arch }}
+          token: ''
+      - name: Assert Atomic release-control and artifact-selector rejection
+        if: contains(fromJSON('["workflow-plan-atomic-release","workflow-prepare-atomic-release","workflow-publish-atomic-release","workflow-get-atomic-artifact"]'), matrix.image)
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: ${{ toJSON(fromJSON('{"workflow-plan-atomic-release":["atomic-plan-invalid"],"workflow-prepare-atomic-release":["atomic-prepare-invalid"],"workflow-publish-atomic-release":["atomic-publish-invalid"],"workflow-get-atomic-artifact":["atomic-artifact-token-invalid"]}')[matrix.image]) }}
       - name: Lint native synthetic Rust application
         if: matrix.image == 'lint-rust-gtk'
         uses: ./.candidate-actions/lint/rust-gtk
@@ -1349,6 +1811,10 @@ jobs:
           path: |
             .build/${{ matrix.image }}/${{ matrix.arch }}/*.json
             .build/fixtures/*.json
+            .build/atomic-*.json
+            .build/atomic-real-iso/*.build.json
+            .build/atomic protocol fixtures/qualified/**/*.json
+            .build/plan.json
             .build/reviewer/${{ matrix.arch }}/*.json
             !.build/fixtures/signing.json
             .build/fixtures/registry-cert.pem

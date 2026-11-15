@@ -342,8 +342,11 @@ func TestBuildAndQualificationAreSeparate(t *testing.T) {
 		switch step["uses"] {
 		case "./workflow/new-test-fixtures":
 			if step["id"] == "atomic-fixture" {
-				if step["if"] != "matrix.image == 'check-test-atomic-image'" {
-					t.Fatal("large Atomic fixture must be scoped to its consumer")
+				if step["if"] != "matrix.image == 'check-test-atomic-image' || (matrix.image == 'workflow-build-atomic-iso' && matrix.arch == 'amd64')" {
+					t.Fatal("large Atomic export must be scoped to image qualification and the AMD64 constructor")
+				}
+				if step["with"].(map[string]any)["atomic-recipe"] != "tests/fixtures/atomic/Containerfile" {
+					t.Fatal("real Atomic fixture must use the published FROM-only exporter, not VFS construction")
 				}
 				continue
 			}
