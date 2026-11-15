@@ -26,6 +26,15 @@ Consumer activation still requires the published action references and observed
 App-token, release, and retry execution. Development qualification does not
 authorize production image publication.
 
+Run [43752054926](https://github.com/tdesaules/github-actions/actions/runs/43752054926)
+executed the renderer, real native OS userspace checks and real BuildKit fixture
+construction successfully on AMD64 and ARM64. ORAS transfer positives also passed.
+The run as a whole failed: nested JSON transport broke subsequent assertions,
+cancellation fixtures assumed a `sleep` executable, the ARM64 Lorax runtime
+requested an x86-only Syslinux dependency, and one newly uploaded artifact was
+not immediately visible in REST. These failures require a new hosted run; none
+of those partial successes alone constitutes complete publication qualification.
+
 ## Orchestration
 
 The catalogue keeps a single Git version and three entry workflows:
