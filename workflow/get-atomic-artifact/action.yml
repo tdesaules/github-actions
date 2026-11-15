@@ -1,0 +1,44 @@
+name: Get current Atomic artifact
+description: Select the newest eligible current-run native candidate or qualified artifact, including earlier successful attempts
+inputs:
+  repository:
+    description: Current github.repository
+    required: true
+  run-id:
+    description: Current github.run_id
+    required: true
+  workflow-sha:
+    description: Current github.sha, not the qualified parent source SHA
+    required: true
+  max-attempt:
+    description: Current github.run_attempt
+    required: true
+  kind:
+    description: candidate or qualified
+    required: true
+  architecture:
+    description: amd64 or arm64
+    required: true
+  token:
+    description: Current repository token with actions read permission
+    required: true
+outputs:
+  artifact-name:
+    description: Exact selected artifact name
+  artifact-id:
+    description: Selected immutable GitHub artifact ID
+  producer-attempt:
+    description: Selected producer attempt, at most the current attempt
+runs:
+  using: docker
+  # BOOTSTRAP ONLY: publish qualified native images before consumer activation.
+  image: Containerfile
+  env:
+    INPUT_TOKEN: ${{ inputs.token }}
+  args:
+    - --repository=${{ inputs.repository }}
+    - --run-id=${{ inputs.run-id }}
+    - --workflow-sha=${{ inputs.workflow-sha }}
+    - --max-attempt=${{ inputs.max-attempt }}
+    - --kind=${{ inputs.kind }}
+    - --architecture=${{ inputs.architecture }}
