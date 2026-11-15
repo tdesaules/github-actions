@@ -146,15 +146,24 @@ func TestCoordinatorRejectsAmbiguousMountsAndRunIdentity(t *testing.T) {
 }
 func TestWorkerCommandCancellationStopsChildGroup(t *testing.T) {
 	dir := t.TempDir()
-	script := filepath.Join(dir, "child")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\nsleep 60 &\nwait\n"), 0700); err != nil {
+	executable, err := os.Executable()
+	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	ready := filepath.Join(dir, "child-ready")
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	cmd := process(ctx, executable, "--atomic-cancel-helper=parent", ready)
+	done := make(chan error, 1)
+	go func() { _, err := cmd.Output(); done <- err }()
+	waitForCancellationChild(t, ready, done)
 	start := time.Now()
-	cmd := process(ctx, script)
-	_, err := cmd.Output()
+	cancel()
+	select {
+	case err = <-done:
+	case <-time.After(4 * time.Second):
+		t.Fatal("process group did not terminate promptly")
+	}
 	if err == nil || time.Since(start) > 4*time.Second {
 		t.Fatal("process group did not terminate promptly")
 	}

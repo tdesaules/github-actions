@@ -307,14 +307,27 @@ func TestPrivateEnvironmentAndFixedCLI(t *testing.T) {
 
 func TestClientCancellationKillsPluginProcessGroup(t *testing.T) {
 	dir := t.TempDir()
-	script := filepath.Join(dir, "client")
-	// A live child keeps the captured output pipe open if only its parent dies.
-	if err := os.WriteFile(script, []byte("#!/bin/sh\nsleep 60 &\nwait\n"), 0700); err != nil {
+	executable, err := os.Executable()
+	if err != nil {
 		t.Fatal(err)
 	}
+	ready := filepath.Join(dir, "child-ready")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		_, err := executeClient(ctx, command{Config: dir, Workspace: dir, Step: "fixture", Timeout: 15 * time.Second, Capture: true, Args: []string{"--atomic-cancel-helper=parent", ready}}, executable)
+		done <- err
+	}()
+	waitForCancellationChild(t, ready, done)
 	start := time.Now()
-	_, err := executeClient(context.Background(), command{Config: dir, Workspace: dir, Step: "fixture", Timeout: 500 * time.Millisecond, Capture: true}, script)
-	if err == nil || !errors.Is(err, context.DeadlineExceeded) {
+	cancel()
+	select {
+	case err = <-done:
+	case <-time.After(4 * time.Second):
+		t.Fatal("client/plugin process group did not terminate promptly")
+	}
+	if err == nil || !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected bounded cancellation, got %v", err)
 	}
 	if time.Since(start) > 4*time.Second {
