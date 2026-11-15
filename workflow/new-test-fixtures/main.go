@@ -168,7 +168,26 @@ func execute(args []string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(*directory, "fixture-build.json"), data, 0644)
+	if err := os.WriteFile(filepath.Join(*directory, "fixture-build.json"), data, 0644); err != nil {
+		return err
+	}
+	if recipe := os.Getenv("FIXTURE_ATOMIC_RECIPE"); recipe != "" {
+		path := filepath.Join(*directory, "atomic.oci.tar")
+		sum, err := atomicFixture(recipe, path, os.Getenv("GITHUB_SHA"))
+		if err != nil {
+			return err
+		}
+		if output := os.Getenv("GITHUB_OUTPUT"); output != "" {
+			f, err := os.OpenFile(output, os.O_APPEND|os.O_WRONLY, 0600)
+			if err != nil {
+				return err
+			}
+			_, writeErr := fmt.Fprintf(f, "atomic-archive=%s\natomic-sha256=%s\n", path, sum)
+			closeErr := f.Close()
+			return errors.Join(writeErr, closeErr)
+		}
+	}
+	return nil
 }
 
 func main() {

@@ -341,6 +341,12 @@ func TestBuildAndQualificationAreSeparate(t *testing.T) {
 		}
 		switch step["uses"] {
 		case "./workflow/new-test-fixtures":
+			if step["id"] == "atomic-fixture" {
+				if step["if"] != "matrix.image == 'check-test-atomic-image'" {
+					t.Fatal("large Atomic fixture must be scoped to its consumer")
+				}
+				continue
+			}
 			if fixtures >= 0 || step["id"] != "fixtures" || step["if"] != nil {
 				t.Fatal("one unconditional published fixture generator must supply candidate outputs")
 			}

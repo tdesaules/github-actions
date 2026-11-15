@@ -1,7 +1,7 @@
 FROM quay.io/fedora/fedora:44@sha256:15bca96361db60e17c52df60efca658f02d7a8df13e6ceaabb47e9a547ec3f5e AS build
 # Supporting RPMs follow signed Fedora updates; qualified archives stay unchanged.
 # hadolint ignore=DL3041
-RUN dnf install -y golang-1.26.10-1.fc44 git ca-certificates && dnf clean all
+RUN dnf install -y golang-1.26.10-1.fc44 git skopeo ca-certificates && dnf clean all
 ENV GOTOOLCHAIN=local
 WORKDIR /src
 COPY go.mod go.sum ./
@@ -9,16 +9,18 @@ COPY shared/fixtures/ ./shared/fixtures/
 COPY workflow/new-test-fixtures/fail/ ./workflow/new-test-fixtures/fail/
 COPY workflow/new-test-fixtures/success/ ./workflow/new-test-fixtures/success/
 COPY workflow/new-test-fixtures/main.go ./workflow/new-test-fixtures/main.go
+COPY workflow/new-test-fixtures/atomic.go ./workflow/new-test-fixtures/atomic.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/new-test-fixtures \
     && CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /fixture-fail-run ./workflow/new-test-fixtures/fail \
     && CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /fixture-success-run ./workflow/new-test-fixtures/success
 RUN mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
 COPY shared/collect-binaries.sh /collect-binaries.sh
-RUN sh /collect-binaries.sh /usr/bin/git
+RUN sh /collect-binaries.sh /usr/bin/git /usr/bin/skopeo
 
 FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=build /runtime/ /
+COPY --from=build /etc/containers/ /etc/containers/
 COPY --from=build /entrypoint /entrypoint
 COPY --from=build /fixture-fail-run /fixture-fail-run
 COPY --from=build /fixture-success-run /fixture-success-run

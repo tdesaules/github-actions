@@ -109,4 +109,19 @@ func TestIndependentImagePlans(t *testing.T) {
 			t.Fatalf("accepted invalid plan: %v", args)
 		}
 	}
+	if err := os.WriteFile("lint/a/action.yml", []byte("runs:\n  using: docker\n  image: Containerfile\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	for _, event := range []string{"maintenance", "schedule"} {
+		outputs, err := invokePlan(t, "--event="+event, "--ref=refs/heads/main")
+		if err != nil || outputs["mode"] != "maintenance" {
+			t.Fatalf("unpublished action blocked maintenance: %v %v", outputs, err)
+		}
+		if _, exists := outputs["image-matrix"]; exists {
+			t.Fatal("maintenance must not plan image builds")
+		}
+	}
+	if _, err := invokePlan(t, "--event=push", "--ref=refs/tags/1.2.3"); err == nil {
+		t.Fatal("release accepted an unpublished action")
+	}
 }

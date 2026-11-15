@@ -9,7 +9,7 @@ inputs:
     default: grype-review.json
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/maintenance-test-catalog-vulnerabilities@sha256:85a4f50cbf30d1ed3fa7fb00e122e11be57f545620f5db53395a37856f1aae51
+  image: docker://ghcr.io/tdesaules/github-actions/maintenance-test-catalog-vulnerabilities@sha256:3347351b066f9aefebb6abd93dfe8ab0dea061223a7555f3fb6ade76891332dd
   args:
     - --directory=${{ inputs.directory }}
     - --policy=${{ inputs.policy }}

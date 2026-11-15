@@ -330,23 +330,19 @@ jobs:
         with:
           outcomes: ${{ toJSON(steps) }}
           expected-failures: '["atomic-render-invalid"]'
-      - name: Build native Atomic test fixture
+      - name: Export native Atomic test fixture without VFS expansion
         if: matrix.image == 'check-test-atomic-image'
         id: atomic-fixture
-        uses: ./oci/build-image
+        uses: ./workflow/new-test-fixtures
         with:
-          containerfile: tests/fixtures/atomic/Containerfile
-          image: localhost/atomic-userspace-fixture
-          version: fixture
-          platform: linux/${{ matrix.arch }}
-          labels: '{"org.opencontainers.image.revision":"${{ github.sha }}"}'
-          output: .build/atomic-fixture.oci.tar
+          directory: .build/atomic-fixture
+          atomic-recipe: tests/fixtures/atomic/Containerfile
       - name: Qualify native Atomic fixture
         if: matrix.image == 'check-test-atomic-image'
         uses: ./.candidate-actions/check/test-atomic-image
         with:
-          archive: .build/atomic-fixture.oci.tar
-          sha256: ${{ steps.atomic-fixture.outputs.archive-sha256 }}
+          archive: ${{ steps.atomic-fixture.outputs.atomic-archive }}
+          sha256: ${{ steps.atomic-fixture.outputs.atomic-sha256 }}
           revision: ${{ github.sha }}
           architecture: ${{ matrix.arch }}
           output: .build/atomic-fixture-qualified.json
@@ -356,7 +352,7 @@ jobs:
         continue-on-error: true
         uses: ./.candidate-actions/check/test-atomic-image
         with:
-          archive: .build/atomic-fixture.oci.tar
+          archive: ${{ steps.atomic-fixture.outputs.atomic-archive }}
           sha256: '0000000000000000000000000000000000000000000000000000000000000000'
           revision: ${{ github.sha }}
           architecture: ${{ matrix.arch }}

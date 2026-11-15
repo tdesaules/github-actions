@@ -8,7 +8,9 @@ COPY shared/workflow/ ./shared/workflow/
 COPY shared/atomicrelease/ ./shared/atomicrelease/
 COPY check/test-atomic-release/ ./check/test-atomic-release/
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./check/test-atomic-release
+RUN mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
 FROM scratch AS final
+COPY --from=build /runtime/ /
 COPY --from=build /entrypoint /entrypoint
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 WORKDIR /github/workspace

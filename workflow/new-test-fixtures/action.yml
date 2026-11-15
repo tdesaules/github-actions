@@ -1,14 +1,23 @@
 name: New test fixtures
 description: Generate deterministic OCI archives and valid and invalid source fixtures for action qualification
 inputs:
+  atomic-recipe:
+    description: Optional FROM-only pinned Atomic fixture recipe to archive without VFS unpacking
+    default: ''
   directory:
     description: Destination directory for generated fixtures
     required: true
 outputs:
+  atomic-archive:
+    description: Generated native Atomic fixture archive path
+  atomic-sha256:
+    description: SHA-256 checksum of the native Atomic fixture archive
   rust-source-sha:
     description: Deterministic synthetic Rust application source commit
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-test-fixtures@sha256:5ba6d5f56b3eb667263013cfb564031b47efe7d0532fc3d7a3fe8b93631e1d72
+  env:
+    FIXTURE_ATOMIC_RECIPE: ${{ inputs.atomic-recipe }}
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-test-fixtures@sha256:f468699eef082ac115a849c41c712d0eba46048d0ba92c3914f62d761121c589
   args:
     - --directory=${{ inputs.directory }}
