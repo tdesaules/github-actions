@@ -63,6 +63,18 @@ global release is finalized. Digest-preserving publication is idempotent on retr
 
 ## Activation prerequisite
 
+Maintenance controls were subsequently qualified and published in
+[run 43741811863](https://github.com/tdesaules/github-actions/actions/runs/43741811863).
+Maintenance validates its branch without imposing release completeness. Unpublished
+images are explicitly reported as `not_run`, allowing other images, Renovate and
+link checks to proceed.
+
+The Atomic fixture exporter and scratch verifier were qualified on both native
+platforms in [run 43744050295](https://github.com/tdesaules/github-actions/actions/runs/43744050295).
+The fixture retains the real consumer filesystem layers but avoids Buildah VFS
+layer snapshots. Only its synthetic source-revision label is changed. The usual
+userspace checks and tampered-checksum rejection remain required.
+
 The seven control images below were qualified through real native AMD64/ARM64
 Docker-action execution and published without rebuilding in
 [activation run 43734667929](https://github.com/tdesaules/github-actions/actions/runs/43734667929),
