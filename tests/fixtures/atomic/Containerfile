@@ -1,0 +1,4 @@
+FROM ghcr.io/niri-tonic/niri-tomic-os@sha256:fb708fbd3a1ec6b7c2e20aedf701326185e0c9a72db15b916a2bfec16f921ae6 AS final
+# Qualification fixture only. The consumer's Fedora Atomic base is intentional;
+# this image is not a published action runtime.
+LABEL org.opencontainers.image.title="atomic-userspace-fixture"

@@ -1,0 +1,34 @@
+name: Test Atomic desktop image
+description: Qualify native Niri Atomic userspace from an exact OCI archive without an engine socket
+inputs:
+  archive:
+    description: OCI archive to qualify
+    required: true
+  sha256:
+    description: Expected archive checksum from the build receipt
+    required: true
+  revision:
+    description: Expected source commit
+    required: true
+  architecture:
+    description: Native amd64 or arm64
+    required: true
+  fedora-version:
+    description: Expected Fedora version
+    default: '45'
+  output:
+    description: Qualification report and RPM inventory
+    default: qualification.json
+outputs:
+  receipt:
+    description: Workspace-relative qualification report
+runs:
+  using: docker
+  image: Containerfile
+  args:
+    - --archive=${{ inputs.archive }}
+    - --sha256=${{ inputs.sha256 }}
+    - --revision=${{ inputs.revision }}
+    - --architecture=${{ inputs.architecture }}
+    - --fedora-version=${{ inputs.fedora-version }}
+    - --output=${{ inputs.output }}

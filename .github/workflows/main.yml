@@ -62,6 +62,8 @@ jobs:
       - name: Test catalog
         if: ${{ !cancelled() && steps.sources.outputs.catalog-changed == 'true' }}
         uses: ./check/test-catalog
+        with:
+          allow-source: ${{ !startsWith(github.ref, 'refs/tags/') }}
       - name: Test Python
         if: ${{ !cancelled() && steps.sources.outputs.python-changed == 'true' }}
         uses: ./check/test-python
@@ -229,7 +231,8 @@ jobs:
     permissions:
       contents: read
       actions: read
-      packages: read
+      # The ORAS publisher tests a separate qualification artifact repository.
+      packages: write
     env:
       VERSION: ${{ matrix.source-version || format('{0}-{1}', needs.check.outputs.version, github.run_id) }}
     steps:
@@ -295,6 +298,105 @@ jobs:
       - name: Test native catalog validation
         if: matrix.image == 'check-test-catalog'
         uses: ./.candidate-actions/check/test-catalog
+        with:
+          allow-source: ${{ !startsWith(github.ref, 'refs/tags/') }}
+      - name: Check out immutable Atomic recipe fixture
+        if: matrix.image == 'workflow-render-bluebuild'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: niri-tonic/niri-tomic-os
+          ref: 0f2d51a220f036b64068b3ac0839cfcef87d5a90
+          path: .build/atomic-fixture
+          persist-credentials: false
+      - name: Render native Atomic recipe
+        if: matrix.image == 'workflow-render-bluebuild'
+        uses: ./.candidate-actions/workflow/render-bluebuild
+        with:
+          directory: .build/atomic-fixture
+          recipe: recipes/recipe.yml
+          output: .build/Containerfile
+          repository: ghcr.io/niri-tonic/niri-tomic-os
+          platform: linux/${{ matrix.arch }}
+      - name: Reject unsupported Atomic architecture
+        if: matrix.image == 'workflow-render-bluebuild'
+        id: atomic-render-invalid
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/render-bluebuild
+        with:
+          repository: ghcr.io/niri-tonic/niri-tomic-os
+          platform: linux/386
+      - name: Verify renderer negative test
+        if: matrix.image == 'workflow-render-bluebuild'
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: '["atomic-render-invalid"]'
+      - name: Build native Atomic test fixture
+        if: matrix.image == 'check-test-atomic-image'
+        id: atomic-fixture
+        uses: ./oci/build-image
+        with:
+          containerfile: tests/fixtures/atomic/Containerfile
+          image: localhost/atomic-userspace-fixture
+          version: fixture
+          platform: linux/${{ matrix.arch }}
+          labels: '{"org.opencontainers.image.revision":"${{ github.sha }}"}'
+          output: .build/atomic-fixture.oci.tar
+      - name: Qualify native Atomic fixture
+        if: matrix.image == 'check-test-atomic-image'
+        uses: ./.candidate-actions/check/test-atomic-image
+        with:
+          archive: .build/atomic-fixture.oci.tar
+          sha256: ${{ steps.atomic-fixture.outputs.archive-sha256 }}
+          revision: ${{ github.sha }}
+          architecture: ${{ matrix.arch }}
+          output: .build/atomic-fixture-qualified.json
+      - name: Reject tampered Atomic archive
+        if: matrix.image == 'check-test-atomic-image'
+        id: atomic-check-invalid
+        continue-on-error: true
+        uses: ./.candidate-actions/check/test-atomic-image
+        with:
+          archive: .build/atomic-fixture.oci.tar
+          sha256: '0000000000000000000000000000000000000000000000000000000000000000'
+          revision: ${{ github.sha }}
+          architecture: ${{ matrix.arch }}
+          output: .build/atomic-invalid.json
+      - name: Verify Atomic integrity rejection
+        if: matrix.image == 'check-test-atomic-image'
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: '["atomic-check-invalid"]'
+          absent-files: '[".build/atomic-invalid.json"]'
+      - name: Reject unqualified artifact payload
+        if: matrix.image == 'oci-publish-artifact'
+        id: artifact-invalid
+        continue-on-error: true
+        uses: ./.candidate-actions/oci/publish-artifact
+        with:
+          directory: .
+          files: '[]'
+          reference: ghcr.io/tdesaules/github-actions/qualification-artifact:test
+          artifact-type: application/vnd.niri-tonic.test.v1
+          registry-username: ${{ github.actor }}
+          registry-password: ''
+      - name: Round-trip native ORAS artifact through GHCR
+        if: matrix.image == 'oci-publish-artifact'
+        uses: ./.candidate-actions/oci/publish-artifact
+        with:
+          directory: .
+          files: '[{"path":"LICENSE","sha256":"3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986","media_type":"text/plain"}]'
+          reference: ghcr.io/tdesaules/github-actions/qualification-artifact:run-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.arch }}
+          artifact-type: application/vnd.github-actions.qualification.v1
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ github.token }}
+      - name: Verify artifact qualification rejection
+        if: matrix.image == 'oci-publish-artifact'
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: '["artifact-invalid"]'
       - name: Lint native synthetic Rust application
         if: matrix.image == 'lint-rust-gtk'
         uses: ./.candidate-actions/lint/rust-gtk

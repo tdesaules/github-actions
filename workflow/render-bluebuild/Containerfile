@@ -1,0 +1,23 @@
+FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS build
+# hadolint ignore=DL3041
+RUN dnf install -y --setopt=install_weak_deps=False golang && dnf clean all
+ENV GOTOOLCHAIN=local
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/workflow/ ./shared/workflow/
+COPY workflow/render-bluebuild/ ./workflow/render-bluebuild/
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/render-bluebuild
+
+FROM ghcr.io/blue-build/cli:latest-installer@sha256:46153cc9a0089aaed427b306fdbcfdc915f7653d094d40a03ed32213b5edbf34 AS bluebuild
+
+FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS final
+# BlueBuild checks an engine's version even for generation; no engine is started.
+# hadolint ignore=DL3041
+RUN dnf install -y --setopt=install_weak_deps=False git-core ca-certificates podman && dnf clean all
+COPY --from=bluebuild /out/bluebuild /usr/bin/bluebuild
+COPY --from=build /entrypoint /entrypoint
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+ENV STORAGE_DRIVER=vfs
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="workflow-render-bluebuild" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

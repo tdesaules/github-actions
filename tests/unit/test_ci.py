@@ -116,6 +116,11 @@ class SelectionTests(unittest.TestCase):
         jobs = ci.select(["shared/runtime/main.go"])["include"]
         owners = ci.discover()[1]
         expected = {name for name, directory in owners.items() if ci.build_dependency(ci.ROOT, directory, 'shared/runtime/main.go')}
+        # Source-bootstrap actions selected for qualification cannot reuse a
+        # published image yet, even if their own binary does not import runtime.
+        selected = {j['image'] for j in jobs}
+        expected.update(name for name, directory in owners.items()
+                        if name in selected and not ci.image_reference(ci.ROOT / directory / 'action.yml')[1])
         self.assertEqual({j['image'] for j in jobs if j['rebuild']}, expected)
         self.assertTrue(expected <= {j['image'] for j in jobs})
         self.assertEqual({j["arch"] for j in jobs}, {"amd64", "arm64"})

@@ -1,0 +1,37 @@
+name: Publish OCI artifact
+description: Publish checksum-qualified files with ORAS and verify their downloaded bytes
+inputs:
+  directory:
+    description: Directory containing qualified payloads
+    required: true
+  files:
+    description: JSON array of path, sha256 and media_type objects with flat file names
+    required: true
+  reference:
+    description: GHCR repository and unique publication tag
+    required: true
+  artifact-type:
+    description: Explicit OCI artifact media type
+    required: true
+  registry-username:
+    description: GitHub actor
+    required: true
+  registry-password:
+    description: Job-scoped registry token
+    required: true
+outputs:
+  digest:
+    description: Published and round-trip verified manifest digest
+  reference:
+    description: Immutable artifact reference
+runs:
+  using: docker
+  image: Containerfile
+  env:
+    INPUT_REGISTRY_PASSWORD: ${{ inputs.registry-password }}
+  args:
+    - --directory=${{ inputs.directory }}
+    - --files=${{ inputs.files }}
+    - --reference=${{ inputs.reference }}
+    - --artifact-type=${{ inputs.artifact-type }}
+    - --registry-username=${{ inputs.registry-username }}

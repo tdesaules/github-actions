@@ -1,0 +1,30 @@
+name: Render BlueBuild recipe
+description: Validate a BlueBuild recipe and generate its platform-specific Containerfile
+inputs:
+  directory:
+    description: Workspace-relative project directory containing recipes and files
+    default: .
+  recipe:
+    description: Workspace-relative BlueBuild recipe
+    default: recipes/recipe.yml
+  output:
+    description: Generated workspace-relative Containerfile
+    default: .build/Containerfile
+  repository:
+    description: Destination registry/namespace/image without tag
+    required: true
+  platform:
+    description: linux/amd64 or linux/arm64
+    required: true
+outputs:
+  containerfile:
+    description: Workspace-relative generated Containerfile
+runs:
+  using: docker
+  image: Containerfile
+  args:
+    - --directory=${{ inputs.directory }}
+    - --recipe=${{ inputs.recipe }}
+    - --output=${{ inputs.output }}
+    - --repository=${{ inputs.repository }}
+    - --platform=${{ inputs.platform }}
