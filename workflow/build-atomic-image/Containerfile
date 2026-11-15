@@ -9,6 +9,7 @@ COPY workflow/build-atomic-image/ ./workflow/build-atomic-image/
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/build-atomic-image
 # The upstream CLI donor omits license files. Fetch them from the exact source
 # commits reported by these pinned binaries and verify the observed bytes.
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN mkdir -p /licenses/docker-cli /licenses/buildx \
     && curl --fail --location --retry 3 https://raw.githubusercontent.com/docker/cli/5457199aa57c45e990c59c89cab5f02b817238d7/LICENSE -o /licenses/docker-cli/LICENSE \
     && curl --fail --location --retry 3 https://raw.githubusercontent.com/docker/cli/5457199aa57c45e990c59c89cab5f02b817238d7/NOTICE -o /licenses/docker-cli/NOTICE \
