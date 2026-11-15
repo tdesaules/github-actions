@@ -97,6 +97,8 @@ jobs:
       - name: Validate action metadata
         if: ${{ !cancelled() && steps.sources.outputs.action-metadata-changed == 'true' }}
         uses: ./check/test-action-metadata
+        env:
+          ALLOW_SOURCE_ACTIONS: ${{ !startsWith(github.ref, 'refs/tags/') }}
         with:
           files: ${{ steps.sources.outputs.action-metadata-files }}
 

@@ -162,8 +162,20 @@ func TestMigratedJobsUsePublishedActions(t *testing.T) {
 			uses, _ := step["uses"].(string)
 			with, _ := step["with"].(map[string]any)
 			env, _ := step["env"].(map[string]any)
-			if uses == "./workflow/prepare-source-action" || strings.HasPrefix(uses, "./.source-actions/") || with["allow-source"] != nil || env["ALLOW_SOURCE_ACTIONS"] != nil {
+			if uses == "./workflow/prepare-source-action" || strings.HasPrefix(uses, "./.source-actions/") {
 				t.Fatalf("%s: retired source bootstrap in %v", job, step["name"])
+			}
+			// Published validators may inspect unpublished action metadata before
+			// native qualification. This must never execute source actions or
+			// allow unpinned metadata in the tag publication path.
+			const sourceGuard = "${{ !startsWith(github.ref, 'refs/tags/') }}"
+			if value := with["allow-source"]; value != nil &&
+				(value != sourceGuard || (uses != "./check/test-catalog" && uses != "./.candidate-actions/check/test-catalog")) {
+				t.Fatalf("%s: unguarded source metadata validation in %v", job, step["name"])
+			}
+			if value := env["ALLOW_SOURCE_ACTIONS"]; value != nil &&
+				(value != sourceGuard || uses != "./check/test-action-metadata") {
+				t.Fatalf("%s: unguarded source action metadata validation in %v", job, step["name"])
 			}
 			candidate := job == "test" && strings.HasPrefix(uses, "./.candidate-actions/")
 			if job == "check" && (strings.HasPrefix(uses, "./.candidate-actions/") || uses == "./oci/build-image" || uses == "./workflow/import-candidate-image" || uses == "./workflow/new-candidate-action") {
