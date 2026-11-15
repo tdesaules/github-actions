@@ -1,0 +1,264 @@
+name: activate-controls
+# Temporary migration bridge. Remove after these exact qualified images are
+# pinned by the catalogue. No host-script replacement for Docker actions.
+on:
+  push:
+    branches: [ci/activate-image-pipelines]
+permissions:
+  contents: read
+concurrency:
+  group: activate-image-pipeline-controls
+  cancel-in-progress: false
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        action: [get-changed-files, get-image-matrix, new-publication-plan, publish-catalog-images, complete-release, new-catalog-signatures, test-catalog-signatures]
+        platform:
+          - {arch: amd64, runner: ubuntu-24.04}
+          - {arch: arm64, runner: ubuntu-24.04-arm}
+    runs-on: ${{ matrix.platform.runner }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Build exact native control archive
+        id: archive
+        uses: ./oci/build-image
+        with:
+          context: .
+          containerfile: workflow/${{ matrix.action }}/Containerfile
+          image: localhost/github-actions/workflow-${{ matrix.action }}
+          version: activation-${{ github.run_id }}
+          platform: linux/${{ matrix.platform.arch }}
+          labels: '{"org.opencontainers.image.revision":"${{ github.sha }}"}'
+          output: .build/control/image.oci.tar
+      - name: Record untested archive identity
+        uses: ./workflow/new-build-receipt
+        with:
+          archive: .build/control/image.oci.tar
+          output: .build/control/build.json
+          expected-sha256: ${{ steps.archive.outputs.archive-sha256 }}
+          image: workflow-${{ matrix.action }}
+          architecture: ${{ matrix.platform.arch }}
+          revision: ${{ github.sha }}
+          version: activation-${{ github.run_id }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: control-build-${{ matrix.action }}-${{ matrix.platform.arch }}
+          path: .build/control
+          include-hidden-files: true
+          if-no-files-found: error
+          overwrite: true
+  test:
+    needs: build
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        action: [get-changed-files, get-image-matrix, new-publication-plan, publish-catalog-images, complete-release, new-catalog-signatures, test-catalog-signatures]
+        platform:
+          - {arch: amd64, runner: ubuntu-24.04}
+          - {arch: arm64, runner: ubuntu-24.04-arm}
+    runs-on: ${{ matrix.platform.runner }}
+    services:
+      candidate-registry:
+        image: ghcr.io/tdesaules/github-actions/workflow-start-test-registry@sha256:4cc956d162088260da035990b56918786fbb55067f9e170358ab8802ea84b9f6
+        ports: ['5000/tcp']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: control-build-${{ matrix.action }}-${{ matrix.platform.arch }}
+          path: .build/control
+      - name: Verify downloaded archive
+        uses: ./workflow/test-build-artifact
+        with:
+          archive: .build/control/image.oci.tar
+          receipt: .build/control/build.json
+          image: workflow-${{ matrix.action }}
+          architecture: ${{ matrix.platform.arch }}
+          revision: ${{ github.sha }}
+          version: activation-${{ github.run_id }}
+      - name: Test native control runtime
+        uses: ./workflow/test-candidate-runtime
+        with:
+          archive: .build/control/image.oci.tar
+          image: workflow-${{ matrix.action }}
+          architecture: ${{ matrix.platform.arch }}
+          revision: ${{ github.sha }}
+          output: .build/control/runtime-tests.json
+      - name: Test Go contracts natively
+        if: matrix.action == 'new-publication-plan'
+        uses: ./check/test-go
+      - name: Import exact candidate
+        id: candidate
+        uses: ./workflow/import-candidate-image
+        with:
+          archive: .build/control/image.oci.tar
+          repository: workflow-${{ matrix.action }}
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Prepare real Docker action
+        uses: ./workflow/new-candidate-action
+        with:
+          directory: workflow/${{ matrix.action }}
+          image: ${{ steps.candidate.outputs.image }}
+          destination: .candidate-actions/workflow/${{ matrix.action }}
+      - name: Exercise new common checks interface
+        if: matrix.action == 'get-changed-files'
+        uses: ./.candidate-actions/workflow/get-changed-files
+        with:
+          before: ${{ github.sha }}
+          after: ${{ github.sha }}
+          common: 'true'
+      - name: Exercise new child checks interface
+        if: matrix.action == 'get-changed-files'
+        uses: ./.candidate-actions/workflow/get-changed-files
+        with:
+          full: 'true'
+          directory: workflow/get-changed-files
+      - name: Exercise scoped image matrix and plan output
+        if: matrix.action == 'get-image-matrix'
+        uses: ./.candidate-actions/workflow/get-image-matrix
+        with:
+          event: push
+          ref: refs/heads/main
+          image: workflow-get-image-matrix
+          files: '["workflow/get-image-matrix/main.go"]'
+          output: .build/control/execution-plan.json
+      - name: Reject invalid single-image publication
+        id: invalid-plan
+        if: matrix.action == 'new-publication-plan'
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/new-publication-plan
+        with:
+          owner: invalid/owner
+          image: workflow-new-publication-plan
+      - name: Reject missing aggregate receipts
+        id: invalid-aggregate
+        if: matrix.action == 'new-publication-plan'
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/new-publication-plan
+        with:
+          owner: ${{ github.repository_owner }}
+          receipts: .build/missing
+          release-plan: .build/missing.json
+      - name: Reject missing publication archives
+        id: invalid-publish
+        if: matrix.action == 'publish-catalog-images'
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/publish-catalog-images
+        with:
+          directory: .build/missing
+      - name: Reject missing finalization evidence
+        id: invalid-finish
+        if: matrix.action == 'complete-release'
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/complete-release
+        with:
+          directory: .build/missing
+          token: fixture
+      - name: Reject missing signing evidence
+        id: invalid-sign
+        if: matrix.action == 'new-catalog-signatures'
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/new-catalog-signatures
+        with:
+          directory: .build/missing
+      - name: Reject missing verification evidence
+        id: invalid-verify
+        if: matrix.action == 'test-catalog-signatures'
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/test-catalog-signatures
+        with:
+          directory: .build/missing
+          repository: ${{ github.repository }}
+      - name: Assert actual negative outcomes
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: ${{ toJSON(fromJSON('{"new-publication-plan":["invalid-plan","invalid-aggregate"],"publish-catalog-images":["invalid-publish"],"complete-release":["invalid-finish"],"new-catalog-signatures":["invalid-sign"],"test-catalog-signatures":["invalid-verify"]}')[matrix.action] || fromJSON('[]')) }}
+      - name: Generate advisory SPDX
+        id: security-sbom
+        continue-on-error: true
+        timeout-minutes: 15
+        uses: ./oci/new-sbom
+        with:
+          source: oci-archive:.build/control/image.oci.tar
+          output: .build/control/sbom.spdx.json
+      - name: Advisory vulnerability scan
+        id: security-scan
+        if: steps.security-sbom.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 15
+        uses: ./oci/test-vulnerabilities
+        with:
+          sbom: .build/control/sbom.spdx.json
+          fail-on: none
+          output: .build/control/grype.json
+      - name: Verify archive is unchanged
+        uses: ./workflow/test-build-artifact
+        with:
+          archive: .build/control/image.oci.tar
+          receipt: .build/control/build.json
+          image: workflow-${{ matrix.action }}
+          architecture: ${{ matrix.platform.arch }}
+          revision: ${{ github.sha }}
+          version: activation-${{ github.run_id }}
+      - name: Record successful qualification
+        uses: ./workflow/new-image-metadata
+        with:
+          archive: .build/control/image.oci.tar
+          image: workflow-${{ matrix.action }}
+          architecture: ${{ matrix.platform.arch }}
+          revision: ${{ github.sha }}
+          version: activation-${{ github.run_id }}
+          output: .build/control/metadata.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: control-tested-${{ matrix.action }}-${{ matrix.platform.arch }}
+          path: .build/control
+          include-hidden-files: true
+          if-no-files-found: error
+          overwrite: true
+  publish:
+    needs: [build, test]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        action: [get-changed-files, get-image-matrix, new-publication-plan, publish-catalog-images, complete-release, new-catalog-signatures, test-catalog-signatures]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: control-tested-${{ matrix.action }}-amd64
+          path: .build/control/amd64
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: control-tested-${{ matrix.action }}-arm64
+          path: .build/control/arm64
+      - name: Publish exact qualified index and archives
+        uses: ./oci/merge-image-index
+        with:
+          sources: '[".build/control/amd64/image.oci.tar",".build/control/arm64/image.oci.tar"]'
+          destination: docker://ghcr.io/tdesaules/github-actions/workflow-${{ matrix.action }}
+          output: .build/control/image-index.json
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ github.token }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: control-published-${{ matrix.action }}
+          path: .build/control/image-index.json
+          include-hidden-files: true
+          if-no-files-found: error
