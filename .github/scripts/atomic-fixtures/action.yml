@@ -1,0 +1,39 @@
+name: Generate synthetic Atomic protocol fixtures
+description: Repository-only test helper; dummy media and receipts are NOT bootable or genuine OS qualification
+inputs:
+  directory:
+    description: New workspace-relative output directory, spaces supported
+    required: true
+  source-sha:
+    description: Exact 40-hex fixture source revision
+    required: true
+  version:
+    description: Stable synthetic fixture version
+    default: 1.0.0
+outputs:
+  iso:
+    description: Raw synthetic ISO
+  build-receipt:
+    description: Original untested ISO.build.json
+  os-archive-sha256:
+    description: Exact synthetic AMD64 OCI archive checksum
+  os-manifest-digest:
+    description: Synthetic AMD64 native manifest digest
+  qualified-directory:
+    description: Synthetic protocol bundle with both architecture subdirectories
+  iso-files:
+    description: ISO, CHECKSUM and original build receipt payload descriptor array
+  transfer-directory:
+    description: Deterministic synthetic ORAS payload directory
+  transfer-files:
+    description: Valid ORAS payload descriptor array
+  tampered-transfer-files:
+    description: Same payload name with deliberately incorrect checksum
+runs:
+  using: docker
+  # Repository-only candidate image; never discover/publish as a catalog product.
+  image: Containerfile
+  args:
+    - --directory=${{ inputs.directory }}
+    - --source-sha=${{ inputs.source-sha }}
+    - --version=${{ inputs.version }}

@@ -1,0 +1,18 @@
+FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS build
+# hadolint ignore=DL3041
+RUN dnf install -y --setopt=install_weak_deps=False golang && dnf clean all
+ENV GOTOOLCHAIN=local
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY .github/scripts/atomic-fixtures/ ./.github/scripts/atomic-fixtures/
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./.github/scripts/atomic-fixtures
+FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS final
+# No mounts, sockets or privileged operations are needed for ISO authoring.
+# hadolint ignore=DL3041
+RUN dnf install -y --setopt=install_weak_deps=False xorriso isomd5sum && dnf clean all
+COPY --from=build /entrypoint /entrypoint
+COPY --from=build /usr/share/licenses/golang/ /usr/share/licenses/golang/
+COPY LICENSE /usr/share/licenses/atomic-fixtures/LICENSE
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="repository-only-synthetic-atomic-fixtures" org.opencontainers.image.licenses="GPL-3.0-only AND BSD-3-Clause"
