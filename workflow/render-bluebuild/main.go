@@ -71,6 +71,10 @@ func run() error {
 		"--registry-namespace", strings.Join(parts[1:len(parts)-1], "/"),
 		"--platform", *platform, "--inspect-driver", "oci-client",
 		"--output", *output)
+	// Generation only probes Podman's client version; it does not start an
+	// engine. Reuse the action's existing namespace instead of attempting a
+	// nested user-namespace re-exec, which Docker's default seccomp rejects.
+	cmd.Env = append(os.Environ(), "_CONTAINERS_USERNS_CONFIGURED=1")
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("render BlueBuild recipe: %w", err)
