@@ -9,9 +9,10 @@ import (
 
 func TestEntryWorkflowRouting(t *testing.T) {
 	type job struct {
-		Uses  string            `yaml:"uses"`
-		With  map[string]string `yaml:"with"`
-		Steps []struct {
+		Uses        string            `yaml:"uses"`
+		With        map[string]string `yaml:"with"`
+		Permissions map[string]string `yaml:"permissions"`
+		Steps       []struct {
 			Name string            `yaml:"name"`
 			Uses string            `yaml:"uses"`
 			With map[string]string `yaml:"with"`
@@ -37,6 +38,9 @@ func TestEntryWorkflowRouting(t *testing.T) {
 	push := main.On["push"].(map[string]any)
 	if len(main.On) != 1 || push["branches"] == nil || push["tags"] != nil || main.Jobs["pipeline"].With["mode"] != "development" {
 		t.Fatal("main must route only branch pushes to development")
+	}
+	if main.Jobs["pipeline"].Permissions["contents"] != "write" {
+		t.Fatal("the caller must permit nested release writes even when release is skipped")
 	}
 	release := read("release")
 	push = release.On["push"].(map[string]any)

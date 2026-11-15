@@ -12,6 +12,13 @@ concurrency:
   cancel-in-progress: true
 jobs:
   pipeline:
+    # GitHub validates permissions of every nested job, including the release
+    # job skipped in development. Other child jobs explicitly restrict theirs.
+    permissions:
+      contents: write
+      actions: read
+      packages: write
+      id-token: write
     uses: ./.github/workflows/catalog.yml
     with:
       mode: development
