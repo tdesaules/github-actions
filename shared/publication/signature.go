@@ -101,6 +101,9 @@ func Sign(directory string) (result error) {
 	}()
 	for _, owner := range owners {
 		image := state.Images[owner.Name]
+		if state.Image != "" && owner.Name != state.Image {
+			continue
+		}
 		if !image.Published {
 			return fmt.Errorf("cannot sign before verified publication")
 		}
@@ -160,7 +163,7 @@ func Verify(directory, tag, repository string) (result error) {
 			return err
 		}
 	}
-	identity := "https://github.com/" + repository + "/.github/workflows/main.yml@refs/heads/main"
+	identity := "https://github.com/" + repository + "/.github/workflows/release.yml@refs/heads/main"
 	reports := map[string]*signatureResult{}
 	for _, image := range state.Images {
 		for _, reference := range References(image) {
@@ -174,6 +177,9 @@ func Verify(directory, tag, repository string) (result error) {
 	}()
 	for _, owner := range owners {
 		image := state.Images[owner.Name]
+		if state.Image != "" && owner.Name != state.Image {
+			continue
+		}
 		if !image.Published {
 			return fmt.Errorf("cannot verify unpublished image")
 		}

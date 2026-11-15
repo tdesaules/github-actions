@@ -33,6 +33,8 @@ type Image struct {
 	Signed    bool               `json:"signed"`
 }
 type State struct {
+	Image    string            `json:"image,omitempty"`
+	RunID    string            `json:"run_id,omitempty"`
 	Version  string            `json:"version"`
 	Revision string            `json:"revision"`
 	Images   map[string]*Image `json:"images"`
@@ -180,12 +182,27 @@ func Load(directory string) (State, error) {
 	if state.Revision != revision {
 		return state, fmt.Errorf("publication source differs from checkout")
 	}
+	if run := os.Getenv("GITHUB_RUN_ID"); run != "" && state.RunID != run {
+		return state, fmt.Errorf("publication belongs to another workflow run")
+	}
 	if !Stable.MatchString(state.Version) && state.Version != "0.0.0-bootstrap" {
 		return state, fmt.Errorf("invalid release version")
 	}
 	images, err := catalog.Discover()
 	if err != nil {
 		return state, err
+	}
+	if state.Image != "" {
+		filtered := []catalog.Image{}
+		for _, owner := range images {
+			if owner.Name == state.Image {
+				filtered = append(filtered, owner)
+			}
+		}
+		images = filtered
+		if len(images) != 1 {
+			return state, fmt.Errorf("unknown publication image")
+		}
 	}
 	if len(images) != len(state.Images) {
 		return state, fmt.Errorf("publication does not cover current catalogue")

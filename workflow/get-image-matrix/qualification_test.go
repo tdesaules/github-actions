@@ -96,8 +96,10 @@ func TestQualificationSelectionUsesWorkflowConsumers(t *testing.T) {
 				for _, name := range tc.want {
 					found = found || j.Image == name
 				}
-				if !found || j.Rebuild {
-					t.Fatalf("test dependency should select without rebuilding: %+v", j)
+				// This fixture copies the entire action directory: metadata is a
+				// real build input here, unlike an entrypoint-only recipe.
+				if !found || j.Rebuild != (tc.name == "metadata") {
+					t.Fatalf("unexpected test/build selection: %+v", j)
 				}
 			}
 		})

@@ -16,6 +16,9 @@ func Finish(directory string) error {
 	if err != nil {
 		return err
 	}
+	if state.Image != "" {
+		return fmt.Errorf("catalogue finalization requires aggregated publication")
+	}
 	var plan ReleasePlan
 	if err = catalog.Read(filepath.Join(directory, "release-plan.json"), &plan); err != nil {
 		return err

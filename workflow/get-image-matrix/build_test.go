@@ -11,8 +11,6 @@ func TestBuildMatrix(t *testing.T) {
 	reviewer := job{Image: "workflow-new-vulnerability-review", Directory: "workflow/new-vulnerability-review", Arch: "amd64", Runner: "ubuntu-24.04", Rebuild: true, Dependency: true}
 	arm := published
 	arm.Arch, arm.Runner, arm.Scan = "arm64", "ubuntu-24.04-arm", true
-	armReviewer := reviewer
-	armReviewer.Arch, armReviewer.Runner = arm.Arch, arm.Runner
 	selectedReviewer := reviewer
 	selectedReviewer.Dependency = false
 	scanOnly := published
@@ -23,9 +21,9 @@ func TestBuildMatrix(t *testing.T) {
 	}{
 		{"empty", nil, []job{}},
 		{"published metadata only", []job{published}, []job{}},
-		{"mixed candidates and published", []job{published, product}, []job{product, reviewer}},
-		{"scan only", []job{scanOnly, arm}, []job{reviewer, armReviewer}},
-		{"deduplicate helper", []job{product, scanOnly}, []job{product, reviewer}},
+		{"mixed candidates and published", []job{published, product}, []job{product}},
+		{"scan only", []job{scanOnly, arm}, []job{}},
+		{"no implicit helper build", []job{product, scanOnly}, []job{product}},
 		{"reviewer is already a required product", []job{product, selectedReviewer}, []job{product, selectedReviewer}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

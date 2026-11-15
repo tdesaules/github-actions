@@ -92,7 +92,11 @@ func referencedFixture(step map[string]any, path string) bool {
 // Discover test consumers from the workflow itself, not a second action catalogue.
 func qualificationChanges(components []component, paths []string, before string) (map[string]bool, error) {
 	selected := map[string]bool{}
-	currentData, err := os.ReadFile(".github/workflows/main.yml")
+	workflowPath := ".github/workflows/image.yml"
+	if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
+		workflowPath = ".github/workflows/main.yml"
+	}
+	currentData, err := os.ReadFile(workflowPath)
 	if os.IsNotExist(err) {
 		// Synthetic/external catalogues without an orchestration graph keep a
 		// conservative fallback for workflow and fixture changes only.
@@ -115,10 +119,10 @@ func qualificationChanges(components []component, paths []string, before string)
 	var previous qualificationWorkflow
 	workflowChanged, previousKnown := false, false
 	for _, p := range paths {
-		workflowChanged = workflowChanged || p == ".github/workflows/main.yml"
+		workflowChanged = workflowChanged || p == workflowPath
 	}
 	if workflowChanged && regexp.MustCompile(`^[a-f0-9]{40}$`).MatchString(before) {
-		data, err := workflow.Git("show", before+":.github/workflows/main.yml")
+		data, err := workflow.Git("show", before+":"+workflowPath)
 		if err == nil {
 			previous, err = readQualification([]byte(data))
 			if err != nil {

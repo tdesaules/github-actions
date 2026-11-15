@@ -149,6 +149,8 @@ func run() error {
 	before := flag.String("before", os.Getenv("INPUT_BEFORE"), "base commit")
 	after := flag.String("after", workflow.Default("INPUT_AFTER", "HEAD"), "head commit")
 	full := flag.Bool("full", os.Getenv("INPUT_FULL") == "true", "check all tracked files")
+	directory := flag.String("directory", os.Getenv("CHANGED_DIRECTORY"), "optional action directory for child checks")
+	common := flag.Bool("common", false, "exclude image-local source checks handled by child chains")
 	flag.Parse()
 	if flag.NArg() != 0 {
 		return fmt.Errorf("unexpected arguments")
@@ -167,7 +169,41 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	for name, files := range classify(paths, workflow.SplitPaths(tracked), *full) {
+	trackedPaths := workflow.SplitPaths(tracked)
+	if *common {
+		configChanged := false
+		for _, p := range paths {
+			configChanged = configChanged || p == ".hadolint.yaml" || p == ".hadolint.yml" || p == ".shellcheckrc"
+		}
+		filtered := []string{}
+		for _, p := range trackedPaths {
+			parts := strings.Split(p, "/")
+			local := len(parts) >= 3 && strings.Contains("|oci|check|lint|workflow|maintenance|", "|"+parts[0]+"|")
+			if !local || !sourceFile(p) || configChanged {
+				filtered = append(filtered, p)
+			}
+		}
+		trackedPaths = filtered
+	}
+	if *directory != "" {
+		clean := filepath.Clean(*directory)
+		if filepath.IsAbs(clean) || clean == "." || strings.HasPrefix(clean, "..") {
+			return fmt.Errorf("invalid action directory")
+		}
+		filtered := []string{}
+		for _, p := range trackedPaths {
+			if strings.HasPrefix(p, clean+"/") && sourceFile(p) {
+				filtered = append(filtered, p)
+			}
+		}
+		trackedPaths = filtered
+		*full = true
+	}
+	classified := classify(paths, trackedPaths, *full)
+	if err := workflow.Output("checks", classified); err != nil {
+		return err
+	}
+	for name, files := range classified {
 		if err := workflow.Output(name+"-files", files); err != nil {
 			return err
 		}
@@ -186,6 +222,11 @@ func run() error {
 		return err
 	}
 	return workflow.Output("full", *full)
+}
+
+func sourceFile(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return ext != ".md" && ext != ".markdown"
 }
 
 func main() { workflow.Main("get-changed-files 1", run) }

@@ -34,7 +34,8 @@ func TestUnreleasedSourcesOnlyRebuildCurrentSelection(t *testing.T) {
 	components := []component{}
 	for _, name := range []string{"a", "b"} {
 		directory := "lint/" + name
-		write(directory+"/Containerfile", "FROM scratch AS final\nCOPY shared/"+name+"/ /src/\nCOPY "+directory+"/ /action/\n")
+		write(directory+"/Containerfile", "FROM scratch AS final\nCOPY shared/"+name+"/ /src/\nCOPY "+directory+"/main.go /action/main.go\n")
+		write(directory+"/main.go", "package main\n")
 		write(directory+"/action.yml", "metadata\n")
 		write("shared/"+name+"/runtime.go", "released\n")
 		components = append(components, component{directory, "lint-" + name, "example/" + name + "@sha256:" + strings.Repeat("a", 64)})

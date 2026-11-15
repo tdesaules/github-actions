@@ -15,7 +15,11 @@ import (
 
 var matrixBinary = "/matrix"
 
-func Prepare(directory, owner, planPath string) error {
+func Prepare(directory, owner, planPath string, scope ...string) error {
+	imageName := ""
+	if len(scope) > 0 {
+		imageName = scope[0]
+	}
 	if !regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`).MatchString(owner) {
 		return fmt.Errorf("invalid lowercase owner")
 	}
@@ -34,36 +38,9 @@ func Prepare(directory, owner, planPath string) error {
 		}
 		version = plan.Version
 	}
-	cmd := exec.Command(matrixBinary, "--event=workflow_dispatch", "--ref=refs/heads/main", "--release-plan="+planPath, "--reuse-artifacts=false")
-	cmd.Env = append(os.Environ(), "GITHUB_OUTPUT=")
-	cmd.Stderr = os.Stderr
-	data, err := cmd.Output()
+	expected, err := expectedBuilds(planPath, imageName)
 	if err != nil {
 		return err
-	}
-	var matrix struct {
-		Include []struct {
-			Image, Arch string
-			Rebuild     bool
-		} `json:"include"`
-	}
-	found := false
-	for _, line := range strings.Split(string(data), "\n") {
-		if strings.HasPrefix(line, "matrix=") {
-			if err = json.Unmarshal([]byte(strings.TrimPrefix(line, "matrix=")), &matrix); err != nil {
-				return err
-			}
-			found = true
-		}
-	}
-	if !found {
-		return fmt.Errorf("image matrix output missing")
-	}
-	expected := map[string]bool{}
-	for _, job := range matrix.Include {
-		if job.Rebuild {
-			expected[job.Image+"/"+job.Arch] = true
-		}
 	}
 	type metadata struct {
 		Image    string `json:"image"`
@@ -127,8 +104,11 @@ func Prepare(directory, owner, planPath string) error {
 	if err != nil {
 		return err
 	}
-	state := State{Version: version, Revision: revision, Images: map[string]*Image{}}
+	state := State{Image: imageName, RunID: os.Getenv("GITHUB_RUN_ID"), Version: version, Revision: revision, Images: map[string]*Image{}}
 	for _, image := range images {
+		if imageName != "" && image.Name != imageName {
+			continue
+		}
 		item := &Image{Archives: archives[image.Name]}
 		var raw []byte
 		if item.Archives == nil {
@@ -182,5 +162,46 @@ func Prepare(directory, owner, planPath string) error {
 		}
 		state.Images[image.Name] = item
 	}
+	if len(state.Images) == 0 {
+		return fmt.Errorf("empty publication selection")
+	}
 	return Save(directory, state)
+}
+
+func expectedBuilds(planPath, imageName string) (map[string]bool, error) {
+	cmd := exec.Command(matrixBinary, "--event=workflow_dispatch", "--ref=refs/heads/main", "--release-plan="+planPath, "--reuse-artifacts=false")
+	if imageName != "" {
+		cmd.Args = append(cmd.Args, "--image="+imageName)
+	}
+	cmd.Env = append(os.Environ(), "GITHUB_OUTPUT=", "MATRIX_IMAGE=", "MATRIX_OUTPUT=")
+	cmd.Stderr = os.Stderr
+	data, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	var matrix struct {
+		Include []struct {
+			Image, Arch string
+			Rebuild     bool
+		} `json:"include"`
+	}
+	found := false
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, "matrix=") {
+			if err = json.Unmarshal([]byte(strings.TrimPrefix(line, "matrix=")), &matrix); err != nil {
+				return nil, err
+			}
+			found = true
+		}
+	}
+	if !found {
+		return nil, fmt.Errorf("image matrix output missing")
+	}
+	expected := map[string]bool{}
+	for _, job := range matrix.Include {
+		if job.Rebuild {
+			expected[job.Image+"/"+job.Arch] = true
+		}
+	}
+	return expected, nil
 }

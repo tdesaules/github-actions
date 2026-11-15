@@ -20,18 +20,20 @@ var semver = regexp.MustCompile(`^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((
 
 type component struct{ directory, image, reference string }
 type job struct {
-	Image          string `json:"image"`
-	Directory      string `json:"directory"`
-	Arch           string `json:"arch"`
-	Runner         string `json:"runner"`
-	Rebuild        bool   `json:"rebuild"`
-	Reference      string `json:"reference"`
-	Scan           bool   `json:"scan"`
-	Dependency     bool   `json:"dependency,omitempty"`
-	ArtifactID     string `json:"artifact-id,omitempty"`
-	SourceRun      string `json:"source-run,omitempty"`
-	SourceRevision string `json:"source-revision,omitempty"`
-	SourceVersion  string `json:"source-version,omitempty"`
+	Image          string   `json:"image"`
+	Directory      string   `json:"directory"`
+	Arch           string   `json:"arch"`
+	Runner         string   `json:"runner"`
+	Rebuild        bool     `json:"rebuild"`
+	Reference      string   `json:"reference"`
+	Scan           bool     `json:"scan"`
+	RuntimeTest    bool     `json:"runtime-test"`
+	Reasons        []string `json:"reasons,omitempty"`
+	Dependency     bool     `json:"dependency,omitempty"`
+	ArtifactID     string   `json:"artifact-id,omitempty"`
+	SourceRun      string   `json:"source-run,omitempty"`
+	SourceRevision string   `json:"source-revision,omitempty"`
+	SourceVersion  string   `json:"source-version,omitempty"`
 }
 type matrix struct {
 	Include []job `json:"include"`
@@ -88,7 +90,7 @@ type rebuildHistory struct {
 
 func sourcePath(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
-	return ext != ".md" && ext != ".markdown" && filepath.Base(path) != "action.yml"
+	return ext != ".md" && ext != ".markdown"
 }
 
 func unreleasedChanges(head string) (rebuildHistory, error) {
@@ -143,10 +145,19 @@ func selectImages(components []component, paths []string, full bool, histories .
 			return r, err
 		}
 		selected, rebuild := full || qualification[c.image], full
+		runtimeTest := full || qualification[c.image]
+		reasons := []string{}
+		if full {
+			reasons = append(reasons, "full selection")
+		}
+		if qualification[c.image] {
+			reasons = append(reasons, "qualification dependency changed")
+		}
 		scan := full
 		for _, history := range histories {
 			selected = selected || history.allTests
 			scan = scan || history.allTests
+			runtimeTest = runtimeTest || history.allTests
 		}
 		for _, p := range paths {
 			ext := strings.ToLower(filepath.Ext(p))
@@ -155,9 +166,11 @@ func selectImages(components []component, paths []string, full bool, histories .
 			}
 			if p == "grype-review.json" || strings.HasPrefix(p, "shared/review/") {
 				selected, scan = true, true
+				reasons = append(reasons, "scan policy: "+p)
 			}
 			if p == c.directory+"/Containerfile" {
 				selected, rebuild = true, true
+				reasons = append(reasons, "recipe: "+p)
 				continue
 			}
 			if isIgnorePath(p) {
@@ -171,6 +184,9 @@ func selectImages(components []component, paths []string, full bool, histories .
 				}
 				rebuild = rebuild || impact
 				selected = selected || impact
+				if impact {
+					reasons = append(reasons, "build context: "+p)
+				}
 				continue
 			}
 			affected, err := dependencies.affected(p)
@@ -179,10 +195,13 @@ func selectImages(components []component, paths []string, full bool, histories .
 			}
 			if affected && sourcePath(p) {
 				selected, rebuild = true, true
+				reasons = append(reasons, "build input: "+p)
 				continue
 			}
 			if strings.HasPrefix(p, c.directory+"/") {
 				selected = true
+				runtimeTest = true
+				reasons = append(reasons, "action interface/test: "+p)
 			}
 		}
 		if !selected {
@@ -213,37 +232,25 @@ func selectImages(components []component, paths []string, full bool, histories .
 		}
 		rebuild = rebuild || c.reference == "" || strings.HasSuffix(c.reference, ":unpublished")
 		scan = scan || rebuild
+		runtimeTest = runtimeTest || rebuild
 		for _, arch := range []string{"amd64", "arm64"} {
 			runner := "ubuntu-24.04"
 			if arch == "arm64" {
 				runner += "-arm"
 			}
-			r.Include = append(r.Include, job{Image: c.image, Directory: c.directory, Arch: arch, Runner: runner, Rebuild: rebuild, Reference: c.reference, Scan: scan})
+			r.Include = append(r.Include, job{Image: c.image, Directory: c.directory, Arch: arch, Runner: runner, Rebuild: rebuild, Reference: c.reference, Scan: scan, RuntimeTest: runtimeTest, Reasons: reasons})
 		}
 	}
 	return r, nil
 }
 
-// buildMatrix retains product builds and adds at most one advisory reviewer per
-// scanning architecture. Published-image tests never allocate empty build jobs.
+// buildMatrix includes only selected product builds. Advisory tooling is published
+// independently and never expands another image's build chain.
 func buildMatrix(tests matrix) matrix {
 	builds := matrix{Include: []job{}}
-	reviewers := map[string]bool{}
 	for _, j := range tests.Include {
 		if j.Rebuild && j.ArtifactID == "" {
 			builds.Include = append(builds.Include, j)
-			if j.Image == "workflow-new-vulnerability-review" {
-				reviewers[j.Arch] = true
-			}
-		}
-	}
-	for _, j := range tests.Include {
-		if (j.Scan || j.Rebuild) && !reviewers[j.Arch] {
-			builds.Include = append(builds.Include, job{
-				Image: "workflow-new-vulnerability-review", Directory: "workflow/new-vulnerability-review",
-				Arch: j.Arch, Runner: j.Runner, Rebuild: true, Dependency: true,
-			})
-			reviewers[j.Arch] = true
 		}
 	}
 	return builds
@@ -252,6 +259,8 @@ func buildMatrix(tests matrix) matrix {
 func run() error {
 	files := flag.String("files", workflow.Default("INPUT_FILES", "[]"), "changed paths JSON")
 	full := flag.Bool("full", os.Getenv("INPUT_FULL") == "true", "select all images")
+	output := flag.String("output", os.Getenv("MATRIX_OUTPUT"), "optional source-bound plan artifact")
+	image := flag.String("image", os.Getenv("MATRIX_IMAGE"), "restrict a child workflow to one discovered image")
 	event := flag.String("event", workflow.Default("INPUT_EVENT", os.Getenv("GITHUB_EVENT_NAME")), "event name")
 	ref := flag.String("ref", workflow.Default("INPUT_REF", os.Getenv("GITHUB_REF")), "Git ref")
 	plan := flag.String("release-plan", os.Getenv("INPUT_RELEASE-PLAN"), "release plan JSON path")
@@ -279,14 +288,17 @@ func run() error {
 		}
 		mode = "prepare"
 	}
-	if *event == "schedule" {
+	if *event == "schedule" || *event == "maintenance" {
+		if *ref != "refs/heads/main" {
+			return fmt.Errorf("maintenance must target main")
+		}
 		mode = "maintenance"
 	}
 	version := "0.0.0-sha-" + head[:12]
 	if strings.HasPrefix(*ref, "refs/tags/") {
 		mode = "release"
 		version = strings.TrimPrefix(*ref, "refs/tags/")
-		if !semver.MatchString(version) {
+		if !semver.MatchString(version) || strings.ContainsAny(version, "-+") {
 			return fmt.Errorf("tag must be SemVer without v")
 		}
 	}
@@ -330,6 +342,18 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	if *image != "" {
+		filtered := []component{}
+		for _, c := range components {
+			if c.image == *image {
+				filtered = append(filtered, c)
+			}
+		}
+		if len(filtered) != 1 {
+			return fmt.Errorf("unknown image %q", *image)
+		}
+		components = filtered
+	}
 	if mode == "release" || mode == "maintenance" {
 		for _, c := range components {
 			if !catalog.Pinned.MatchString(c.reference) {
@@ -340,7 +364,7 @@ func run() error {
 	m := matrix{Include: []job{}}
 	if mode == "development" || mode == "prepare" {
 		history := rebuildHistory{}
-		if !*full {
+		if !*full && mode == "prepare" {
 			history, err = unreleasedChanges(head)
 			if err != nil {
 				return err
@@ -351,6 +375,17 @@ func run() error {
 		m, err = selectImages(components, paths, *full, history)
 		if err != nil {
 			return err
+		}
+	}
+	if mode == "release" {
+		for _, c := range components {
+			for _, arch := range []string{"amd64", "arm64"} {
+				runner := "ubuntu-24.04"
+				if arch == "arm64" {
+					runner += "-arm"
+				}
+				m.Include = append(m.Include, job{Image: c.image, Directory: c.directory, Arch: arch, Runner: runner, Reference: c.reference, Scan: true, RuntimeTest: true, Reasons: []string{"complete tag qualification"}})
+			}
 		}
 	}
 	if mode == "prepare" && *reuse {
@@ -368,12 +403,35 @@ func run() error {
 		return fmt.Errorf("matrix exceeds 256 jobs")
 	}
 	registry := ""
-	for _, c := range components {
+	allComponents, err := discover()
+	if err != nil {
+		return err
+	}
+	for _, c := range allComponents {
 		if c.directory == "workflow/start-test-registry" {
 			registry = c.reference
 		}
 	}
 	builds := buildMatrix(m)
+	type imageJob struct {
+		Image     string `json:"image"`
+		Directory string `json:"directory"`
+	}
+	runtimeTest := false
+	for _, j := range m.Include {
+		runtimeTest = runtimeTest || j.RuntimeTest
+	}
+	imageMatrix := struct {
+		Include []imageJob `json:"include"`
+	}{Include: []imageJob{}}
+	seen := map[string]bool{}
+	for _, j := range m.Include {
+		if !seen[j.Image] {
+			imageMatrix.Include = append(imageMatrix.Include, imageJob{j.Image, j.Directory})
+			seen[j.Image] = true
+			fmt.Fprintf(os.Stderr, "%s: rebuild=%t runtime=%t scan=%t reasons=%v\n", j.Image, j.Rebuild, j.RuntimeTest, j.Scan, j.Reasons)
+		}
+	}
 	reusedBuilds, published := 0, 0
 	for _, j := range m.Include {
 		if j.ArtifactID != "" {
@@ -387,7 +445,16 @@ func run() error {
 	if len(builds.Include) > 256 {
 		return fmt.Errorf("build matrix exceeds 256 jobs")
 	}
-	for name, value := range map[string]any{"mode": mode, "version": version, "matrix": m, "build-matrix": builds, "has-build": len(builds.Include) > 0, "has-work": len(m.Include) > 0, "test-registry-image": registry} {
+	if *output != "" {
+		if err := catalog.Write(*output, map[string]any{
+			"schema_version": 1, "source_sha": head, "mode": mode,
+			"before": *before, "version": version, "images": imageMatrix,
+			"build_matrix": builds, "test_matrix": m,
+		}); err != nil {
+			return err
+		}
+	}
+	for name, value := range map[string]any{"mode": mode, "version": version, "runtime-test": runtimeTest, "source-sha": head, "image-matrix": imageMatrix, "matrix": m, "build-matrix": builds, "has-build": len(builds.Include) > 0, "has-work": len(m.Include) > 0, "test-registry-image": registry} {
 		if err := workflow.Output(name, value); err != nil {
 			return err
 		}

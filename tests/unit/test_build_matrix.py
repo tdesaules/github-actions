@@ -15,7 +15,7 @@ class BuildMatrixTests(unittest.TestCase):
         job = dict(image='oci-new-sbom', arch='amd64', runner='ubuntu-24.04',
                    rebuild=True, scan=True, **{'artifact-id': '123'})
         builds = ci.build_matrix({'include': [job]})['include']
-        self.assertEqual([j['image'] for j in builds], ['workflow-new-vulnerability-review'])
+        self.assertEqual(builds, [])
         self.assertTrue(job['rebuild'])
 
     def test_published_only_and_empty_need_no_builds(self):
@@ -23,16 +23,14 @@ class BuildMatrixTests(unittest.TestCase):
                            'runner': 'ubuntu-24.04', 'rebuild': False}]):
             self.assertEqual(ci.build_matrix({'include': jobs}), {'include': []})
 
-    def test_scan_helpers_are_unique_and_do_not_expand_qualification(self):
+    def test_scans_do_not_add_unrelated_builds(self):
         jobs = [dict(image='oci-new-sbom', arch='amd64', runner='ubuntu-24.04', rebuild=True),
                 dict(image='oci-export-image', arch='amd64', runner='ubuntu-24.04', rebuild=False, scan=True),
                 dict(image='oci-export-image', arch='arm64', runner='ubuntu-24.04-arm', rebuild=False, scan=True)]
         original = copy.deepcopy(jobs)
         builds = ci.build_matrix({'include': jobs})['include']
         self.assertEqual([(j['image'], j['arch']) for j in builds], [
-            ('oci-new-sbom', 'amd64'), ('workflow-new-vulnerability-review', 'amd64'),
-            ('workflow-new-vulnerability-review', 'arm64')])
-        self.assertTrue(all(j['dependency'] for j in builds[1:]))
+            ('oci-new-sbom', 'amd64')])
         self.assertEqual(jobs, original)
 
     def test_reviewer_product_is_not_duplicated_or_made_advisory(self):

@@ -17,7 +17,7 @@ import (
 // Evaluate the workflow's actual status gates rather than a second routing
 // implementation. These gates intentionally use only Boolean/string expressions.
 func TestIncrementalJobGates(t *testing.T) {
-	data, err := os.ReadFile("../../.github/workflows/main.yml")
+	data, err := os.ReadFile("../../.github/workflows/image.yml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +34,7 @@ func TestIncrementalJobGates(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, step := range document.Jobs["check"].Steps {
-		if step.ID == "select" && step.With["full"] != "${{ steps.sources.outputs.full }}" {
+		if step.ID == "select" && step.With["full"] != "${{ inputs.full }}" {
 			t.Fatal("image selection must preserve the detector's diff/fallback decision")
 		}
 	}
@@ -58,7 +58,7 @@ func TestIncrementalJobGates(t *testing.T) {
 		{"skipped required test", "prepare", true, true, true, "success", "success", "skipped", false, true, true, false},
 		{"failed test", "prepare", true, true, true, "success", "success", "failure", false, true, true, false},
 		{"cancelled", "prepare", true, true, true, "success", "success", "success", true, false, false, false},
-		{"tag", "release", true, false, false, "success", "skipped", "skipped", false, false, false, true},
+		{"tag", "release", true, false, true, "success", "skipped", "success", false, false, true, false},
 		{"full qualification", "qualification", true, true, true, "success", "success", "success", false, true, true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -68,13 +68,16 @@ func TestIncrementalJobGates(t *testing.T) {
 				"needs.check.outputs.has-build":       strconv.FormatBool(tc.build),
 				"needs.check.outputs.has-work":        strconv.FormatBool(tc.test),
 				"needs.check.outputs.release-changed": "true",
+				"needs.check.outputs.runtime-test":    "true",
+				"inputs.mode":                         tc.mode,
 				"needs.lint.result":                   tc.lintResult, "needs.build.result": tc.buildResult, "needs.test.result": tc.testResult,
 			}
-			for job, want := range map[string]bool{"build": tc.wantBuild, "test": tc.wantTest, "release": tc.wantRelease} {
+			for job, want := range map[string]bool{"build": tc.wantBuild, "test": tc.wantTest, "publish": tc.wantRelease} {
 				expression := strings.ReplaceAll(document.Jobs[job].If, "'", "\"")
 				expression = strings.Join(strings.Fields(expression), " ")
 				expression = strings.ReplaceAll(expression, "always()", "true")
 				expression = strings.ReplaceAll(expression, "cancelled()", strconv.FormatBool(tc.cancelled))
+				expression = strings.ReplaceAll(expression, "inputs.release-changed", "true")
 				for key, value := range values {
 					expression = strings.ReplaceAll(expression, key, strconv.Quote(value))
 				}
@@ -90,8 +93,58 @@ func TestIncrementalJobGates(t *testing.T) {
 	}
 }
 
-func TestSourceReviewerHasExactlyOneArtifactProducer(t *testing.T) {
-	data, err := os.ReadFile("../../.github/workflows/main.yml")
+func TestParentRejectsIncompleteImageChains(t *testing.T) {
+	data, err := os.ReadFile("../../.github/workflows/catalog.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document struct {
+		Jobs map[string]struct {
+			If string `yaml:"if"`
+		} `yaml:"jobs"`
+	}
+	if err := yaml.Unmarshal(data, &document); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name, mode, imagesResult, testResult string
+		selected, changed, cancelled         bool
+		test, release                        bool
+	}{
+		{"development", "development", "success", "success", true, false, false, true, false},
+		{"empty", "development", "skipped", "success", false, false, false, true, false},
+		{"prepare", "prepare", "success", "success", true, true, false, true, true},
+		{"no bump", "prepare", "skipped", "success", false, false, false, true, false},
+		{"tag", "release", "success", "success", true, false, false, true, true},
+		{"failed image", "prepare", "failure", "skipped", true, true, false, false, false},
+		{"skipped selected images", "prepare", "skipped", "success", true, true, false, false, false},
+		{"failed aggregation", "prepare", "success", "failure", true, true, false, true, false},
+		{"cancelled", "prepare", "success", "success", true, true, true, false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for job, want := range map[string]bool{"test": tc.test, "release": tc.release} {
+				expression := strings.ReplaceAll(document.Jobs[job].If, "'", "\"")
+				expression = strings.ReplaceAll(expression, "cancelled()", strconv.FormatBool(tc.cancelled))
+				for name, value := range map[string]string{
+					"needs.check.result": "success", "needs.lint.result": "success",
+					"needs.images.result": tc.imagesResult, "needs.test.result": tc.testResult,
+					"needs.check.outputs.has-images":      strconv.FormatBool(tc.selected),
+					"needs.check.outputs.release-changed": strconv.FormatBool(tc.changed),
+					"inputs.mode":                         tc.mode,
+				} {
+					expression = strings.ReplaceAll(expression, name, strconv.Quote(value))
+				}
+				result, err := types.Eval(token.NewFileSet(), nil, token.NoPos, strings.Join(strings.Fields(expression), " "))
+				if err != nil || constant.BoolVal(result.Value) != want {
+					t.Fatalf("%s: want %t: %v expression=%s", job, want, err, expression)
+				}
+			}
+		})
+	}
+}
+
+func TestImageHasExactlyOneArtifactProducer(t *testing.T) {
+	data, err := os.ReadFile("../../.github/workflows/image.yml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,8 +171,8 @@ func TestSourceReviewerHasExactlyOneArtifactProducer(t *testing.T) {
 		default:
 			continue
 		}
-		if step["continue-on-error"] != "${{ matrix.dependency == true }}" {
-			t.Fatal("only dependency-only reviewer builds may be advisory")
+		if step["continue-on-error"] != nil {
+			t.Fatal("product builds and receipts must be blocking")
 		}
 	}
 	if producers != 1 {
@@ -138,7 +191,7 @@ func TestSourceReviewerHasExactlyOneArtifactProducer(t *testing.T) {
 // Keep migrated jobs action-composed: host execution must not creep back in.
 func TestMigratedJobsUsePublishedActions(t *testing.T) {
 	root := filepath.Join("..", "..")
-	data, err := os.ReadFile(filepath.Join(root, ".github/workflows/main.yml"))
+	data, err := os.ReadFile(filepath.Join(root, ".github/workflows/image.yml"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +203,7 @@ func TestMigratedJobsUsePublishedActions(t *testing.T) {
 	if err := yaml.Unmarshal(data, &workflow); err != nil {
 		t.Fatal(err)
 	}
-	for _, job := range []string{"check", "lint", "build", "test", "release", "maintenance"} {
+	for _, job := range []string{"check", "lint", "build", "test", "publish", "scan"} {
 		steps := workflow.Jobs[job].Steps
 		if len(steps) == 0 {
 			t.Fatalf("missing steps in %s", job)
@@ -177,7 +230,7 @@ func TestMigratedJobsUsePublishedActions(t *testing.T) {
 				(value != sourceGuard || uses != "./check/test-action-metadata") {
 				t.Fatalf("%s: unguarded source action metadata validation in %v", job, step["name"])
 			}
-			candidate := job == "test" && strings.HasPrefix(uses, "./.candidate-actions/")
+			candidate := (job == "test" || job == "publish") && strings.HasPrefix(uses, "./.candidate-actions/")
 			if job == "check" && (strings.HasPrefix(uses, "./.candidate-actions/") || uses == "./oci/build-image" || uses == "./workflow/import-candidate-image" || uses == "./workflow/new-candidate-action") {
 				t.Fatalf("check must plan with published actions without a bootstrap build: %v", step["name"])
 			}
@@ -218,7 +271,7 @@ func TestMigratedJobsUsePublishedActions(t *testing.T) {
 }
 
 func TestBuildAndQualificationAreSeparate(t *testing.T) {
-	data, err := os.ReadFile("../../.github/workflows/main.yml")
+	data, err := os.ReadFile("../../.github/workflows/image.yml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,7 +306,7 @@ func TestBuildAndQualificationAreSeparate(t *testing.T) {
 	if document.Jobs["build"].Env["VERSION"] != "${{ needs.check.outputs.version }}-${{ github.run_id }}" || document.Jobs["test"].Env["VERSION"] != "${{ matrix.source-version || format('{0}-{1}', needs.check.outputs.version, github.run_id) }}" {
 		t.Fatal("test-only retries must retain the built candidate version")
 	}
-	for job, dependency := range map[string]string{"test": "build", "release": "test"} {
+	for job, dependency := range map[string]string{"test": "build", "publish": "test"} {
 		found := false
 		for _, need := range document.Jobs[job].Needs.([]any) {
 			found = found || need == dependency
@@ -278,25 +331,13 @@ func TestBuildAndQualificationAreSeparate(t *testing.T) {
 	steps := document.Jobs["test"].Steps
 	fixtures, runtime, scan, qualified := -1, -1, -1, -1
 	checks := []int{}
-	reviewerChecks, reviewerRuntime, reviewerTransfer, reviewerPrepare, reviewerUse := -1, -1, -1, -1, -1
+	reviewerUse := -1
 	for i, step := range steps {
-		with, _ := step["with"].(map[string]any)
-		if archive, _ := with["archive"].(string); strings.HasPrefix(archive, ".build/reviewer/") {
-			switch step["uses"] {
-			case "./workflow/test-build-artifact":
-				reviewerChecks = i
-			case "./workflow/test-candidate-runtime":
-				reviewerRuntime = i
-			case "./workflow/import-candidate-image":
-				reviewerTransfer = i
-			}
-			continue
-		}
-		if step["name"] == "Prepare source reviewer action" {
-			reviewerPrepare = i
-		}
 		if step["name"] == "Derive evidence-backed vulnerability review" {
 			reviewerUse = i
+			if step["uses"] != "./workflow/new-vulnerability-review" || step["continue-on-error"] != true {
+				t.Fatal("advisory reviewer must use its published image")
+			}
 		}
 		switch step["uses"] {
 		case "./workflow/new-test-fixtures":
@@ -327,8 +368,8 @@ func TestBuildAndQualificationAreSeparate(t *testing.T) {
 	if scan <= runtime || len(checks) != 2 || checks[0] >= runtime || checks[1] <= scan || qualified <= checks[1] {
 		t.Fatal("archive integrity must bracket tests and scans before qualification")
 	}
-	if reviewerChecks < 0 || reviewerRuntime <= reviewerChecks || reviewerTransfer <= reviewerRuntime || reviewerPrepare <= reviewerTransfer || reviewerUse <= reviewerPrepare || scan <= reviewerUse {
-		t.Fatal("source reviewer must be verified and runtime-qualified before preparation and scanning")
+	if reviewerUse <= runtime || scan <= reviewerUse {
+		t.Fatal("published advisory review must precede scanning")
 	}
 	for _, step := range steps[qualified+1:] {
 		uses, _ := step["uses"].(string)

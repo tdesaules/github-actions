@@ -66,16 +66,17 @@ def applies(step, image):
 
 def select(root, actions, paths, before, build_dependency):
     selected = set()
-    source = root / '.github/workflows/main.yml'
+    workflow_path = '.github/workflows/image.yml' if (root / '.github/workflows/image.yml').exists() else '.github/workflows/main.yml'
+    source = root / workflow_path
     current = parse(source.read_text()) if source.exists() else None
     if current is None:
         if any((source.exists() or p.startswith(('.github/workflows/', 'tests/fixtures/'))) and not p.endswith(('.md', '.markdown')) for p in paths):
             selected.update(actions)
         return selected
-    changed = '.github/workflows/main.yml' in paths
+    changed = workflow_path in paths
     previous = None
     if changed and re.fullmatch('[a-f0-9]{40}', before):
-        result = subprocess.run(['git', 'show', before+':.github/workflows/main.yml'], cwd=root, capture_output=True, text=True)
+        result = subprocess.run(['git', 'show', before+':'+workflow_path], cwd=root, capture_output=True, text=True)
         if result.returncode == 0:
             previous = parse(result.stdout)
     for directory, image in actions.items():

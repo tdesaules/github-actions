@@ -1,6 +1,12 @@
 name: Get image matrix
 description: Select native image qualification jobs from source metadata and changed paths
 inputs:
+  output:
+    description: Optional source-bound execution plan artifact path
+    default: ''
+  image:
+    description: Restrict a reusable child chain to one discovered image
+    default: ''
   files:
     description: JSON array of changed paths
     default: '[]'
@@ -32,6 +38,12 @@ inputs:
     description: Previous push commit for identifying affected qualification steps
     default: ''
 outputs:
+  runtime-test:
+    description: Whether selected work includes functional qualification
+  image-matrix:
+    description: One entry per selected image, independent of native architectures
+  source-sha:
+    description: Exact source commit used for selection
   test-registry-image:
     description: Test registry service reference discovered from its action metadata
   mode:
@@ -50,6 +62,8 @@ runs:
   using: docker
   image: docker://ghcr.io/tdesaules/github-actions/workflow-get-image-matrix@sha256:21902dad949b38183d203fc53d64d7b697b7232b04cef89995dc22a261f5f3b9
   env:
+    MATRIX_OUTPUT: ${{ inputs.output }}
+    MATRIX_IMAGE: ${{ inputs.image }}
     INPUT_TOKEN: ${{ inputs.token }}
     MATRIX_REUSE_BUILDS: ${{ inputs.reuse-builds }}
     INPUT_REPOSITORY: ${{ inputs.repository }}

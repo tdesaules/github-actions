@@ -41,7 +41,8 @@ class SelectionTests(unittest.TestCase):
             git('config', 'tag.gpgsign', 'false')
             for name in ('a', 'b'):
                 write(f'lint/{name}/action.yml', f'runs:\n  image: docker://example/lint-{name}@sha256:' + 'a' * 64 + '\n')
-                write(f'lint/{name}/Containerfile', f'FROM scratch AS final\nCOPY shared/{name}/ /src/\nCOPY lint/{name}/ /action/\n')
+                write(f'lint/{name}/Containerfile', f'FROM scratch AS final\nCOPY shared/{name}/ /src/\nCOPY lint/{name}/main.go /action/main.go\n')
+                write(f'lint/{name}/main.go', 'package main\n')
                 write(f'shared/{name}/runtime.go', 'released\n')
             commit()
             git('tag', '1.9.0')

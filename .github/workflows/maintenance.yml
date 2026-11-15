@@ -1,0 +1,86 @@
+name: maintenance
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '23 5 * * 1'
+permissions:
+  contents: read
+concurrency:
+  group: catalog-maintenance
+  cancel-in-progress: false
+jobs:
+  maintenance:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate maintenance ref
+        id: policy
+        uses: ./workflow/get-image-matrix
+        with:
+          event: maintenance
+          ref: ${{ github.ref }}
+      - name: Generate published catalogue SBOMs
+        if: ${{ !cancelled() && steps.policy.outcome == 'success' }}
+        id: security-sboms
+        timeout-minutes: 120
+        continue-on-error: true
+        uses: ./maintenance/new-catalog-sboms
+      - name: Rescan published catalogue
+        if: ${{ !cancelled() && steps.policy.outcome == 'success' }}
+        id: security-catalog-scan
+        timeout-minutes: 60
+        continue-on-error: true
+        uses: ./maintenance/test-catalog-vulnerabilities
+      - name: Select documentation links
+        if: ${{ !cancelled() && steps.policy.outcome == 'success' }}
+        id: documents
+        uses: ./workflow/get-changed-files
+        with:
+          full: 'true'
+      - name: Lychee
+        if: ${{ !cancelled() && steps.policy.outcome == 'success' && steps.documents.outputs.lychee-changed == 'true' }}
+        uses: ./lint/lychee
+        with:
+          files: ${{ steps.documents.outputs.lychee-files }}
+          config: lychee.toml
+      - name: Create shared bot App token
+        if: ${{ !cancelled() && steps.policy.outcome == 'success' }}
+        id: bot-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+      - name: Renovate
+        if: ${{ !cancelled() && steps.policy.outcome == 'success' && steps.bot-token.outcome == 'success' }}
+        uses: ./maintenance/update-dependencies
+        with:
+          repository: ${{ github.repository }}
+          token: ${{ steps.bot-token.outputs.token }}
+          dry-run: 'false'
+      - name: Summarize security outcomes
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 5
+        uses: ./workflow/test-step-outcomes
+        env:
+          SECURITY_SUBJECT: ${{ github.sha }}
+          SECURITY_OUTPUT: .build/maintenance/security-status.json
+        with:
+          outcomes: ${{ toJSON(steps) }}
+      - name: Retain diagnostics
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: maintenance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .build/maintenance
+          include-hidden-files: true
+          if-no-files-found: warn

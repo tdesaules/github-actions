@@ -1,0 +1,20 @@
+name: release
+on:
+  push:
+    tags: ['*']
+  workflow_dispatch: {}
+permissions:
+  contents: write
+  actions: read
+  packages: write
+  id-token: write
+concurrency:
+  group: catalog-release
+  cancel-in-progress: false
+jobs:
+  pipeline:
+    uses: ./.github/workflows/catalog.yml
+    with:
+      mode: ${{ github.event_name == 'workflow_dispatch' && 'prepare' || 'release' }}
+    secrets:
+      BOT_APP_PRIVATE_KEY: ${{ secrets.BOT_APP_PRIVATE_KEY }}

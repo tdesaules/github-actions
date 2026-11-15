@@ -1,5 +1,13 @@
 # Get image matrix
 
+The reusable image pipeline uses `image-matrix` (one entry per image) for its
+parent and `matrix` / `build-matrix` (native architectures) inside each child.
+`image` restricts selection to one discovered owner. `runtime-test` distinguishes
+functional qualification from scan-only work, and `output` retains the exact
+source-bound plan and selection reasons. Development uses the push diff; release
+preparation uses the release baseline, and tags test all pinned images without
+building. See [image pipelines](../../docs/image-pipelines.md) for activation.
+
 Discovers independent image owners from action metadata and Containerfiles.
 Consumes changed paths, including deletions, and returns an AMD64/ARM64 matrix.
 Each row also exposes its source image reference for metadata-only tests. The

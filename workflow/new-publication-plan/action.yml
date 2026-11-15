@@ -1,6 +1,12 @@
 name: New publication plan
 description: Validate exact-source tested archives and plan digest-preserving catalogue publication
 inputs:
+  image:
+    description: Optional single discovered image to prepare for publication
+    default: ''
+  receipts:
+    description: Directory of published per-image receipts to aggregate
+    default: ''
   directory:
     description: Downloaded qualification artifact directory
     default: .build/publication
@@ -12,6 +18,9 @@ inputs:
     default: ''
 runs:
   using: docker
+  env:
+    PUBLICATION_IMAGE: ${{ inputs.image }}
+    PUBLICATION_RECEIPTS: ${{ inputs.receipts }}
   image: docker://ghcr.io/tdesaules/github-actions/workflow-new-publication-plan@sha256:b8946576d6111eae877474f9cb7aa59524580ee15bb2c3be57ffdbd741dd207b
   args:
     - --directory=${{ inputs.directory }}

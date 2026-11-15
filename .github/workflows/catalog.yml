@@ -1,0 +1,260 @@
+name: catalog
+on:
+  workflow_call:
+    inputs:
+      mode:
+        type: string
+        required: true
+    secrets:
+      BOT_APP_PRIVATE_KEY:
+        required: false
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      image-matrix: ${{ steps.images.outputs.image-matrix }}
+      has-images: ${{ steps.images.outputs.has-work }}
+      files: ${{ steps.sources.outputs.files }}
+      full: ${{ steps.sources.outputs.full }}
+      source-sha: ${{ steps.images.outputs.source-sha }}
+      release-changed: ${{ steps.plan.outputs.release-changed }}
+      checks: ${{ steps.sources.outputs.checks }}
+      go: ${{ steps.sources.outputs.go-changed }}
+      python: ${{ steps.sources.outputs.python-changed }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select source checks
+        id: sources
+        uses: ./workflow/get-changed-files
+        with:
+          before: ${{ github.event.before }}
+          after: ${{ github.sha }}
+          full: ${{ inputs.mode != 'development' }}
+          common: 'true'
+      - name: Plan release version
+        id: plan
+        if: inputs.mode == 'prepare'
+        uses: ./workflow/new-release-plan
+      - name: Retain source-bound release plan
+        if: inputs.mode == 'prepare'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-plan
+          path: .build/publication/release-plan.json
+          include-hidden-files: true
+          if-no-files-found: error
+      - name: Select independent image chains
+        id: images
+        uses: ./workflow/get-image-matrix
+        with:
+          files: ${{ steps.sources.outputs.files }}
+          full: ${{ steps.sources.outputs.full }}
+          before: ${{ github.event.before }}
+          event: ${{ github.event_name }}
+          ref: ${{ github.ref }}
+          release-plan: ${{ inputs.mode == 'prepare' && '.build/publication/release-plan.json' || '' }}
+          output: .build/ci/plan.json
+      - name: Retain execution plan and selection reasons
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: execution-plan-${{ github.run_id }}
+          path: .build/ci/plan.json
+          include-hidden-files: true
+          if-no-files-found: error
+      - name: Validate catalogue ownership
+        uses: ./check/test-catalog
+        with:
+          allow-source: ${{ inputs.mode != 'release' }}
+
+  lint:
+    needs: check
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Actionlint
+        if: ${{ !cancelled() && toJSON(fromJSON(needs.check.outputs.checks).actionlint) != '[]' }}
+        uses: ./lint/actionlint
+        with:
+          files: ${{ toJSON(fromJSON(needs.check.outputs.checks).actionlint) }}
+      - name: Hadolint
+        if: ${{ !cancelled() && toJSON(fromJSON(needs.check.outputs.checks).hadolint) != '[]' }}
+        uses: ./lint/hadolint
+        with:
+          files: ${{ toJSON(fromJSON(needs.check.outputs.checks).hadolint) }}
+      - name: ShellCheck
+        if: ${{ !cancelled() && toJSON(fromJSON(needs.check.outputs.checks).shellcheck) != '[]' }}
+        uses: ./lint/shellcheck
+        with:
+          files: ${{ toJSON(fromJSON(needs.check.outputs.checks).shellcheck) }}
+      - name: YAML
+        if: ${{ !cancelled() && toJSON(fromJSON(needs.check.outputs.checks).yaml) != '[]' }}
+        uses: ./lint/yaml
+        with:
+          files: ${{ toJSON(fromJSON(needs.check.outputs.checks).yaml) }}
+      - name: TOML
+        if: ${{ !cancelled() && toJSON(fromJSON(needs.check.outputs.checks).toml) != '[]' }}
+        uses: ./lint/toml
+        with:
+          files: ${{ toJSON(fromJSON(needs.check.outputs.checks).toml) }}
+      - name: Markdown
+        if: ${{ !cancelled() && toJSON(fromJSON(needs.check.outputs.checks).markdownlint) != '[]' }}
+        uses: ./lint/markdownlint
+        with:
+          files: ${{ toJSON(fromJSON(needs.check.outputs.checks).markdownlint) }}
+      - name: Links
+        if: ${{ !cancelled() && toJSON(fromJSON(needs.check.outputs.checks).lychee) != '[]' }}
+        uses: ./lint/lychee
+        with:
+          files: ${{ toJSON(fromJSON(needs.check.outputs.checks).lychee) }}
+          config: lychee.toml
+      - name: Action metadata
+        if: ${{ !cancelled() && toJSON(fromJSON(needs.check.outputs.checks)['action-metadata']) != '[]' }}
+        uses: ./check/test-action-metadata
+        env:
+          ALLOW_SOURCE_ACTIONS: ${{ inputs.mode != 'release' }}
+        with:
+          files: ${{ toJSON(fromJSON(needs.check.outputs.checks)['action-metadata']) }}
+
+  images:
+    needs: [check, lint]
+    if: needs.check.outputs.has-images == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.check.outputs.image-matrix) }}
+    uses: ./.github/workflows/image.yml
+    with:
+      image: ${{ matrix.image }}
+      directory: ${{ matrix.directory }}
+      files: ${{ needs.check.outputs.files }}
+      full: ${{ needs.check.outputs.full == 'true' }}
+      source-sha: ${{ needs.check.outputs.source-sha }}
+      mode: ${{ inputs.mode }}
+      release-changed: ${{ needs.check.outputs.release-changed == 'true' }}
+
+  test:
+    needs: [check, lint, images]
+    if: >-
+      !cancelled() && needs.check.result == 'success' && needs.lint.result == 'success' &&
+      ((needs.check.outputs.has-images == 'true' && needs.images.result == 'success') ||
+       (needs.check.outputs.has-images == 'false' && needs.images.result == 'skipped'))
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Repository Go contracts
+        if: needs.check.outputs.go == 'true'
+        uses: ./check/test-go
+      - name: Repository Python contracts
+        if: ${{ !cancelled() && needs.check.outputs.python == 'true' }}
+        uses: ./check/test-python
+      - name: Download per-image publication receipts
+        if: inputs.mode == 'prepare' && needs.check.outputs.release-changed == 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          pattern: publication-*-${{ github.run_id }}
+          path: .build/image-publications
+      - name: Download release plan
+        if: inputs.mode == 'prepare' && needs.check.outputs.release-changed == 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: release-plan
+          path: .build/publication
+      - name: Verify complete published image set
+        if: inputs.mode == 'prepare' && needs.check.outputs.release-changed == 'true'
+        uses: ./workflow/new-publication-plan
+        with:
+          receipts: .build/image-publications
+          release-plan: .build/publication/release-plan.json
+          owner: ${{ github.repository_owner }}
+      - name: Verify tag catalogue provenance
+        if: inputs.mode == 'release'
+        uses: ./workflow/test-catalog-publication
+        with:
+          tag: ${{ github.ref_name }}
+      - name: Verify advisory tag signatures
+        id: security-signatures-verify-tag
+        if: inputs.mode == 'release'
+        timeout-minutes: 15
+        continue-on-error: true
+        uses: ./workflow/test-catalog-signatures
+        with:
+          tag: ${{ github.ref_name }}
+          repository: ${{ github.repository }}
+      - name: Retain tag signature diagnostics
+        if: always() && inputs.mode == 'release'
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: tag-signatures-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .build/publication/verification-status.json
+            .build/publication/signatures
+          include-hidden-files: true
+          if-no-files-found: warn
+      - name: Retain verified global publication
+        if: inputs.mode == 'prepare' && needs.check.outputs.release-changed == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: catalog-publication-${{ github.run_id }}
+          path: .build/publication
+          include-hidden-files: true
+          if-no-files-found: error
+
+  release:
+    needs: [check, lint, images, test]
+    if: >-
+      !cancelled() && needs.check.result == 'success' && needs.lint.result == 'success' &&
+      needs.images.result == 'success' && needs.test.result == 'success' &&
+      (inputs.mode == 'release' ||
+       (inputs.mode == 'prepare' && needs.check.outputs.release-changed == 'true'))
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Download verified global publication
+        if: inputs.mode == 'prepare'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: catalog-publication-${{ github.run_id }}
+          path: .build/publication
+      - name: Create release App token
+        id: app
+        if: inputs.mode == 'prepare'
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+      - name: Finalize references and atomic catalogue tag
+        if: inputs.mode == 'prepare'
+        uses: ./workflow/complete-release
+        with:
+          token: ${{ steps.app.outputs.token }}
+      - name: Publish GitHub Release
+        if: inputs.mode == 'release'
+        uses: ./workflow/new-github-release
+        with:
+          repository: ${{ github.repository }}
+          tag: ${{ github.ref_name }}
+          token: ${{ github.token }}

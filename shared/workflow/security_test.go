@@ -46,37 +46,39 @@ func TestScanReportingPreservesErrorsAndFindings(t *testing.T) {
 }
 
 func TestSecurityContinuationDoesNotRelaxFunctionalGates(t *testing.T) {
-	data, err := os.ReadFile("../../.github/workflows/main.yml")
-	if err != nil {
-		t.Fatal(err)
-	}
 	var document struct {
 		Jobs map[string]struct {
 			Continue bool             `yaml:"continue-on-error"`
 			Steps    []map[string]any `yaml:"steps"`
 		} `yaml:"jobs"`
 	}
-	if err = yaml.Unmarshal(data, &document); err != nil {
-		t.Fatal(err)
-	}
 	checks := map[string]bool{}
-	for name, job := range document.Jobs {
-		if job.Continue {
-			t.Fatalf("%s hides functional job failures", name)
+	for _, file := range []string{"catalog.yml", "image.yml", "maintenance.yml"} {
+		data, err := os.ReadFile("../../.github/workflows/" + file)
+		if err != nil {
+			t.Fatal(err)
 		}
-		for _, step := range job.Steps {
-			id, _ := step["id"].(string)
-			uses, _ := step["uses"].(string)
-			if id == "security-scan" || id == "security-signatures-sign" || id == "security-signatures-verify" || id == "security-catalog-scan" {
-				checks[id] = true
-				if step["continue-on-error"] != true {
-					t.Fatalf("%s must retain advisory execution", id)
-				}
+		if err := yaml.Unmarshal(data, &document); err != nil {
+			t.Fatal(err)
+		}
+		for name, job := range document.Jobs {
+			if job.Continue {
+				t.Fatalf("%s hides functional job failures", name)
 			}
-			if uses == "./workflow/publish-catalog-images" || uses == "./workflow/new-image-metadata" || uses == "./workflow/test-catalog-publication" || uses == "./workflow/complete-release" {
-				checks[uses] = true
-				if step["continue-on-error"] == true {
-					t.Fatalf("functional gate weakened: %s", uses)
+			for _, step := range job.Steps {
+				id, _ := step["id"].(string)
+				uses, _ := step["uses"].(string)
+				if id == "security-scan" || id == "security-signatures-sign" || id == "security-signatures-verify" || id == "security-catalog-scan" {
+					checks[id] = true
+					if step["continue-on-error"] != true {
+						t.Fatalf("%s must retain advisory execution", id)
+					}
+				}
+				if uses == "./workflow/publish-catalog-images" || uses == "./workflow/new-image-metadata" || uses == "./workflow/test-catalog-publication" || uses == "./workflow/complete-release" {
+					checks[uses] = true
+					if step["continue-on-error"] == true {
+						t.Fatalf("functional gate weakened: %s", uses)
+					}
 				}
 			}
 		}

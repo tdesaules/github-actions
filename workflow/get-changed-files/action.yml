@@ -1,6 +1,12 @@
 name: Get changed files
 description: Read the Git diff and expose literal file lists for explicit workflow conditions
 inputs:
+  common:
+    description: Select common and documentation checks; child chains own image-local checks
+    default: 'false'
+  directory:
+    description: Optional action directory for child-specific static checks
+    default: ''
   before:
     description: Base commit; empty or all-zero means all tracked files
     default: ''
@@ -11,6 +17,8 @@ inputs:
     description: Check all tracked files
     default: 'false'
 outputs:
+  checks:
+    description: Classified literal file arrays as JSON
   files:
     description: Changed paths as a JSON array including deleted and renamed paths
   full:
@@ -57,6 +65,8 @@ runs:
   using: docker
   image: docker://ghcr.io/tdesaules/github-actions/workflow-get-changed-files@sha256:55e0682612749d29579cf93049898cf4ff4bf856d7321b093cd75f258a7693e1
   args:
+    - --common=${{ inputs.common }}
+    - --directory=${{ inputs.directory }}
     - --before=${{ inputs.before }}
     - --after=${{ inputs.after }}
     - --full=${{ inputs.full }}

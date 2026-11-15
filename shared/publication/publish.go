@@ -30,6 +30,9 @@ func Publish(directory string) error {
 		return err
 	}
 	for _, owner := range owners {
+		if state.Image != "" && owner.Name != state.Image {
+			continue
+		}
 		image := state.Images[owner.Name]
 		if !image.Reused {
 			paths, err := ArchivePaths(directory, image)

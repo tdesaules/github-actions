@@ -86,7 +86,7 @@ def pinned_metadata(path, reference):
 
 
 def source_path(path):
-    return Path(path).suffix.lower() not in ('.md', '.markdown') and Path(path).name != 'action.yml'
+    return Path(path).suffix.lower() not in ('.md', '.markdown')
 
 
 def release_baseline(head, root=ROOT):
@@ -164,14 +164,6 @@ def select(paths, full=False, root=ROOT, unreleased=(), rebuild_selected=False, 
 
 def build_matrix(tests):
     builds = [dict(job) for job in tests['include'] if job['rebuild'] and not job.get('artifact-id')]
-    reviewers = {job['arch'] for job in builds if job['image'] == 'workflow-new-vulnerability-review'}
-    for job in tests['include']:
-        if (job.get('scan', False) or job['rebuild']) and job['arch'] not in reviewers:
-            builds.append({'image': 'workflow-new-vulnerability-review',
-                           'directory': 'workflow/new-vulnerability-review',
-                           'arch': job['arch'], 'runner': job['runner'],
-                           'rebuild': True, 'reference': '', 'scan': False, 'dependency': True})
-            reviewers.add(job['arch'])
     return {'include': builds}
 
 
@@ -381,15 +373,29 @@ def main():
             paths = changed_paths(before, after)
     matrix = {"include": []}
     if pipeline_mode in ('development', 'prepare', 'qualification'):
-        unreleased, rebuild_selected = ([], False) if full else unreleased_changes(after)
-        baseline = '' if full else release_baseline(after)
+        unreleased, rebuild_selected = unreleased_changes(after) if not full and pipeline_mode == 'prepare' else ([], False)
+        baseline = release_baseline(after) if not full and pipeline_mode == 'prepare' else ''
         matrix = select(paths, full, unreleased=unreleased, rebuild_selected=rebuild_selected, baseline=baseline, before=before, qualify_all=qualify_all)
     if pipeline_mode == 'prepare' and os.environ.get('ARTIFACT_RUN_ID'):
         # The workflow validates the source run before selecting this empty matrix.
         matrix = {'include': []}
+    if pipeline_mode == 'release':
+        actions, _ = discover(ROOT)
+        for directory, image in sorted(actions.items()):
+            _, reference = image_reference(ROOT / directory / 'action.yml')
+            if '@sha256:' not in reference:
+                raise ValueError(f'{directory}: release requires a published digest')
+            for arch in ('amd64', 'arm64'):
+                matrix['include'].append({'image': image, 'directory': directory, 'arch': arch,
+                                          'runner': 'ubuntu-24.04' if arch == 'amd64' else 'ubuntu-24.04-arm',
+                                          'rebuild': False, 'scan': True, 'runtime-test': True,
+                                          'reference': reference})
     emit("mode", pipeline_mode)
     emit("matrix", matrix)
     builds = build_matrix(matrix)
+    image_matrix = {job['image']: {'image': job['image'], 'directory': job['directory']}
+                    for job in matrix['include']}
+    emit("image-matrix", {'include': list(image_matrix.values())})
     emit("build-matrix", builds)
     emit("has-build", str(bool(builds['include'])).lower())
     emit("has-work", str(bool(matrix["include"])).lower())

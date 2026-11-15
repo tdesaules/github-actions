@@ -11,7 +11,7 @@ import (
 // Publication must run the exact qualified planner from this run, never silently
 // substitute an older selector or another run's artifacts.
 func TestPublicationPlannerActivationPreservesVerification(t *testing.T) {
-	data, err := os.ReadFile("../../.github/workflows/main.yml")
+	data, err := os.ReadFile("../../.github/workflows/image.yml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +25,7 @@ func TestPublicationPlannerActivationPreservesVerification(t *testing.T) {
 	}
 	steps := map[string]map[string]any{}
 	order := map[string]int{}
-	for i, step := range document.Jobs["release"].Steps {
+	for i, step := range document.Jobs["publish"].Steps {
 		name, _ := step["name"].(string)
 		steps[name] = step
 		order[name] = i
@@ -64,7 +64,7 @@ func TestPublicationPlannerActivationPreservesVerification(t *testing.T) {
 		}
 	}
 	download := steps["Download tested matrix artifacts"]["with"].(map[string]any)
-	if download["run-id"] != "${{ github.run_id }}" || download["pattern"] != "oci-*-${{ github.run_id }}" || download["artifact-ids"] != nil {
+	if download["run-id"] != "${{ github.run_id }}" || download["pattern"] != "oci-${{ inputs.image }}-*-${{ github.run_id }}" || download["artifact-ids"] != nil {
 		t.Fatal("publication must download only this run's qualification artifacts")
 	}
 }
