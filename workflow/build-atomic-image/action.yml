@@ -32,6 +32,8 @@ outputs:
     description: Workspace-relative exact OCI archive path
   archive-sha256:
     description: SHA-256 of the exact archive bytes, not the manifest
+  manifest-digest:
+    description: Verified native OCI image manifest digest from the archive index
   size:
     description: Archive size in bytes
 runs:

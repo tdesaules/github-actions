@@ -39,7 +39,7 @@ func parse(args []string) (options, error) {
 }
 
 func outputs(r result) error {
-	text := "archive=" + r.Archive + "\narchive-sha256=" + r.SHA256 + "\nsize=" + strconv.FormatInt(r.Size, 10) + "\n"
+	text := "archive=" + r.Archive + "\narchive-sha256=" + r.SHA256 + "\nmanifest-digest=" + r.ManifestDigest + "\nsize=" + strconv.FormatInt(r.Size, 10) + "\n"
 	if path := os.Getenv("GITHUB_OUTPUT"); path != "" {
 		f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0600)
 		if err != nil {

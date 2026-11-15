@@ -39,6 +39,9 @@ Outputs:
 
 - `archive`: **workspace-relative** path, usable by subsequent host/action steps.
 - `archive-sha256`: SHA-256 of the exact archive bytes, not its manifest.
+- `manifest-digest`: validated `sha256:...` digest of the single native OCI image
+  manifest referenced by `index.json`, not the config digest. Emitted from the
+  same archive verification pass, without importing or reconstructing the image.
 - `size`: archive byte count.
 
 Context, Containerfile, image/version, labels, build arguments and target retain
@@ -81,6 +84,8 @@ artifacts from the uploaded context. The private client config is outside it.
 Construction is **not functional qualification**. Feed the archive/checksum to
 `check/test-atomic-image`, then use the qualified artifact for ISO construction
 and publication. No `tested: true` or boot-test claim is generated here.
+Constructor checks can use `manifest-digest` for embedded-OS identity; consumers
+still obtain independent manifest verification from `check/test-atomic-image`.
 SBOM, Grype and signing remain separate advisory operations.
 
 ## Lifecycle and failure behavior
