@@ -28,6 +28,9 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	if err := os.MkdirAll(*directory, 0755); err != nil {
+		return err
+	}
 	cache, err := os.MkdirTemp("", "catalog-grype-db-")
 	if err != nil {
 		return err
@@ -47,6 +50,15 @@ func run() error {
 	}
 	failures := []string{}
 	for _, image := range images {
+		if !catalog.Pinned.MatchString(image.Reference) {
+			fmt.Fprintf(os.Stderr, "::warning::%s: scan not run; no published digest\n", image.Name)
+			if err := catalog.Write(filepath.Join(*directory, image.Name, "scan-status.json"), map[string]string{
+				"status": "not_run", "reason": "no published digest", "component": image.Name,
+			}); err != nil {
+				return err
+			}
+			continue
+		}
 		for _, arch := range []string{"amd64", "arm64"} {
 			dir := filepath.Join(*directory, image.Name, arch)
 			if err := os.Remove(filepath.Join(dir, "grype.json")); err != nil && !os.IsNotExist(err) {

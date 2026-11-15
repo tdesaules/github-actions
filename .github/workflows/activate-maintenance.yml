@@ -1,0 +1,224 @@
+name: activate-maintenance
+# Temporary native qualification bridge; removed when verified pins are activated.
+on:
+  push:
+    branches: [ci/fix-maintenance]
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        component:
+          - {family: workflow, action: get-image-matrix}
+          - {family: maintenance, action: new-catalog-sboms}
+          - {family: maintenance, action: test-catalog-vulnerabilities}
+        platform:
+          - {arch: amd64, runner: ubuntu-24.04}
+          - {arch: arm64, runner: ubuntu-24.04-arm}
+    runs-on: ${{ matrix.platform.runner }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Build native archive
+        id: archive
+        uses: ./oci/build-image
+        with:
+          containerfile: ${{ matrix.component.family }}/${{ matrix.component.action }}/Containerfile
+          image: localhost/github-actions/${{ matrix.component.family }}-${{ matrix.component.action }}
+          version: activation-${{ github.run_id }}
+          platform: linux/${{ matrix.platform.arch }}
+          labels: '{"org.opencontainers.image.revision":"${{ github.sha }}"}'
+          output: .build/control/image.oci.tar
+      - name: Record untested archive
+        uses: ./workflow/new-build-receipt
+        with:
+          archive: .build/control/image.oci.tar
+          output: .build/control/build.json
+          expected-sha256: ${{ steps.archive.outputs.archive-sha256 }}
+          image: ${{ matrix.component.family }}-${{ matrix.component.action }}
+          architecture: ${{ matrix.platform.arch }}
+          revision: ${{ github.sha }}
+          version: activation-${{ github.run_id }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: build-${{ matrix.component.action }}-${{ matrix.platform.arch }}
+          path: .build/control
+          include-hidden-files: true
+          if-no-files-found: error
+          overwrite: true
+  test:
+    needs: build
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        component:
+          - {family: workflow, action: get-image-matrix}
+          - {family: maintenance, action: new-catalog-sboms}
+          - {family: maintenance, action: test-catalog-vulnerabilities}
+        platform:
+          - {arch: amd64, runner: ubuntu-24.04}
+          - {arch: arm64, runner: ubuntu-24.04-arm}
+    runs-on: ${{ matrix.platform.runner }}
+    services:
+      candidate-registry:
+        image: ghcr.io/tdesaules/github-actions/workflow-start-test-registry@sha256:4cc956d162088260da035990b56918786fbb55067f9e170358ab8802ea84b9f6
+        ports: ['5000/tcp']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: build-${{ matrix.component.action }}-${{ matrix.platform.arch }}
+          path: .build/control
+      - name: Verify source and archive
+        uses: ./workflow/test-build-artifact
+        with:
+          archive: .build/control/image.oci.tar
+          receipt: .build/control/build.json
+          image: ${{ matrix.component.family }}-${{ matrix.component.action }}
+          architecture: ${{ matrix.platform.arch }}
+          revision: ${{ github.sha }}
+          version: activation-${{ github.run_id }}
+      - name: Test native runtime
+        uses: ./workflow/test-candidate-runtime
+        with:
+          archive: .build/control/image.oci.tar
+          image: ${{ matrix.component.family }}-${{ matrix.component.action }}
+          architecture: ${{ matrix.platform.arch }}
+          revision: ${{ github.sha }}
+          output: .build/control/runtime-tests.json
+      - name: Native maintenance regression tests
+        if: matrix.component.action == 'get-image-matrix'
+        uses: ./check/test-go
+      - name: Transfer exact candidate
+        id: candidate
+        uses: ./workflow/import-candidate-image
+        with:
+          archive: .build/control/image.oci.tar
+          repository: ${{ matrix.component.family }}-${{ matrix.component.action }}
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Prepare native action
+        uses: ./workflow/new-candidate-action
+        with:
+          directory: ${{ matrix.component.family }}/${{ matrix.component.action }}
+          image: ${{ steps.candidate.outputs.image }}
+          destination: .candidate-actions/${{ matrix.component.family }}/${{ matrix.component.action }}
+      - name: Accept maintenance with unpublished actions
+        if: matrix.component.action == 'get-image-matrix'
+        uses: ./.candidate-actions/workflow/get-image-matrix
+        with:
+          event: maintenance
+          ref: refs/heads/main
+      - name: Reject maintenance on another branch
+        id: invalid-ref
+        if: matrix.component.action == 'get-image-matrix'
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/get-image-matrix
+        with:
+          event: maintenance
+          ref: refs/heads/other
+      - name: Reject unwritable SBOM output
+        id: invalid-sbom
+        if: matrix.component.action == 'new-catalog-sboms'
+        continue-on-error: true
+        uses: ./.candidate-actions/maintenance/new-catalog-sboms
+        with:
+          output: /proc/rejected
+      - name: Reject missing scan policy
+        id: invalid-scan
+        if: matrix.component.action == 'test-catalog-vulnerabilities'
+        continue-on-error: true
+        uses: ./.candidate-actions/maintenance/test-catalog-vulnerabilities
+        with:
+          policy: .build/missing.json
+      - name: Verify rejection outcomes
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: ${{ toJSON(fromJSON('{"get-image-matrix":["invalid-ref"],"new-catalog-sboms":["invalid-sbom"],"test-catalog-vulnerabilities":["invalid-scan"]}')[matrix.component.action]) }}
+      - name: Generate advisory SBOM
+        id: security-sbom
+        continue-on-error: true
+        uses: ./oci/new-sbom
+        with:
+          source: oci-archive:.build/control/image.oci.tar
+          output: .build/control/sbom.spdx.json
+      - name: Advisory scan
+        if: steps.security-sbom.outcome == 'success'
+        continue-on-error: true
+        uses: ./oci/test-vulnerabilities
+        with:
+          sbom: .build/control/sbom.spdx.json
+          fail-on: none
+          output: .build/control/grype.json
+      - name: Recheck exact archive
+        uses: ./workflow/test-build-artifact
+        with:
+          archive: .build/control/image.oci.tar
+          receipt: .build/control/build.json
+          image: ${{ matrix.component.family }}-${{ matrix.component.action }}
+          architecture: ${{ matrix.platform.arch }}
+          revision: ${{ github.sha }}
+          version: activation-${{ github.run_id }}
+      - name: Record qualification
+        uses: ./workflow/new-image-metadata
+        with:
+          archive: .build/control/image.oci.tar
+          image: ${{ matrix.component.family }}-${{ matrix.component.action }}
+          architecture: ${{ matrix.platform.arch }}
+          revision: ${{ github.sha }}
+          version: activation-${{ github.run_id }}
+          output: .build/control/metadata.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: tested-${{ matrix.component.action }}-${{ matrix.platform.arch }}
+          path: .build/control
+          include-hidden-files: true
+          if-no-files-found: error
+          overwrite: true
+  publish:
+    needs: [build, test]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        component:
+          - {family: workflow, action: get-image-matrix}
+          - {family: maintenance, action: new-catalog-sboms}
+          - {family: maintenance, action: test-catalog-vulnerabilities}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: tested-${{ matrix.component.action }}-amd64
+          path: .build/control/amd64
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: tested-${{ matrix.component.action }}-arm64
+          path: .build/control/arm64
+      - name: Publish exact tested index
+        uses: ./oci/merge-image-index
+        with:
+          sources: '[".build/control/amd64/image.oci.tar",".build/control/arm64/image.oci.tar"]'
+          destination: docker://ghcr.io/tdesaules/github-actions/${{ matrix.component.family }}-${{ matrix.component.action }}
+          output: .build/control/image-index.json
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ github.token }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: published-${{ matrix.component.family }}-${{ matrix.component.action }}
+          path: .build/control/image-index.json
+          include-hidden-files: true
+          if-no-files-found: error

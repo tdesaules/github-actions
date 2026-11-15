@@ -1,7 +1,7 @@
 name: main
 on:
   push:
-    branches: ['**']
+    branches: ['**', '!ci/fix-maintenance']
 permissions:
   contents: read
   actions: read

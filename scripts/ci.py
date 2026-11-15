@@ -250,7 +250,9 @@ def mode(event, ref, qualification=False):
         if event != 'workflow_dispatch' or ref != 'refs/heads/main':
             raise ValueError('full qualification must be dispatched on main')
         return 'qualification'
-    if event == "schedule":
+    if event in ("schedule", "maintenance"):
+        if ref != "refs/heads/main":
+            raise ValueError("maintenance must target main")
         return "maintenance"
     if event == "workflow_dispatch":
         if ref != "refs/heads/main":

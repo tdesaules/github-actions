@@ -24,20 +24,22 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	return generate(images, *output)
+}
+
+func generate(images []catalog.Image, output string) error {
 	failures := []string{}
-	for _, image := range images {
-		if !catalog.Pinned.MatchString(image.Reference) {
-			return fmt.Errorf("%s: maintenance requires a published digest", image.Name)
-		}
-	}
+	unpublished := map[string]string{}
 	os.Setenv("SYFT_GOLANG_CAPTURE_SYMBOLS", "all")
 	os.Setenv("SYFT_FILE_METADATA_SELECTION", "all")
 	for _, image := range images {
 		if !catalog.Pinned.MatchString(image.Reference) {
-			return fmt.Errorf("%s: maintenance requires a published digest", image.Name)
+			fmt.Fprintf(os.Stderr, "::warning::%s: SBOM not generated; no published digest\n", image.Name)
+			unpublished[image.Name] = "not_run: no published digest"
+			continue
 		}
 		for _, arch := range []string{"amd64", "arm64"} {
-			dir := filepath.Join(*output, image.Name, arch)
+			dir := filepath.Join(output, image.Name, arch)
 			if err := os.MkdirAll(dir, 0755); err != nil {
 				return err
 			}
@@ -50,6 +52,9 @@ func run() error {
 				failures = append(failures, image.Name+"/"+arch)
 			}
 		}
+	}
+	if err := catalog.Write(filepath.Join(output, "unpublished-images.json"), unpublished); err != nil {
+		return err
 	}
 	if len(failures) > 0 {
 		return fmt.Errorf("SBOM generation failed: %s", strings.Join(failures, ", "))

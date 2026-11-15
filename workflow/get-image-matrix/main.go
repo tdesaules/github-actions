@@ -293,6 +293,9 @@ func run() error {
 			return fmt.Errorf("maintenance must target main")
 		}
 		mode = "maintenance"
+		// Maintenance validates only its entry policy. Unpublished actions are
+		// reported by advisory scanners and must not prevent Renovate or links.
+		return workflow.Output("mode", mode)
 	}
 	version := "0.0.0-sha-" + head[:12]
 	if strings.HasPrefix(*ref, "refs/tags/") {
@@ -354,7 +357,7 @@ func run() error {
 		}
 		components = filtered
 	}
-	if mode == "release" || mode == "maintenance" {
+	if mode == "release" {
 		for _, c := range components {
 			if !catalog.Pinned.MatchString(c.reference) {
 				return fmt.Errorf("%s: released catalogue requires digest pins", c.directory)
