@@ -51,3 +51,10 @@ The source Containerfile reference is bootstrap-only until exact native image
 qualification and immutable publication. ARM64 OS images are independent;
 ARM64 ISO output is not claimed. Installation and boot evidence are separate
 from the constructor's media checksum checks.
+
+The action runtime builds for both native architectures. `syslinux-nonlinux`
+is installed only on x86_64: despite its noarch payload it requires the x86-only
+`syslinux` package. ARM64 retains the common runtime dependencies and explicitly
+rejects ISO construction. Process-group cancellation fixtures use Go helper
+processes with child-readiness synchronization, so they also run in the published
+scratch Go test image without shell utilities such as `sleep`.

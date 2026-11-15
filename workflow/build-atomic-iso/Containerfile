@@ -27,10 +27,14 @@ RUN dnf install -y --setopt=install_weak_deps=False git-core && dnf clean all \
 FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS final
 # Fedora supplies Lorax and its complete Python/runtime dependency closure.
 # The unused Flatpak feature is not installed or included in the resulting ISO.
+# Syslinux's noarch payload still requires an x86-only native package. ARM64
+# builds the action runtime for tool checks and the explicit unsupported-ISO guard.
 # hadolint ignore=DL3041
-RUN dnf install -y --setopt=install_weak_deps=False lorax-45.4-1.fc45 xorriso \
-    coreutils gettext syslinux-nonlinux skopeo umoci jq git-core make \
-    ostree dbus-daemon isomd5sum util-linux findutils \
+RUN set -- \
+    && case "$(uname -m)" in x86_64) set -- syslinux-nonlinux ;; aarch64) ;; *) exit 1 ;; esac \
+    && dnf install -y --setopt=install_weak_deps=False lorax-45.4-1.fc45 xorriso \
+    coreutils gettext skopeo umoci jq git-core make \
+    ostree dbus-daemon isomd5sum util-linux findutils "$@" \
     && dnf clean all \
     && mkdir -p /etc/yum.repos.d \
     && cp /usr/share/dnf5/repos.d/*.repo /etc/yum.repos.d/
