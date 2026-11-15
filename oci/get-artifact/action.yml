@@ -1,0 +1,31 @@
+name: Get OCI artifact
+description: Download an immutable GHCR artifact and verify the exact expected payload set
+inputs:
+  reference:
+    description: Immutable GHCR artifact reference
+    required: true
+  files:
+    description: JSON array of path, sha256 and optional media_type objects
+    required: true
+  output:
+    description: New workspace-relative download directory
+    default: .build/iso
+  registry-username:
+    description: Optional registry user for private artifacts
+  registry-password:
+    description: Optional job-scoped registry token
+outputs:
+  reference:
+    description: Verified immutable reference
+  directory:
+    description: Verified payload directory
+runs:
+  using: docker
+  image: Containerfile
+  env:
+    INPUT_REGISTRY_PASSWORD: ${{ inputs.registry-password }}
+  args:
+    - --reference=${{ inputs.reference }}
+    - --files=${{ inputs.files }}
+    - --output=${{ inputs.output }}
+    - --registry-username=${{ inputs.registry-username }}
