@@ -9,7 +9,6 @@ COPY workflow/build-atomic-image/ ./workflow/build-atomic-image/
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/build-atomic-image
 # The upstream CLI donor omits license files. Fetch them from the exact source
 # commits reported by these pinned binaries and verify the observed bytes.
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN mkdir -p /licenses/docker-cli /licenses/buildx \
     && curl --fail --location --retry 3 https://raw.githubusercontent.com/docker/cli/5457199aa57c45e990c59c89cab5f02b817238d7/LICENSE -o /licenses/docker-cli/LICENSE \
     && curl --fail --location --retry 3 https://raw.githubusercontent.com/docker/cli/5457199aa57c45e990c59c89cab5f02b817238d7/NOTICE -o /licenses/docker-cli/NOTICE \
@@ -18,7 +17,8 @@ RUN mkdir -p /licenses/docker-cli /licenses/buildx \
     '2d81ea060825006fc8f3fe28aa5dc0ffeb80faf325b612c955229157b8c10dc0  /licenses/docker-cli/LICENSE' \
     'a8c869fbda819afb8d80e0ac19bac52e766bc6c19cb38cf94f52d64c4be2aab6  /licenses/docker-cli/NOTICE' \
     'cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30  /licenses/buildx/LICENSE' \
-    | sha256sum -c -
+    > /licenses/SHA256SUMS \
+    && sha256sum -c /licenses/SHA256SUMS
 FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS final
 COPY --from=build /entrypoint /entrypoint
 COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
