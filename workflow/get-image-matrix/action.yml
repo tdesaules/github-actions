@@ -60,7 +60,7 @@ outputs:
     description: Qualification version or release tag
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-image-matrix@sha256:21902dad949b38183d203fc53d64d7b697b7232b04cef89995dc22a261f5f3b9
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-image-matrix@sha256:81d992d19b7c7822adcd9281c49036d903eaec0614021154feba3baa35225de0
   env:
     MATRIX_OUTPUT: ${{ inputs.output }}
     MATRIX_IMAGE: ${{ inputs.image }}

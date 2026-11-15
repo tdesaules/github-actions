@@ -63,6 +63,14 @@ global release is finalized. Digest-preserving publication is idempotent on retr
 
 ## Activation prerequisite
 
+The seven control images below were qualified through real native AMD64/ARM64
+Docker-action execution and published without rebuilding in
+[activation run 43734667929](https://github.com/tdesaules/github-actions/actions/runs/43734667929),
+from source `d54b5b9`. Their verified GHCR index digests are now pinned in the
+action metadata. The temporary branch-scoped activation workflow has been removed.
+This establishes control-image qualification/publication; normal development and
+release orchestration must still be verified separately.
+
 Source implementation, published action binaries and hosted execution are distinct.
 The workflow changes require newly qualified and published versions of:
 
