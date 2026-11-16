@@ -24,7 +24,7 @@ inputs:
     required: true
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-candidate-runtime@sha256:5db38844bd88d5be5ca184b3eafb3478a5f9ed339c6486e6d98669406abe610c
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-candidate-runtime@sha256:90c7002cc6b17d302ee0d1ca1e2d9dbd85098f0730eaeddd3fa19496db4df652
   env:
     INPUT_ARCHIVE-OUTPUT: ${{ inputs.archive-output }}
   args:

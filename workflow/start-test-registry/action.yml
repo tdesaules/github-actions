@@ -2,4 +2,4 @@ name: Start test registry
 description: Serve an ephemeral TLS registry and its public fixture CA inside a private job service
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-start-test-registry@sha256:4cc956d162088260da035990b56918786fbb55067f9e170358ab8802ea84b9f6
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-start-test-registry@sha256:c2e6c4c56264980beb29e88b815dcf2224a9f2f63c07a875b0c7afb7a9745e30

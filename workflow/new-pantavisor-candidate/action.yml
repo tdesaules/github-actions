@@ -9,7 +9,7 @@ outputs:
   version: {description: Candidate VERSION}
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-pantavisor-candidate@sha256:5d22025bbf99036fd28e1f473bffe4f05f60b38f512bed13bcdd8cadf4682ae5
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-pantavisor-candidate@sha256:cd45219e29830ca7b7d8cae878ce1309ebb8ff8e665737047d5508e0e39ea1da
   args:
     - --output=${{ inputs.output }}
     - --project=${{ inputs.project }}

@@ -25,7 +25,7 @@ outputs:
     description: Candidate archive checksum
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-build-rust-gtk@sha256:af47d01b844f7b844b618db148d9135e8907197524a9a03fac1d29e9c9a1b07e
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-build-rust-gtk@sha256:9f5d6a50657b59994cd302ce8f98a60745dd8e30fa53e3a18173f13b4cab542a
   args:
     - --directory=${{ inputs.directory }}
     - --version=${{ inputs.version }}

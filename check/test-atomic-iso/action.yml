@@ -38,7 +38,7 @@ outputs:
     description: ISO byte size
 runs:
   using: docker
-  image: Containerfile
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-atomic-iso@sha256:ab805ae91babeed939789c1e73afb6eb161cdc079e7c54c3257ce2e347302b98
   args:
     - --iso=${{ inputs.iso }}
     - --receipt=${{ inputs.receipt }}

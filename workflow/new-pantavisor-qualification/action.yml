@@ -8,7 +8,7 @@ inputs:
   profile: {description: System profile qualified by this matrix instance, default: ''}
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-pantavisor-qualification@sha256:75b4222f38bf70a5fc73618c4f2f535e124d820e8347c66b0c2ebb9e6aba844d
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-pantavisor-qualification@sha256:ea0ada5787567949b7182ec48a520601b499d4828c8f087d9752978cddfb5075
   args:
     - --directory=${{ inputs.directory }}
     - --receipt=${{ inputs.receipt }}

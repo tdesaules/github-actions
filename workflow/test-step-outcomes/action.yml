@@ -15,7 +15,7 @@ outputs:
     description: Whether all assertions passed
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-step-outcomes@sha256:0be7bf807d73d3fe497c7b90f2d584330b03dfda5b16f39db7a9a36b7528c2d7
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-step-outcomes@sha256:f50a0c8a6fe8d37b9bd65c2f078b3298ad66e96627b4323012256786db55f0ec
   # Preserve nested JSON/backslashes without the runner's Docker argv quoting.
   # The pinned executable already reads these exact environment defaults.
   env:

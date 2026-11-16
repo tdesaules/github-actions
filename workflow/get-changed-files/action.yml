@@ -63,7 +63,7 @@ outputs:
     description: Whether Python tests have work
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-changed-files@sha256:a871a90cdfff9dd1715bab58e87466ad6889732468035e14ce84319c7a54dc49
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-changed-files@sha256:edee20063668a61398bc2552b9706eb13f6464d7e40fcb04a9a26aae102b1c2a
   args:
     - --common=${{ inputs.common }}
     - --directory=${{ inputs.directory }}

@@ -6,6 +6,6 @@ inputs:
     default: .
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/check-test-pantavisor-system@sha256:936c74dda46fbabea7517cfd10ed4b50804f626c6669087f993c0baf306a16e2
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-pantavisor-system@sha256:eb1236ccea788cc54773c1f938b7a427bf54e391548cca4d926badfb93e84801
   args:
     - --directory=${{ inputs.directory }}

@@ -12,7 +12,7 @@ inputs:
     required: true
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-candidate-action@sha256:584702be5319a50c3db9810f033ebbec1e9cb36645f9fbca9e1d0f0fa201036a
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-candidate-action@sha256:a0e7c73342f9a27b2a2059928dd6227d32ba0709fcee933fecab5de16abc28fa
   args:
     - --directory=${{ inputs.directory }}
     - --image=${{ inputs.image }}

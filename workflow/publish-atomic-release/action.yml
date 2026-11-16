@@ -24,7 +24,7 @@ outputs:
     description: Published GitHub Release URL
 runs:
   using: docker
-  image: Containerfile
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-publish-atomic-release@sha256:803f490c2b1a3737383c095f654831cb272e4f74b53bf17cfb476c07a102aca5
   env:
     INPUT_TOKEN: ${{ inputs.token }}
     INPUT_REGISTRY_USERNAME: ${{ inputs.registry-username }}

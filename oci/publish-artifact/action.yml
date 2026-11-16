@@ -26,7 +26,7 @@ outputs:
     description: Immutable artifact reference
 runs:
   using: docker
-  image: Containerfile
+  image: docker://ghcr.io/tdesaules/github-actions/oci-publish-artifact@sha256:26d95b992f33aab7134d069ed37fc2af39f87b5df20f800603932a9e29154c12
   env:
     INPUT_REGISTRY_PASSWORD: ${{ inputs.registry-password }}
   args:

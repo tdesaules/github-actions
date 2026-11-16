@@ -21,7 +21,7 @@ outputs:
     description: Workspace-relative generated Containerfile
 runs:
   using: docker
-  image: Containerfile
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-render-bluebuild@sha256:5828057a1f4a96c1d755c252172b178d4fcf12aba28403c47e457b2db964f9fe
   args:
     - --directory=${{ inputs.directory }}
     - --recipe=${{ inputs.recipe }}

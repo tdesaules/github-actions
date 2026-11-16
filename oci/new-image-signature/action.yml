@@ -24,7 +24,7 @@ outputs:
     description: Whether signing completed
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/oci-new-image-signature@sha256:855d06c4ff36213b0d7ab49d0b7a91a951079384fc9d90a4961d72b8602401a0
+  image: docker://ghcr.io/tdesaules/github-actions/oci-new-image-signature@sha256:9fb27b7dc24e588c5817a528135302228935342280df7fd56e9a1ca241c1d135
   args:
     - --image=${{ inputs.image }}
     - --enabled=${{ inputs.enabled }}

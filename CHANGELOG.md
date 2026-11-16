@@ -1,5 +1,89 @@
 # Changelog
 
+## 1.7.0
+
+- add image qualification and ORAS publication actions (2e700dc)
+
+- validate unpublished action metadata before qualification (56bbe1c)
+
+- replace retired Fedora base digests (4ca6c30)
+
+- add source-bound release control actions (29c0bd5)
+
+- enforce complete release integrity evidence (b0b2f01)
+
+- introduce independent per-image publication pipelines (3e28f74)
+
+- grant permissions required by nested release job (3505aa8)
+
+- qualify control images before activating new interfaces (d54b5b9)
+
+- activate natively qualified control image digests (dc2f303)
+
+- schedule Monday maintenance at 03:00 Paris time (bc7f400)
+
+- add scoped native BuildKit image builder (0c2d617)
+
+- expose verified native manifest digest (f216737)
+
+- tolerate unpublished catalogue actions (a6ef24b)
+
+- activate qualified maintenance controls (df5da04)
+
+- prepare Atomic fixtures without VFS layer expansion (37823ea)
+
+- activate the qualified Atomic fixture exporter (9b1e0ea)
+
+- integrate current catalogue CI for Atomic actions (e92e063)
+
+- support Docker's default seccomp during rendering (f9d86d7)
+
+- verify immutable artifact downloads (093b8c2)
+
+- retain platform-bound advisory signature evidence (0040d57)
+
+- select source-bound artifacts across run retries (ba4420a)
+
+- bind installer qualification to native OS manifests (9b2b750)
+
+- generate explicit synthetic protocol fixtures (b594736)
+
+- propagate license checksum pipeline failures (012754f)
+
+- describe Atomic qualification boundaries (707ca94)
+
+- build source-bound Fedora installer media (f54db2b)
+
+- track scoped qualification harness dependencies (66de2b1)
+
+- qualify native constructors and release protocols (07d852d)
+
+- preserve nested step evidence through Docker inputs (aea1e64)
+
+- tolerate visibility lag for confirmed uploads (0be5574)
+
+- exercise cancellation without external shell tools (6dced83)
+
+- scope Syslinux dependencies to AMD64 (ef73265)
+
+- record first native Atomic qualification results (cb20f7b)
+
+- add scoped native BuildKit image builder (07ec349)
+
+- expose verified native manifest digest (6591a5d)
+
+- update docker.io/library/ubuntu:24.04 docker digest to 2198e4c (c60b2fc)
+
+- update docker.io/library/golang docker tag to v1.27.4 (e8aae7a)
+
+- integrate dependency updates with local Atomic work (b78cd32)
+
+- avoid nested namespaces during recipe rendering (68634ca)
+
+- verify license checksums without a shell pipeline (1ef4e43)
+
+- merge Atomic integration with current main (4263567)
+
 ## 1.6.3
 
 - update docker.io/library/golang:1.27.3-alpine3.24 docker digest to fa3d596 (7cc6511)

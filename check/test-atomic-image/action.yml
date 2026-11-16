@@ -35,7 +35,7 @@ outputs:
     description: Workspace-relative qualification report
 runs:
   using: docker
-  image: Containerfile
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-atomic-image@sha256:84b084bc3a49b08d89762f2d2c77677c36e8c19afe5a6ba64f2911e11975861e
   args:
     - --archive=${{ inputs.archive }}
     - --reference=${{ inputs.reference }}

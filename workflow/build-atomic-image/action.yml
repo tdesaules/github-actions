@@ -38,7 +38,7 @@ outputs:
     description: Archive size in bytes
 runs:
   using: docker
-  image: Containerfile
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-build-atomic-image@sha256:df9fa43fe4090b194c235bc80a1dacdc04eefebe337c36d6b5745c00225bb095
   args:
     - --context=${{ inputs.context }}
     - --containerfile=${{ inputs.containerfile }}
