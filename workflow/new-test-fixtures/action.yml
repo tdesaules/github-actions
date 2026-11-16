@@ -18,6 +18,6 @@ runs:
   using: docker
   env:
     FIXTURE_ATOMIC_RECIPE: ${{ inputs.atomic-recipe }}
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-test-fixtures@sha256:0321099d8ff8ada6c9ea07bfdc67db4b690f7d214bf96fc0c810aaf27df604f2
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-test-fixtures@sha256:e5f3b4af31381eb61ee41bf6b024235ee9da85e6917022692cefa38f762479e2
   args:
     - --directory=${{ inputs.directory }}

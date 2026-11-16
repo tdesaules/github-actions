@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.2
+
+- retain Fedora 45 container trust configuration (3d8865f)
+
+- activate the Fedora 45 fixture trust-policy repair (c58a3f5)
+
 ## 1.7.1
 
 - skip release promotions and follow Fedora major tags (5ee94b6)
