@@ -178,6 +178,13 @@ func TestBundleRelationshipsAndSpaces(t *testing.T) {
 	if payloads[2].Path != isoName+".build.json" {
 		t.Fatal("original receipt name changed")
 	}
+	inventory := readJSON(t, filepath.Join(out["zstd-directory"], "fixture-checksums.json"))
+	for _, name := range []string{"fixture.oci.tar", "arm64.oci.tar"} {
+		data, err := os.ReadFile(filepath.Join(out["zstd-directory"], name))
+		if err != nil || inventory[name] != sum(data) {
+			t.Fatal("mixed-compression checksum inventory mismatch", err)
+		}
+	}
 	var good, bad []payload
 	json.Unmarshal([]byte(out["transfer-files"]), &good)
 	json.Unmarshal([]byte(out["tampered-transfer-files"]), &bad)

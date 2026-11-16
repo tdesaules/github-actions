@@ -43,6 +43,10 @@ qualified/
     qualification.json
 transfer/
   payload.txt
+zstd/
+  fixture.oci.tar
+  arm64.oci.tar
+  fixture-checksums.json
 ```
 
 Outputs `iso`, `build-receipt`, `os-archive-sha256`, `os-manifest-digest`,
@@ -51,8 +55,17 @@ Outputs `iso`, `build-receipt`, `os-archive-sha256`, `os-manifest-digest`,
 JSON arrays of `path`, `sha256`, `media_type`; the tampered array deliberately
 substitutes an incorrect payload checksum without changing the actual file.
 
-OCI archives contain real config/manifest/layer blobs for AMD64 and ARM64,
-with source/version and synthetic labels. The only rootfs file is `hello.txt`.
+`zstd-directory` contains additional tiny AMD64/ARM64 archives with mixed zstd
+and gzip layers, plus the checksum inventory consumed by the published
+`workflow/test-index-result`. They exercise Skopeo's zstd descriptor annotations:
+an assembled index must declare those annotations before its digest is chosen.
+The fixture-only Zstandard writer emits one bounded raw block (RFC 8878);
+it uses no external compression dependency and is not a production compressor.
+These archives are separate from the synthetic OS/media receipt bundle.
+
+The base OCI archives contain real config/manifest/layer blobs for AMD64 and ARM64,
+with source/version and synthetic labels. Their only rootfs file is `hello.txt`;
+the mixed-compression archives additionally contain `gzip.txt`.
 ISO `/niri-tomic-os` contains the exact AMD64 layout tagged `45`.
 The ISO has valid implanted media checksum and BIOS/UEFI El Torito entries
 marked bootable **at the catalog format level only**. Their dummy payloads are
