@@ -134,6 +134,7 @@ func assembleIndex(sources []string, layout string) ([]byte, error) {
 		if platform.OS != "linux" || (platform.Architecture != "amd64" && platform.Architecture != "arm64") || seen[platform.Architecture] {
 			return nil, errors.New("index requires distinct linux/amd64 and linux/arm64 images")
 		}
+		requiresZstd := false
 		for _, layer := range image.Layers {
 			if !digestPattern.MatchString(layer.Digest) {
 				return nil, errors.New("invalid layer digest")
@@ -142,9 +143,21 @@ func assembleIndex(sources []string, layout string) ([]byte, error) {
 			if err != nil || info.Size() != layer.Size {
 				return nil, errors.New("missing or truncated layer")
 			}
+			switch layer.MediaType {
+			case "application/vnd.oci.image.layer.v1.tar+zstd",
+				"application/vnd.oci.image.layer.nondistributable.v1.tar+zstd":
+				requiresZstd = true
+			}
 		}
 		seen[platform.Architecture] = true
 		d.Platform, d.Annotations = &platform, nil
+		if requiresZstd {
+			// containers/image adds this instance capability annotation while
+			// copying zstd layers. Declare it before hashing our new parent
+			// index so --preserve-digests need not alter any index bytes.
+			// Native manifests, configurations and layers remain unchanged.
+			d.Annotations = map[string]string{"io.github.containers.compression.zstd": "true"}
+		}
 		index.Manifests = append(index.Manifests, d)
 	}
 	if len(seen) != 2 {

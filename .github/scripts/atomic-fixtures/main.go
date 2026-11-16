@@ -233,6 +233,7 @@ func generate(ctx context.Context, o options, makeMedia func(context.Context, st
 	}
 	var amdArchive []byte
 	var amdManifest string
+	zstdChecksums := map[string]string{}
 	for _, arch := range []string{"amd64", "arm64"} {
 		files, archive, manifest, err := layout(arch, o.Source, o.Version)
 		if err != nil {
@@ -260,6 +261,21 @@ func generate(ctx context.Context, o options, makeMedia func(context.Context, st
 				}
 			}
 		}
+		mixed, err := mixedArchive(arch, o.Source, o.Version)
+		if err != nil {
+			return nil, err
+		}
+		name := "arm64.oci.tar"
+		if arch == "amd64" {
+			name = "fixture.oci.tar"
+		}
+		if err := write(filepath.Join(stage, "zstd", name), mixed); err != nil {
+			return nil, err
+		}
+		zstdChecksums[name] = sum(mixed)
+	}
+	if err := write(filepath.Join(stage, "zstd/fixture-checksums.json"), jsonBytes(zstdChecksums)); err != nil {
+		return nil, err
 	}
 	isoPath := filepath.Join(work, isoName)
 	if err = makeMedia(ctx, tree, isoPath); err != nil {
@@ -314,6 +330,7 @@ func generate(ctx context.Context, o options, makeMedia func(context.Context, st
 		"build-receipt":     filepath.Join(o.Directory, "raw", isoName+".build.json"),
 		"os-archive-sha256": sum(amdArchive), "os-manifest-digest": amdManifest,
 		"qualified-directory": filepath.Join(o.Directory, "qualified"),
+		"zstd-directory":      filepath.Join(o.Directory, "zstd"),
 		"transfer-directory":  filepath.Join(o.Directory, "transfer"),
 	}
 	for key, value := range map[string]any{

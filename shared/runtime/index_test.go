@@ -12,6 +12,12 @@ import (
 )
 
 func archiveFixture(t *testing.T, arch string, corrupt bool) (string, string) {
+	return archiveFixtureLayers(t, arch, corrupt, []string{"application/vnd.oci.image.layer.v1.tar"})
+}
+
+// Descriptor-level fixtures for the assembler; local registry integration uses
+// actual tar layers compressed with zstd, not these structural test blobs.
+func archiveFixtureLayers(t *testing.T, arch string, corrupt bool, mediaTypes []string) (string, string) {
 	t.Helper()
 	blobs := map[string][]byte{}
 	blob := func(data []byte, kind string) ociDescriptor {
@@ -20,16 +26,19 @@ func archiveFixture(t *testing.T, arch string, corrupt bool) (string, string) {
 		return ociDescriptor{MediaType: kind, Digest: digest, Size: int64(len(data))}
 	}
 	config := blob([]byte(fmt.Sprintf(`{"architecture":%q,"os":"linux"}`, arch)), "application/vnd.oci.image.config.v1+json")
-	layer := blob([]byte("layer content"), "application/vnd.oci.image.layer.v1.tar")
+	layers := []ociDescriptor{}
+	for _, mediaType := range mediaTypes {
+		layers = append(layers, blob([]byte("layer content "+mediaType), mediaType))
+	}
 	manifest, _ := json.Marshal(struct {
 		SchemaVersion int             `json:"schemaVersion"`
 		Config        ociDescriptor   `json:"config"`
 		Layers        []ociDescriptor `json:"layers"`
-	}{2, config, []ociDescriptor{layer}})
+	}{2, config, layers})
 	d := blob(manifest, "application/vnd.oci.image.manifest.v1+json")
 	blobs["index.json"], _ = json.Marshal(ociIndex{SchemaVersion: 2, Manifests: []ociDescriptor{d}})
 	if corrupt {
-		blobs["blobs/sha256/"+layer.Digest[7:]] = []byte("corrupt")
+		blobs["blobs/sha256/"+layers[0].Digest[7:]] = []byte("corrupt")
 	}
 	path := filepath.Join(t.TempDir(), "archive with spaces.tar")
 	f, err := os.Create(path)
@@ -52,6 +61,75 @@ func archiveFixture(t *testing.T, arch string, corrupt bool) (string, string) {
 		t.Fatal(err)
 	}
 	return path, d.Digest
+}
+
+func TestIndexDeclaresZstdBeforeHashingWithoutChangingChildren(t *testing.T) {
+	const plain = "application/vnd.oci.image.layer.v1.tar"
+	const gzip = plain + "+gzip"
+	const zstd = plain + "+zstd"
+	const annotation = "io.github.containers.compression.zstd"
+	for _, tc := range []struct {
+		name   string
+		layers []string
+		zstd   bool
+	}{
+		{"plain", []string{plain}, false},
+		{"gzip", []string{gzip}, false},
+		{"zstd", []string{zstd}, true},
+		{"mixed BuildKit layers", []string{gzip, zstd}, true},
+		{"nondistributable zstd", []string{"application/vnd.oci.image.layer.nondistributable.v1.tar+zstd"}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			amd, amdDigest := archiveFixtureLayers(t, "amd64", false, tc.layers)
+			arm, armDigest := archiveFixtureLayers(t, "arm64", false, []string{gzip})
+			amdBefore, err := os.ReadFile(amd)
+			if err != nil {
+				t.Fatal(err)
+			}
+			layout := t.TempDir()
+			raw, err := assembleIndex([]string{arm, amd}, layout)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var index ociIndex
+			if err := json.Unmarshal(raw, &index); err != nil {
+				t.Fatal(err)
+			}
+			if index.MediaType != "application/vnd.oci.image.index.v1+json" ||
+				index.Manifests[0].Digest != amdDigest || index.Manifests[1].Digest != armDigest {
+				t.Fatal("parent type or qualified child identity changed")
+			}
+			if got := index.Manifests[0].Annotations[annotation] == "true"; got != tc.zstd {
+				t.Fatalf("zstd capability=%t, want %t", got, tc.zstd)
+			}
+			if len(index.Manifests[1].Annotations) != 0 {
+				t.Fatal("gzip-only child gained zstd capability")
+			}
+			// The exported root descriptor and stored parent blob must already
+			// bind the fully annotated bytes, before Skopeo sees the layout.
+			rootBytes, err := os.ReadFile(filepath.Join(layout, "index.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var root ociIndex
+			if err := json.Unmarshal(rootBytes, &root); err != nil {
+				t.Fatal(err)
+			}
+			digest := fmt.Sprintf("%x", sha256.Sum256(raw))
+			stored, err := os.ReadFile(filepath.Join(layout, "blobs", "sha256", digest))
+			if err != nil || !bytes.Equal(stored, raw) || root.Manifests[0].Digest != "sha256:"+digest {
+				t.Fatal("root does not bind final annotated index bytes", err)
+			}
+			amdAfter, err := os.ReadFile(amd)
+			if err != nil || !bytes.Equal(amdBefore, amdAfter) {
+				t.Fatal("source archive changed", err)
+			}
+			reordered, err := assembleIndex([]string{amd, arm}, t.TempDir())
+			if err != nil || !bytes.Equal(raw, reordered) {
+				t.Fatal("index changed with input ordering", err)
+			}
+		})
+	}
 }
 
 func TestIndexPreservesDigestsAndIsOrderIndependent(t *testing.T) {

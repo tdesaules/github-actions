@@ -21,6 +21,8 @@ outputs:
     description: Synthetic AMD64 native manifest digest
   qualified-directory:
     description: Synthetic protocol bundle with both architecture subdirectories
+  zstd-directory:
+    description: Tiny native archives with mixed zstd/gzip layers and fixture-checksums.json for digest-preserving index tests
   iso-files:
     description: ISO, CHECKSUM and original build receipt payload descriptor array
   transfer-directory:

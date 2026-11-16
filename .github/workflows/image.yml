@@ -524,7 +524,7 @@ jobs:
           expected-failures: ${{ matrix.image == 'workflow-build-atomic-image' && '["atomic-build-invalid","atomic-build-run-invalid"]' || (matrix.arch == 'amd64' && '["atomic-iso-tampered"]' || '["atomic-iso-unsupported"]') }}
           absent-files: '[".build/atomic-rejected-platform.oci.tar",".build/atomic-rejected-run.oci.tar",".build/atomic-rejected-tampered.iso",".build/atomic-rejected-arm64.iso"]'
       - name: Build native repository-only SYNTHETIC protocol helper
-        if: contains(fromJSON('["check-test-atomic-iso","check-test-atomic-release","oci-get-artifact","oci-publish-artifact"]'), matrix.image)
+        if: contains(fromJSON('["check-test-atomic-iso","check-test-atomic-release","oci-get-artifact","oci-publish-artifact","oci-merge-image-index"]'), matrix.image)
         id: atomic-protocol-build
         uses: ./oci/build-image
         with:
@@ -1600,6 +1600,37 @@ jobs:
         with:
           index: .build/fixtures/native-index.json
           retry-index: .build/fixtures/retry-index.json
+      - name: Prepare private TLS trust for mixed zstd and gzip index fixtures
+        if: matrix.image == 'oci-merge-image-index'
+        id: zstd-registry
+        uses: ./workflow/new-registry-fixtures
+        with:
+          directory: ${{ steps.atomic-protocol.outputs.zstd-directory }}
+      - name: Publish mixed-compression index with exact native digests
+        if: matrix.image == 'oci-merge-image-index'
+        uses: ./.candidate-actions/oci/merge-image-index
+        env:
+          SSL_CERT_FILE: /github/workspace/${{ steps.atomic-protocol.outputs.zstd-directory }}/registry-cert.pem
+        with:
+          sources: '["${{ steps.atomic-protocol.outputs.zstd-directory }}/fixture.oci.tar","${{ steps.atomic-protocol.outputs.zstd-directory }}/arm64.oci.tar"]'
+          destination: ${{ steps.zstd-registry.outputs.repository }}
+          output: .build/fixtures/zstd-index.json
+      - name: Retry mixed-compression publication with reversed source order
+        if: matrix.image == 'oci-merge-image-index'
+        uses: ./.candidate-actions/oci/merge-image-index
+        env:
+          SSL_CERT_FILE: /github/workspace/${{ steps.atomic-protocol.outputs.zstd-directory }}/registry-cert.pem
+        with:
+          sources: '["${{ steps.atomic-protocol.outputs.zstd-directory }}/arm64.oci.tar","${{ steps.atomic-protocol.outputs.zstd-directory }}/fixture.oci.tar"]'
+          destination: ${{ steps.zstd-registry.outputs.repository }}
+          output: .build/fixtures/zstd-index-retry.json
+      - name: Verify exact remote zstd index, unchanged archives and tag-free retries
+        if: matrix.image == 'oci-merge-image-index'
+        uses: ./workflow/test-index-result
+        with:
+          directory: ${{ steps.atomic-protocol.outputs.zstd-directory }}
+          index: .build/fixtures/zstd-index.json
+          retry-index: .build/fixtures/zstd-index-retry.json
       - name: Prepare index validator fixture
         if: matrix.image == 'workflow-test-index-result'
         uses: ./oci/merge-image-index
