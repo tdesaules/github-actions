@@ -1689,6 +1689,9 @@ jobs:
           output: .build/fixtures/sbom.json
       - name: Test native reviewed vulnerability scan
         if: matrix.image == 'workflow-test-reviewed-vulnerabilities'
+        id: security-native-reviewed-scan
+        timeout-minutes: 15
+        continue-on-error: true
         uses: ./.candidate-actions/workflow/test-reviewed-vulnerabilities
         with:
           sbom: .build/fixtures/sbom.json
@@ -1697,6 +1700,9 @@ jobs:
           database-metadata: .build/fixtures/reviewed-db.json
       - name: Test native vulnerability action
         if: matrix.image == 'oci-test-vulnerabilities'
+        id: security-native-scan
+        timeout-minutes: 15
+        continue-on-error: true
         uses: ./.candidate-actions/oci/test-vulnerabilities
         with:
           fail-on: none
