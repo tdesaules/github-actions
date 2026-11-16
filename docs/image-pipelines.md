@@ -71,6 +71,20 @@ The published reviewer is used without an extra reviewer build.
 The parent retains `execution-plan-<run-id>` with the source SHA, matrices and
 per-image selection reasons. A genuinely empty image selection skips the matrix.
 
+A generated release commit does not start development image chains when its
+stable release tag points to that exact single-parent commit and its diff contains
+only `CHANGELOG.md` and image-reference promotions in existing action metadata.
+Changing inputs, arguments, source files, ownership, or including another commit
+in the push retains ordinary qualification. The tag workflow still verifies the
+complete published catalogue.
+
+Fedora base and donor references use their selected major tag (`:44` or `:45`),
+without a digest, because upstream may retire old manifests. This is an explicit
+exception to external-image digest pinning; other bases and all published action
+images retain digest pins. Renovate must not add Fedora digests back. Tag-based
+Fedora builds receive upstream updates within the selected major version, so the
+tested OCI archives remain the immutable publication inputs.
+
 Preparation compares against the previous release and qualifies the complete
 intended catalogue, including unchanged digests. A tag qualifies the complete
 published catalogue with an empty build matrix. No publication runs on development

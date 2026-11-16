@@ -256,6 +256,70 @@ func buildMatrix(tests matrix) matrix {
 	return builds
 }
 
+// A generated release commit only promotes references already qualified by the
+// preparation run. Its tag owns the full published-image verification chain.
+// A matching subject alone is never sufficient to suppress image work.
+func releaseMetadataCommit(before, head string, components []component) bool {
+	if !regexp.MustCompile(`^[a-f0-9]{40}$`).MatchString(before) {
+		return false
+	}
+	parents, err := workflow.Git("rev-list", "--parents", "-n", "1", head)
+	if err != nil || strings.TrimSpace(parents) != head+" "+before {
+		return false
+	}
+	subject, err := workflow.Git("log", "-1", "--format=%s", head)
+	if err != nil {
+		return false
+	}
+	match := regexp.MustCompile(`^chore\(release\): (?:prepare )?((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))$`).FindStringSubmatch(strings.TrimSpace(subject))
+	if match == nil {
+		return false
+	}
+	tag, err := workflow.Git("rev-parse", "--verify", "refs/tags/"+match[1]+"^{commit}")
+	if err != nil || strings.TrimSpace(tag) != head {
+		return false
+	}
+	owners := map[string]component{}
+	for _, c := range components {
+		owners[c.directory+"/action.yml"] = c
+	}
+	paths, err := workflow.Paths(before, head)
+	if err != nil {
+		return false
+	}
+	normalize := func(data string) string {
+		data = catalog.ImageLine.ReplaceAllStringFunc(data, func(line string) string {
+			return strings.SplitN(line, ": docker://", 2)[0] + ": <catalog-image>"
+		})
+		return strings.ReplaceAll(data, "  image: Containerfile\n", "  image: <catalog-image>\n")
+	}
+	changedPins := false
+	for _, path := range paths {
+		if path == "CHANGELOG.md" {
+			continue
+		}
+		c, ok := owners[path]
+		if !ok {
+			return false
+		}
+		old, err := workflow.Git("show", before+":"+path)
+		if err != nil {
+			return false
+		}
+		next, err := workflow.Git("show", head+":"+path)
+		if err != nil || normalize(old) != normalize(next) {
+			return false
+		}
+		name, ref, err := catalog.Reference([]byte(next), c.directory)
+		if err != nil || name != c.image || !catalog.Pinned.MatchString(ref) ||
+			!strings.HasPrefix(ref, "ghcr.io/tdesaules/github-actions/") {
+			return false
+		}
+		changedPins = true
+	}
+	return changedPins
+}
+
 func run() error {
 	files := flag.String("files", workflow.Default("INPUT_FILES", "[]"), "changed paths JSON")
 	full := flag.Bool("full", os.Getenv("INPUT_FULL") == "true", "select all images")
@@ -345,6 +409,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	releaseMetadata := mode == "development" && *ref == "refs/heads/main" && releaseMetadataCommit(*before, head, components)
 	if *image != "" {
 		filtered := []component{}
 		for _, c := range components {
@@ -365,7 +430,7 @@ func run() error {
 		}
 	}
 	m := matrix{Include: []job{}}
-	if mode == "development" || mode == "prepare" {
+	if (mode == "development" || mode == "prepare") && !releaseMetadata {
 		history := rebuildHistory{}
 		if !*full && mode == "prepare" {
 			history, err = unreleasedChanges(head)
@@ -379,6 +444,9 @@ func run() error {
 		if err != nil {
 			return err
 		}
+	}
+	if releaseMetadata {
+		fmt.Fprintln(os.Stderr, "Generated release metadata commit: image qualification belongs to its matching tag; no development image chains")
 	}
 	if mode == "release" {
 		for _, c := range components {
@@ -452,7 +520,7 @@ func run() error {
 		if err := catalog.Write(*output, map[string]any{
 			"schema_version": 1, "source_sha": head, "mode": mode,
 			"before": *before, "version": version, "images": imageMatrix,
-			"build_matrix": builds, "test_matrix": m,
+			"build_matrix": builds, "test_matrix": m, "release_metadata_only": releaseMetadata,
 		}); err != nil {
 			return err
 		}

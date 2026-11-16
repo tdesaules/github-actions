@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:44@sha256:15bca96361db60e17c52df60efca658f02d7a8df13e6ceaabb47e9a547ec3f5e AS build
+FROM quay.io/fedora/fedora:44 AS build
 # Supporting RPMs follow signed Fedora updates; qualified archives stay unchanged.
 # hadolint ignore=DL3041
 RUN dnf install -y golang-1.26.10-1.fc44 git ca-certificates && dnf clean all

@@ -14,7 +14,7 @@
 - Discovery parses image references with indentation-sensitive regexes: preserve two leading spaces for `image: docker://...` and eight for `BUILDER_IMAGE: docker://...`.
 - OCI `main.go` files delegate to `shared/runtime`; changing shared behavior can affect multiple action images. Other action families also use shared Go packages in the single root module.
 - CI image selection is implemented in `workflow/get-image-matrix/`, including Containerfile dependency analysis. The main workflow forwards the changed-file selector's `full` output; bootstrap control tools and the reviewer dependency are separate from selected product builds.
-- Catalog validation requires named stages, a last stage named `final`, and digest-pinned external images. Prefer scratch for self-contained tools; build environments may retain a compatible allowlisted distribution. Apply the base allowlist to builders and donors too; report existing migration debt explicitly. Build contexts are the repository root.
+- Catalog validation requires named stages and a last stage named `final`. External images require digest pins except `quay.io/fedora/fedora` and `quay.io/fedora/fedora-minimal`, which use explicit major-version tags (for example `:44` or `:45`) without digests by user policy. Published action images remain digest-pinned. Prefer scratch for self-contained tools; build environments may retain a compatible allowlisted distribution. Apply the base allowlist to builders and donors too; report existing migration debt explicitly. Build contexts are the repository root.
 
 ## Container development
 

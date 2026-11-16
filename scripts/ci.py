@@ -25,7 +25,7 @@ BASES = {'scratch', 'quay.io/fedora/fedora-minimal', 'quay.io/fedora/fedora',
 def validate_base(reference, stages, name):
     if reference in stages or reference == 'scratch':
         return
-    if not re.search(r'@sha256:[a-f0-9]{64}$', reference):
+    if not re.search(r'@sha256:[a-f0-9]{64}$', reference) and not re.fullmatch(r'quay\.io/fedora/fedora(?:-minimal)?:[1-9][0-9]*', reference):
         raise ValueError(f'{name}: unpinned external base/donor {reference}')
     repository = reference.split('@')[0].split(':')[0]
     if repository not in BASES:
@@ -87,6 +87,43 @@ def pinned_metadata(path, reference):
 
 def source_path(path):
     return Path(path).suffix.lower() not in ('.md', '.markdown')
+
+
+def release_metadata_commit(before, head, root=ROOT):
+    """Only the matching release tag may replace development image qualification."""
+    if not re.fullmatch(r'[a-f0-9]{40}', before):
+        return False
+    def revision(*args):
+        return subprocess.check_output(['git', *args], cwd=root, stderr=subprocess.DEVNULL).decode()
+    try:
+        if revision('rev-list', '--parents', '-n', '1', head).strip() != f'{head} {before}':
+            return False
+        subject = revision('log', '-1', '--format=%s', head).strip()
+        match = re.fullmatch(r'chore\(release\): (?:prepare )?((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))', subject)
+        if not match or revision('rev-parse', '--verify', f'refs/tags/{match[1]}^{{commit}}').strip() != head:
+            return False
+        actions, _ = discover(root)
+        owners = {directory+'/action.yml': image for directory, image in actions.items()}
+        paths = revision('diff', '--name-only', '--no-renames', '-z', before, head, '--').strip('\0').split('\0')
+        def normalize(text):
+            text = IMAGE.sub(lambda m: m[0].split(': docker://', 1)[0]+': <catalog-image>', text)
+            return text.replace('  image: Containerfile\n', '  image: <catalog-image>\n')
+        changed = False
+        for path in paths:
+            if path == 'CHANGELOG.md':
+                continue
+            if path not in owners:
+                return False
+            old = revision('show', before+':'+path)
+            new = revision('show', head+':'+path)
+            pin = IMAGE.search(new)
+            if normalize(old) != normalize(new) or not pin or not re.fullmatch(
+                    re.escape('ghcr.io/tdesaules/github-actions/'+owners[path])+r'@sha256:[a-f0-9]{64}', pin[1]):
+                return False
+            changed = True
+        return changed
+    except (OSError, ValueError, subprocess.CalledProcessError):
+        return False
 
 
 def release_baseline(head, root=ROOT):
@@ -374,7 +411,9 @@ def main():
         if not full:
             paths = changed_paths(before, after)
     matrix = {"include": []}
-    if pipeline_mode in ('development', 'prepare', 'qualification'):
+    release_metadata = (pipeline_mode == 'development' and ref == 'refs/heads/main'
+                        and release_metadata_commit(before, after))
+    if pipeline_mode in ('development', 'prepare', 'qualification') and not release_metadata:
         unreleased, rebuild_selected = unreleased_changes(after) if not full and pipeline_mode == 'prepare' else ([], False)
         baseline = release_baseline(after) if not full and pipeline_mode == 'prepare' else ''
         matrix = select(paths, full, unreleased=unreleased, rebuild_selected=rebuild_selected, baseline=baseline, before=before, qualify_all=qualify_all)

@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:44@sha256:15bca96361db60e17c52df60efca658f02d7a8df13e6ceaabb47e9a547ec3f5e AS build
+FROM quay.io/fedora/fedora:44 AS build
 # hadolint ignore=DL3041
 RUN dnf install -y golang-1.26.10-1.fc44 && dnf clean all
 ENV GOTOOLCHAIN=local
@@ -7,7 +7,7 @@ COPY go.mod go.sum ./
 COPY shared/binaryrelease/ ./shared/binaryrelease/
 COPY workflow/read-binary-release/main.go ./workflow/read-binary-release/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/read-binary-release
-FROM quay.io/fedora/fedora:44@sha256:15bca96361db60e17c52df60efca658f02d7a8df13e6ceaabb47e9a547ec3f5e AS final
+FROM quay.io/fedora/fedora:44 AS final
 # Git verifies annotated tag objects, parents and metadata-only diffs.
 # hadolint ignore=DL3041
 RUN dnf install -y --setopt=install_weak_deps=False git ca-certificates && dnf clean all

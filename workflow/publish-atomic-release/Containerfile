@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS build
+FROM quay.io/fedora/fedora:45 AS build
 # hadolint ignore=DL3041
 RUN dnf install -y --setopt=install_weak_deps=False golang-1.27.4-2.fc45 && dnf clean all
 ENV GOTOOLCHAIN=local
@@ -8,7 +8,7 @@ COPY shared/workflow/ ./shared/workflow/
 COPY shared/atomicrelease/ ./shared/atomicrelease/
 COPY workflow/publish-atomic-release/ ./workflow/publish-atomic-release/
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/publish-atomic-release
-FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS final
+FROM quay.io/fedora/fedora:45 AS final
 # Git validates the annotated source-bound release; Go handles registry/API calls.
 # hadolint ignore=DL3041
 RUN dnf install -y --setopt=install_weak_deps=False git-core ca-certificates && dnf clean all

@@ -1,0 +1,185 @@
+name: qualify-policy
+# Temporary bridge: publish compatible controls before activating the new pins.
+# Remove after native qualification and verified publication.
+on:
+  push:
+    branches: [main]
+    paths:
+      - check/test-catalog/**
+      - workflow/get-image-matrix/**
+      - workflow/new-publication-plan/Containerfile
+      - .github/workflows/qualify-policy.yml
+permissions:
+  contents: read
+jobs:
+  qualify:
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        component:
+          - {family: check, action: test-catalog}
+          - {family: workflow, action: get-image-matrix}
+          - {family: workflow, action: new-publication-plan}
+        platform:
+          - {arch: amd64, runner: ubuntu-24.04}
+          - {arch: arm64, runner: ubuntu-24.04-arm}
+    runs-on: ${{ matrix.platform.runner }}
+    services:
+      candidate-registry:
+        image: ghcr.io/tdesaules/github-actions/workflow-start-test-registry@sha256:4cc956d162088260da035990b56918786fbb55067f9e170358ab8802ea84b9f6
+        ports: ['5000/tcp']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Native policy regression suite
+        if: matrix.component.action == 'get-image-matrix'
+        uses: ./check/test-go
+      - name: Build native control
+        id: archive
+        uses: ./oci/build-image
+        with:
+          containerfile: ${{ matrix.component.family }}/${{ matrix.component.action }}/Containerfile
+          image: localhost/github-actions/${{ matrix.component.family }}-${{ matrix.component.action }}
+          version: policy-${{ github.run_id }}
+          platform: linux/${{ matrix.platform.arch }}
+          labels: '{"org.opencontainers.image.revision":"${{ github.sha }}"}'
+          output: .build/control/image.oci.tar
+      - name: Record untested control
+        uses: ./workflow/new-build-receipt
+        with:
+          archive: .build/control/image.oci.tar
+          output: .build/control/build.json
+          expected-sha256: ${{ steps.archive.outputs.archive-sha256 }}
+          image: ${{ matrix.component.family }}-${{ matrix.component.action }}
+          architecture: ${{ matrix.platform.arch }}
+          revision: ${{ github.sha }}
+          version: policy-${{ github.run_id }}
+      - name: Native runtime qualification
+        uses: ./workflow/test-candidate-runtime
+        with:
+          archive: .build/control/image.oci.tar
+          image: ${{ matrix.component.family }}-${{ matrix.component.action }}
+          architecture: ${{ matrix.platform.arch }}
+          revision: ${{ github.sha }}
+          output: .build/control/runtime.json
+      - name: Transfer qualified control
+        id: candidate
+        uses: ./workflow/import-candidate-image
+        with:
+          archive: .build/control/image.oci.tar
+          repository: ${{ matrix.component.family }}-${{ matrix.component.action }}
+          host-port: ${{ job.services.candidate-registry.ports['5000'] }}
+      - name: Prepare real Docker action
+        uses: ./workflow/new-candidate-action
+        with:
+          directory: ${{ matrix.component.family }}/${{ matrix.component.action }}
+          image: ${{ steps.candidate.outputs.image }}
+          destination: .candidate-actions/${{ matrix.component.family }}/${{ matrix.component.action }}
+      - name: Accept Fedora major-version recipes
+        if: matrix.component.action == 'test-catalog'
+        uses: ./.candidate-actions/check/test-catalog
+      - name: Exercise native incremental plan
+        if: matrix.component.action == 'get-image-matrix'
+        uses: ./.candidate-actions/workflow/get-image-matrix
+        with:
+          event: push
+          ref: refs/heads/main
+          files: '["workflow/get-image-matrix/main.go"]'
+          image: workflow-get-image-matrix
+          output: .build/control/plan.json
+      - name: Reject invalid publication ownership
+        id: invalid
+        if: matrix.component.action == 'new-publication-plan'
+        continue-on-error: true
+        uses: ./.candidate-actions/workflow/new-publication-plan
+        with:
+          owner: invalid/owner
+      - name: Verify publication rejection
+        if: matrix.component.action == 'new-publication-plan'
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: '["invalid"]'
+      - name: Advisory SBOM
+        id: security-sbom
+        timeout-minutes: 15
+        continue-on-error: true
+        uses: ./oci/new-sbom
+        with:
+          source: oci-archive:.build/control/image.oci.tar
+          output: .build/control/sbom.json
+      - name: Advisory scan
+        if: steps.security-sbom.outcome == 'success'
+        timeout-minutes: 15
+        continue-on-error: true
+        uses: ./oci/test-vulnerabilities
+        with:
+          sbom: .build/control/sbom.json
+          fail-on: none
+          output: .build/control/grype.json
+      - name: Verify unchanged archive
+        uses: ./workflow/test-build-artifact
+        with:
+          archive: .build/control/image.oci.tar
+          receipt: .build/control/build.json
+          image: ${{ matrix.component.family }}-${{ matrix.component.action }}
+          architecture: ${{ matrix.platform.arch }}
+          revision: ${{ github.sha }}
+          version: policy-${{ github.run_id }}
+      - name: Record qualified archive
+        uses: ./workflow/new-image-metadata
+        with:
+          archive: .build/control/image.oci.tar
+          image: ${{ matrix.component.family }}-${{ matrix.component.action }}
+          architecture: ${{ matrix.platform.arch }}
+          revision: ${{ github.sha }}
+          version: policy-${{ github.run_id }}
+          output: .build/control/metadata.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: policy-${{ matrix.component.action }}-${{ matrix.platform.arch }}
+          path: .build/control
+          include-hidden-files: true
+          if-no-files-found: error
+  publish:
+    needs: qualify
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        component:
+          - {family: check, action: test-catalog}
+          - {family: workflow, action: get-image-matrix}
+          - {family: workflow, action: new-publication-plan}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: policy-${{ matrix.component.action }}-amd64
+          path: .build/amd64
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: policy-${{ matrix.component.action }}-arm64
+          path: .build/arm64
+      - name: Publish exact qualified policy control
+        uses: ./oci/merge-image-index
+        with:
+          sources: '[".build/amd64/image.oci.tar",".build/arm64/image.oci.tar"]'
+          destination: docker://ghcr.io/tdesaules/github-actions/${{ matrix.component.family }}-${{ matrix.component.action }}
+          output: .build/image-index.json
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ github.token }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: published-${{ matrix.component.family }}-${{ matrix.component.action }}
+          path: .build/image-index.json
+          include-hidden-files: true
+          if-no-files-found: error

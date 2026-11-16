@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS build
+FROM quay.io/fedora/fedora:45 AS build
 # hadolint ignore=DL3041
 RUN dnf install -y --setopt=install_weak_deps=False golang && dnf clean all
 ENV GOTOOLCHAIN=local
@@ -10,7 +10,7 @@ RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoi
 
 FROM ghcr.io/blue-build/cli:latest-installer@sha256:46153cc9a0089aaed427b306fdbcfdc915f7653d094d40a03ed32213b5edbf34 AS bluebuild
 
-FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS final
+FROM quay.io/fedora/fedora:45 AS final
 # BlueBuild checks an engine's version even for generation; no engine is started.
 # hadolint ignore=DL3041
 RUN dnf install -y --setopt=install_weak_deps=False git-core ca-certificates podman && dnf clean all

@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS build
+FROM quay.io/fedora/fedora:45 AS build
 # hadolint ignore=DL3041
 RUN dnf install -y --setopt=install_weak_deps=False golang && dnf clean all
 ENV GOTOOLCHAIN=local
@@ -7,7 +7,7 @@ COPY go.mod go.sum ./
 COPY shared/workflow/ ./shared/workflow/
 COPY check/test-atomic-iso/ ./check/test-atomic-iso/
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./check/test-atomic-iso
-FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS final
+FROM quay.io/fedora/fedora:45 AS final
 # ISO and OCI inspection do not require mounts, an engine or privileged mode.
 # hadolint ignore=DL3041
 RUN dnf install -y --setopt=install_weak_deps=False xorriso isomd5sum skopeo && dnf clean all

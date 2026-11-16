@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS build
+FROM quay.io/fedora/fedora:45 AS build
 # hadolint ignore=DL3041
 RUN dnf install -y golang-1.27.4-2.fc45 && dnf clean all
 ENV GOTOOLCHAIN=local
@@ -9,7 +9,7 @@ COPY shared/rustgtk/ ./shared/rustgtk/
 COPY workflow/build-rust-gtk/main.go ./workflow/build-rust-gtk/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/build-rust-gtk
 
-FROM quay.io/fedora/fedora:44@sha256:15bca96361db60e17c52df60efca658f02d7a8df13e6ceaabb47e9a547ec3f5e AS final
+FROM quay.io/fedora/fedora:44 AS final
 # Fedora 44 builds preserve the consumer's libc/GTK ABI baseline.
 # hadolint ignore=DL3041
 RUN dnf install -y --setopt=install_weak_deps=False rust-1.99.1-2.fc44 cargo-1.99.1-2.fc44 gcc gtk4-devel pkgconf-pkg-config git ca-certificates \

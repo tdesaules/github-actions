@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS build
+FROM quay.io/fedora/fedora:45 AS build
 # hadolint ignore=DL3041
 RUN dnf install -y --setopt=install_weak_deps=False golang && dnf clean all
 ENV GOTOOLCHAIN=local
@@ -7,7 +7,7 @@ COPY go.mod go.sum ./
 COPY shared/workflow/ ./shared/workflow/
 COPY oci/get-image-platforms/ ./oci/get-image-platforms/
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./oci/get-image-platforms
-FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS final
+FROM quay.io/fedora/fedora:45 AS final
 # hadolint ignore=DL3041
 RUN dnf install -y --setopt=install_weak_deps=False skopeo && dnf clean all
 COPY --from=build /entrypoint /entrypoint

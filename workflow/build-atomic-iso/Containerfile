@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS build
+FROM quay.io/fedora/fedora:45 AS build
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # hadolint ignore=DL3041
 RUN dnf install -y --setopt=install_weak_deps=False golang-1.27.4-2.fc45 git-core curl && dnf clean all
@@ -15,7 +15,7 @@ RUN curl --fail --location https://raw.githubusercontent.com/docker/cli/5457199a
 
 FROM docker.io/library/docker:29.9.3-cli@sha256:5a7af0dcb0e46c803efe9b45371dd21cb500e5b4453250394ac6f06d49b6e6f1 AS docker
 
-FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS sources
+FROM quay.io/fedora/fedora:45 AS sources
 # hadolint ignore=DL3041
 RUN dnf install -y --setopt=install_weak_deps=False git-core && dnf clean all \
     && git clone https://github.com/jasonn3/build-container-installer.git /installer \
@@ -24,7 +24,7 @@ RUN dnf install -y --setopt=install_weak_deps=False git-core && dnf clean all \
     && git -C /installer/external/lorax checkout 692928e2701400ac38000111612dfe3da5b041b3 \
     && touch /installer/external/lorax/branch-45
 
-FROM quay.io/fedora/fedora:45@sha256:b174cd5906c712f59a675cc85ea2ca8ff3bcf3643f1a1f3bc4e14dc28bcf1872 AS final
+FROM quay.io/fedora/fedora:45 AS final
 # Fedora supplies Lorax and its complete Python/runtime dependency closure.
 # The unused Flatpak feature is not installed or included in the resulting ISO.
 # Syslinux's noarch payload still requires an x86-only native package. ARM64

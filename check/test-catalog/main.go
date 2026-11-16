@@ -12,6 +12,11 @@ import (
 )
 
 var digest = regexp.MustCompile(`@sha256:[a-f0-9]{64}$`)
+var fedoraMajor = regexp.MustCompile(`^quay\.io/fedora/fedora(?:-minimal)?:[1-9][0-9]*$`)
+
+func versionedBase(reference string) bool {
+	return digest.MatchString(reference) || fedoraMajor.MatchString(reference)
+}
 
 var allowedBases = map[string]bool{
 	"quay.io/fedora/fedora-minimal": true, "quay.io/fedora/fedora": true,
@@ -76,7 +81,7 @@ func validateSource(root string, allowSource bool) error {
 								if strings.HasPrefix(option, "from=") {
 									source := strings.TrimPrefix(option, "from=")
 									if !stages[source] {
-										if !digest.MatchString(source) {
+										if !versionedBase(source) {
 											return fmt.Errorf("%s: unpinned image-backed mount %s", directory, source)
 										}
 										reportBase(source, directory)
@@ -91,7 +96,7 @@ func validateSource(root string, allowSource bool) error {
 						if strings.HasPrefix(field, "--from=") {
 							source := strings.TrimPrefix(field, "--from=")
 							if !stages[source] {
-								if !digest.MatchString(source) {
+								if !versionedBase(source) {
 									return fmt.Errorf("%s: unpinned external donor %s", directory, source)
 								}
 								reportBase(source, directory)
@@ -106,7 +111,7 @@ func validateSource(root string, allowSource bool) error {
 					return fmt.Errorf("%s: require named stages", directory)
 				}
 				base := fields[1]
-				if base != "scratch" && !stages[base] && !digest.MatchString(base) {
+				if base != "scratch" && !stages[base] && !versionedBase(base) {
 					return fmt.Errorf("%s: unpinned base %s", directory, base)
 				}
 				if !stages[base] {

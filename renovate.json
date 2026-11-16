@@ -16,6 +16,12 @@
   ],
   "packageRules": [
     {
+      "description": "Fedora follows its selected major version; upstream digest retention is not guaranteed",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["quay.io/fedora/fedora", "quay.io/fedora/fedora-minimal"],
+      "pinDigests": false
+    },
+    {
       "description": "Catalogue-owned digest-only images are updated by verified publication, not upstream version discovery",
       "matchDatasources": ["docker"],
       "matchPackageNames": ["ghcr.io/tdesaules/github-actions/**"],
