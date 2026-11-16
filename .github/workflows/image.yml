@@ -1341,9 +1341,20 @@ jobs:
           destination: .build/fixtures/generated-candidate
       - name: Test native fixture generation
         if: matrix.image == 'workflow-new-test-fixtures'
+        id: generated-fixtures
         uses: ./.candidate-actions/workflow/new-test-fixtures
         with:
           directory: .build/fixtures/generated
+          atomic-recipe: tests/fixtures/atomic/Containerfile
+      - name: Validate real Atomic export from candidate fixture generator
+        if: matrix.image == 'workflow-new-test-fixtures'
+        uses: ./check/test-atomic-image
+        with:
+          archive: ${{ steps.generated-fixtures.outputs.atomic-archive }}
+          sha256: ${{ steps.generated-fixtures.outputs.atomic-sha256 }}
+          revision: ${{ github.sha }}
+          architecture: ${{ matrix.arch }}
+          output: .build/fixtures/generated/atomic-qualified.json
       - name: Test native candidate registry transfer
         if: matrix.image == 'workflow-import-candidate-image'
         uses: ./.candidate-actions/workflow/import-candidate-image

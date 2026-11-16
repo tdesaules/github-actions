@@ -21,6 +21,7 @@ FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
 COPY --from=build /runtime/ /
 COPY --from=build /etc/containers/ /etc/containers/
+COPY --from=build /usr/share/containers/ /usr/share/containers/
 COPY --from=build /entrypoint /entrypoint
 COPY --from=build /fixture-fail-run /fixture-fail-run
 COPY --from=build /fixture-success-run /fixture-success-run
