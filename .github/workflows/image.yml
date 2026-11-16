@@ -299,6 +299,65 @@ jobs:
         uses: ./.candidate-actions/check/test-catalog
         with:
           allow-source: ${{ !startsWith(github.ref, 'refs/tags/') }}
+      - name: Export real native Atomic SBOM subject without VFS expansion
+        if: matrix.image == 'oci-new-atomic-sbom'
+        id: atomic-sbom-fixture
+        # Local metadata selects the digest-pinned published exporter runtime.
+        uses: ./workflow/new-test-fixtures
+        with:
+          directory: .build/atomic-sbom-fixture
+          atomic-recipe: tests/fixtures/atomic/Containerfile
+      - name: Qualify full native Atomic filesystem SBOM and RPM coverage
+        if: matrix.image == 'oci-new-atomic-sbom'
+        id: atomic-sbom
+        timeout-minutes: 30
+        # This is functional qualification of the scanner, so failure blocks
+        # publishing this candidate. Consumer security steps remain advisory.
+        uses: ./.candidate-actions/oci/new-atomic-sbom
+        with:
+          archive: ${{ steps.atomic-sbom-fixture.outputs.atomic-archive }}
+          sha256: ${{ steps.atomic-sbom-fixture.outputs.atomic-sha256 }}
+          architecture: ${{ matrix.arch }}
+          revision: ${{ github.sha }}
+          output: .build/atomic-sbom-${{ matrix.arch }}.spdx.json
+      - name: Reject altered Atomic SBOM source checksum
+        if: matrix.image == 'oci-new-atomic-sbom'
+        id: atomic-sbom-tampered
+        continue-on-error: true
+        uses: ./.candidate-actions/oci/new-atomic-sbom
+        with:
+          archive: ${{ steps.atomic-sbom-fixture.outputs.atomic-archive }}
+          sha256: '0000000000000000000000000000000000000000000000000000000000000000'
+          architecture: ${{ matrix.arch }}
+          output: .build/atomic-sbom-rejected-checksum.json
+      - name: Reject inconsistent Atomic SBOM source architecture
+        if: matrix.image == 'oci-new-atomic-sbom'
+        id: atomic-sbom-wrong-arch
+        continue-on-error: true
+        uses: ./.candidate-actions/oci/new-atomic-sbom
+        with:
+          archive: ${{ steps.atomic-sbom-fixture.outputs.atomic-archive }}
+          sha256: ${{ steps.atomic-sbom-fixture.outputs.atomic-sha256 }}
+          architecture: ${{ matrix.arch == 'amd64' && 'arm64' || 'amd64' }}
+          output: .build/atomic-sbom-rejected-architecture.json
+      - name: Assert Atomic SBOM source rejection leaves no success evidence
+        if: matrix.image == 'oci-new-atomic-sbom'
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: '["atomic-sbom-tampered","atomic-sbom-wrong-arch"]'
+          absent-files: '[".build/atomic-sbom-rejected-checksum.json",".build/atomic-sbom-rejected-checksum.json.binding.json",".build/atomic-sbom-rejected-architecture.json",".build/atomic-sbom-rejected-architecture.json.binding.json"]'
+      - name: Verify real Atomic SBOM binding and native scanner fixture contracts
+        if: matrix.image == 'oci-new-atomic-sbom'
+        uses: ./check/test-go
+        env:
+          ATOMIC_SBOM_FIXTURE_BINDING: ${{ steps.atomic-sbom.outputs.source-binding }}
+          ATOMIC_SBOM_FIXTURE_ARCHIVE: ${{ steps.atomic-sbom-fixture.outputs.atomic-archive }}
+          ATOMIC_SBOM_FIXTURE_SHA256: ${{ steps.atomic-sbom-fixture.outputs.atomic-sha256 }}
+          ATOMIC_SBOM_FIXTURE_ARCH: ${{ matrix.arch }}
+          ATOMIC_SBOM_FIXTURE_REVISION: ${{ github.sha }}
+        with:
+          directory: oci/new-atomic-sbom
       - name: Check out immutable Atomic recipe fixture
         if: matrix.image == 'workflow-render-bluebuild'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683

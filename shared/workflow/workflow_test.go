@@ -341,6 +341,13 @@ func TestBuildAndQualificationAreSeparate(t *testing.T) {
 		}
 		switch step["uses"] {
 		case "./workflow/new-test-fixtures":
+			if step["id"] == "atomic-sbom-fixture" {
+				if step["if"] != "matrix.image == 'oci-new-atomic-sbom'" ||
+					step["with"].(map[string]any)["atomic-recipe"] != "tests/fixtures/atomic/Containerfile" {
+					t.Fatal("Atomic SBOM qualification must use a row-scoped published real-image exporter")
+				}
+				continue
+			}
 			if step["id"] == "atomic-fixture" {
 				if step["if"] != "matrix.image == 'check-test-atomic-image' || (matrix.image == 'workflow-build-atomic-iso' && matrix.arch == 'amd64')" {
 					t.Fatal("large Atomic export must be scoped to image qualification and the AMD64 constructor")

@@ -1,0 +1,53 @@
+name: New source-bound Atomic SBOM
+description: Verify and rootlessly unpack a native Atomic image, then scan its full filesystem with image catalogers and RPM coverage checks
+inputs:
+  archive:
+    description: Workspace-relative native OCI archive; mutually exclusive with reference
+  sha256:
+    description: Exact archive SHA-256, required with archive
+  reference:
+    description: Immutable registry/repository@sha256 reference to a native OCI manifest or index
+  architecture:
+    description: Expected amd64 or arm64; static cross-architecture scanning is supported
+    required: true
+  revision:
+    description: Optional expected full source commit in the OCI revision label
+  output:
+    description: New workspace-relative SPDX JSON file
+    default: .build/security/atomic.spdx.json
+  binding:
+    description: New workspace-relative source-binding JSON; defaults to output plus .binding.json
+  registry-username:
+    description: Optional registry username for registry sources, passed through environment only
+  registry-password:
+    description: Optional registry password or job token, passed through environment into a private temporary auth file only
+outputs:
+  sbom:
+    description: Workspace-relative complete SPDX SBOM
+  source-binding:
+    description: Workspace-relative source/config/layer/SBOM integrity and RPM coverage report
+  sbom-sha256:
+    description: Exact SPDX file SHA-256
+  manifest-digest:
+    description: Verified native OCI manifest digest
+  architecture:
+    description: Verified source architecture
+  rpm-packages:
+    description: Installed RPM inventory count
+  rpm-covered:
+    description: Installed RPM identities represented in the SBOM
+runs:
+  using: docker
+  # BOOTSTRAP ONLY: replace with the exact natively qualified published index.
+  image: Containerfile
+  env:
+    INPUT_REGISTRY_USERNAME: ${{ inputs.registry-username }}
+    INPUT_REGISTRY_PASSWORD: ${{ inputs.registry-password }}
+  args:
+    - --archive=${{ inputs.archive }}
+    - --sha256=${{ inputs.sha256 }}
+    - --reference=${{ inputs.reference }}
+    - --architecture=${{ inputs.architecture }}
+    - --revision=${{ inputs.revision }}
+    - --output=${{ inputs.output }}
+    - --binding=${{ inputs.binding }}

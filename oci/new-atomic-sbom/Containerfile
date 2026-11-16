@@ -1,0 +1,29 @@
+FROM quay.io/fedora/fedora:45 AS build
+# hadolint ignore=DL3041
+RUN dnf install -y --setopt=install_weak_deps=False golang-1.27.4-2.fc45 && dnf clean all
+ENV GOTOOLCHAIN=local
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY oci/new-atomic-sbom/ ./oci/new-atomic-sbom/
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./oci/new-atomic-sbom
+
+# Catalog 1.7.3's native-qualified scratch runtime supplies static Syft 1.54.1.
+# Provenance: shared/runtime/compile-syft.sh at 45c9ce9160b50d49a7167543f2286e000656e565.
+FROM ghcr.io/tdesaules/github-actions/oci-new-sbom@sha256:803dcae4aec52c76bfb3da34106339a660b98f2e018fe35e8d3dffe9c2a4e353 AS syft
+
+FROM quay.io/fedora/fedora:45 AS final
+# Fedora retains the complete Skopeo/umoci/RPM/TLS runtime closure on both arches.
+# hadolint ignore=DL3041
+RUN dnf install -y --setopt=install_weak_deps=False skopeo umoci rpm ca-certificates && dnf clean all
+COPY --from=build /entrypoint /entrypoint
+COPY --from=syft /usr/bin/syft /usr/bin/syft
+COPY --from=syft /usr/share/licenses/syft/LICENSE /usr/share/licenses/syft/LICENSE
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+# Ordinary container root can read mode-restricted image files without running
+# target software. umoci uses --rootless; no engine, device or privileged worker.
+# Output files/new directories are handed back to the runner's UID.
+# hadolint ignore=DL3002
+USER 0:0
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="oci-new-atomic-sbom" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND Apache-2.0"
