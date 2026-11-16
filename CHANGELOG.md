@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.3
+
+- mark removed activation runs as historical records (93ea400)
+
 ## 1.7.2
 
 - retain Fedora 45 container trust configuration (3d8865f)
