@@ -30,7 +30,7 @@ outputs:
     description: ARM64 artifact directory
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-read-binary-release@sha256:6cc15343eb47bf571ec536607bb86e9b746f75dc96ae50d2566a3c507908c797
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-read-binary-release@sha256:edf7e3e86a477851e7d3339640d07cebf7db0647b0fdaf154772023972c6fd77
   env:
     INPUT_TAG: ${{ inputs.tag }}
     INPUT_REPOSITORY: ${{ inputs.repository }}

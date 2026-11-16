@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.1
+
+- skip release promotions and follow Fedora major tags (5ee94b6)
+
+- activate qualified Fedora and release-selection policy (5a4ebc3)
+
+- migrate catalogue tooling to Fedora 45 (c225777)
+
 ## 1.7.0
 
 - add image qualification and ORAS publication actions (2e700dc)

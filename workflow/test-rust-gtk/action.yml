@@ -40,7 +40,7 @@ outputs:
     description: Qualified archive checksum
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-rust-gtk@sha256:22c30aebc96d1c3cd99af3031e978897bc0a46d21b4c98a6a4d8b53677bcdb93
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-rust-gtk@sha256:05261d0d6f6e335e08273d8640822fc05b0cd1268d7b1198216bb9349628cf52
   args:
     - --directory=${{ inputs.directory }}
     - --archive=${{ inputs.archive }}

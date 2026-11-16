@@ -46,7 +46,7 @@ outputs:
     description: Verified immutable installer reference
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-prepare-atomic-release@sha256:b7768574c882253c1e4877f36aa0f0bc6e35c11db72d33e858b816fc21140215
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-prepare-atomic-release@sha256:79386ff039348db07358abb0b6f12c92c0b1019470ee050430f949cbab34f6ae
   env:
     INPUT_TOKEN: ${{ inputs.token }}
     INPUT_REGISTRY_USERNAME: ${{ inputs.registry-username }}

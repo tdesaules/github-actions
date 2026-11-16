@@ -48,7 +48,7 @@ outputs:
     description: Execution-plan artifact name
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-plan-atomic-release@sha256:0f8852eb81f807779957c51f6e313a1e495337752d19b080fc7a8632dc85e1d0
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-plan-atomic-release@sha256:787d4b405299b71e30d000eae749f5812113a2beeceace3e569e645f1ec63978
   args:
     - --event=${{ inputs.event }}
     - --ref=${{ inputs.ref }}

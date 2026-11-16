@@ -15,7 +15,7 @@ outputs:
     description: Staged deploy directory relative to the project
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-build-pantavisor@sha256:30fd6d14c2a97506d533b7caa41008b8418b6ccf4436bab96d418b5fb04570f6
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-build-pantavisor@sha256:bff9da3f409f5f449932fec248d6095f3dd6e01fe7f2f5165469aa9867adf221
   args:
     - --directory=${{ inputs.directory }}
     - --project=${{ inputs.project }}
