@@ -85,6 +85,13 @@ images retain digest pins. Renovate must not add Fedora digests back. Tag-based
 Fedora builds receive upstream updates within the selected major version, so the
 tested OCI archives remain the immutable publication inputs.
 
+Fedora 45 is the standard base for catalogue tooling. The final runtimes of
+`lint/rust-gtk`, `workflow/build-rust-gtk` and `workflow/test-rust-gtk` retain Fedora
+44 to preserve the consumer's libc/GTK baseline. Release planning and publication
+tools do not compile the consumer application and use Fedora 45. Recipes using
+Fedora 45 compile their Go entrypoints with the selected Fedora 45 compiler;
+upstream tools and published action references retain their own version pins.
+
 Preparation compares against the previous release and qualifies the complete
 intended catalogue, including unchanged digests. A tag qualifies the complete
 published catalogue with an empty build matrix. No publication runs on development

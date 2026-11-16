@@ -1,7 +1,7 @@
-FROM quay.io/fedora/fedora:44 AS build
+FROM quay.io/fedora/fedora:45 AS build
 # Supporting RPMs follow signed Fedora updates; qualified archives stay unchanged.
 # hadolint ignore=DL3041
-RUN dnf install -y golang-1.26.10-1.fc44 git skopeo ca-certificates && dnf clean all
+RUN dnf install -y golang-1.27.4-2.fc45 git skopeo ca-certificates && dnf clean all
 ENV GOTOOLCHAIN=local
 WORKDIR /src
 COPY go.mod go.sum ./

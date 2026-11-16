@@ -1,5 +1,5 @@
-FROM quay.io/fedora/fedora:44 AS build
-RUN dnf install -y golang-1.26.10-1.fc44 && dnf clean all
+FROM quay.io/fedora/fedora:45 AS build
+RUN dnf install -y golang-1.27.4-2.fc45 && dnf clean all
 ENV GOTOOLCHAIN=local
 WORKDIR /src
 COPY go.mod go.sum ./

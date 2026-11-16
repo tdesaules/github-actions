@@ -1,5 +1,5 @@
-FROM quay.io/fedora/fedora:44 AS build
-RUN dnf install -y golang-1.26.10-1.fc44 && dnf clean all
+FROM quay.io/fedora/fedora:45 AS build
+RUN dnf install -y golang-1.27.4-2.fc45 && dnf clean all
 ENV GOTOOLCHAIN=local
 WORKDIR /src
 COPY go.mod go.sum ./
@@ -9,7 +9,7 @@ COPY shared/runtime/ ./shared/runtime/
 COPY shared/workflow/ ./shared/workflow/
 COPY workflow/publish-catalog-images/main.go ./workflow/publish-catalog-images/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/publish-catalog-images
-FROM quay.io/fedora/fedora:44 AS final
+FROM quay.io/fedora/fedora:45 AS final
 # Retain distribution transport libraries, Git and registry trust configuration.
 # hadolint ignore=DL3041
 RUN dnf install -y skopeo git ca-certificates && dnf clean all
