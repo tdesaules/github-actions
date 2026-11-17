@@ -5,6 +5,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 COPY shared/workflow/ ./shared/workflow/
 COPY workflow/summarize-security/main.go ./workflow/summarize-security/main.go
+COPY workflow/summarize-security/sbom.go ./workflow/summarize-security/sbom.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/summarize-security \
     && mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
 FROM scratch AS final

@@ -75,6 +75,14 @@ func inspect(path, outcome string, scan bool) evidence {
 		e.Reason = "step outcome: " + outcome
 		return e
 	}
+	if !scan {
+		if err := readSBOM(path); err != nil {
+			e.Reason = "missing or invalid report: " + err.Error()
+			return e
+		}
+		e.Status = "clean"
+		return e
+	}
 	var doc map[string]json.RawMessage
 	if err := readJSON(path, &doc); err != nil {
 		e.Reason = "missing or invalid report: " + err.Error()
@@ -82,19 +90,6 @@ func inspect(path, outcome string, scan bool) evidence {
 	}
 	if doc == nil {
 		e.Reason = "report must be a JSON object"
-		return e
-	}
-	if !scan {
-		var spdx, bom string
-		_ = json.Unmarshal(doc["spdxVersion"], &spdx)
-		_ = json.Unmarshal(doc["bomFormat"], &bom)
-		var artifacts []json.RawMessage
-		syft := json.Unmarshal(doc["artifacts"], &artifacts) == nil && artifacts != nil
-		if !strings.HasPrefix(spdx, "SPDX-") && bom != "CycloneDX" && !syft {
-			e.Reason = "unrecognized SBOM document"
-			return e
-		}
-		e.Status = "clean"
 		return e
 	}
 	var matches []struct {

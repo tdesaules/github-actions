@@ -15,7 +15,12 @@ JSON schema version 1 contains `subject`, `advisory: true`, and separate `sbom`
 and `scan` records with `status`, `outcome`, `path`, and optional `reason`.
 Grype records include `severity_counts`, optional `database` from `descriptor.db`,
 and `database_age_seconds` when its `built` timestamp is parseable. Reports are
-bounded to 32 MiB each. Supported SBOM shapes are SPDX, CycloneDX, and Syft JSON.
+bounded to 32 MiB for Grype and 512 MiB for SBOMs. Supported SBOM shapes are SPDX,
+CycloneDX, and Syft JSON. SBOM payloads are tokenized and discarded, with a 1 MiB
+individual token/whitespace-span limit and 256-level nesting limit to bound memory.
+The entire JSON document is validated, including ignored payloads and trailing
+data; format recognition is not full SBOM schema validation. Nonregular files
+and final-component SBOM symlinks are rejected.
 
 Statuses are `clean`, `findings`, `error`, or `not_run`. SBOM `clean` means a valid
 SBOM was produced, not that dependencies are vulnerability-free. Failed/cancelled

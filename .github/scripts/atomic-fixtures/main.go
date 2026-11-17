@@ -24,7 +24,10 @@ const isoName = "SYNTHETIC-NOT-BOOTABLE.iso"
 
 var epoch = time.Unix(946684800, 0).UTC()
 
-type options struct{ Directory, Source, Version, Run, Attempt string }
+type options struct {
+	Directory, Source, Version, Run, Attempt string
+	LargeSBOM                                bool
+}
 type payload struct {
 	Path  string `json:"path"`
 	SHA   string `json:"sha256"`
@@ -319,6 +322,13 @@ func generate(ctx context.Context, o options, makeMedia func(context.Context, st
 	if err = write(filepath.Join(stage, "SYNTHETIC-NOT-QUALIFICATION.txt"), []byte(warning)); err != nil {
 		return nil, err
 	}
+	var largeHash string
+	if o.LargeSBOM {
+		largeHash, err = writeLargeSBOM(ctx, filepath.Join(stage, "security/large.spdx.json"))
+		if err != nil {
+			return nil, err
+		}
+	}
 	if err = os.Chmod(stage, 0755); err != nil {
 		return nil, err
 	}
@@ -332,6 +342,10 @@ func generate(ctx context.Context, o options, makeMedia func(context.Context, st
 		"qualified-directory": filepath.Join(o.Directory, "qualified"),
 		"zstd-directory":      filepath.Join(o.Directory, "zstd"),
 		"transfer-directory":  filepath.Join(o.Directory, "transfer"),
+	}
+	if o.LargeSBOM {
+		outputs["large-sbom"] = filepath.Join(o.Directory, "security/large.spdx.json")
+		outputs["large-sbom-sha256"] = largeHash
 	}
 	for key, value := range map[string]any{
 		"iso-files":               isoFiles,
@@ -354,6 +368,7 @@ func run(args []string) error {
 	f.StringVar(&o.Directory, "directory", "", "new workspace-relative fixture directory")
 	f.StringVar(&o.Source, "source-sha", "", "source revision")
 	f.StringVar(&o.Version, "version", "1.0.0", "stable fixture version")
+	f.BoolVar(&o.LargeSBOM, "large-sbom", false, "generate an additional streamed synthetic SPDX document above 32 MiB")
 	if err := f.Parse(args); err != nil {
 		return err
 	}

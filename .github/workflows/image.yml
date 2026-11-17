@@ -583,7 +583,7 @@ jobs:
           expected-failures: ${{ matrix.image == 'workflow-build-atomic-image' && '["atomic-build-invalid","atomic-build-run-invalid"]' || (matrix.arch == 'amd64' && '["atomic-iso-tampered"]' || '["atomic-iso-unsupported"]') }}
           absent-files: '[".build/atomic-rejected-platform.oci.tar",".build/atomic-rejected-run.oci.tar",".build/atomic-rejected-tampered.iso",".build/atomic-rejected-arm64.iso"]'
       - name: Build native repository-only SYNTHETIC protocol helper
-        if: contains(fromJSON('["check-test-atomic-iso","check-test-atomic-release","oci-get-artifact","oci-publish-artifact","oci-merge-image-index"]'), matrix.image)
+        if: contains(fromJSON('["check-test-atomic-iso","check-test-atomic-release","oci-get-artifact","oci-publish-artifact","oci-merge-image-index","workflow-summarize-security"]'), matrix.image)
         id: atomic-protocol-build
         uses: ./oci/build-image
         with:
@@ -616,6 +616,7 @@ jobs:
           directory: .build/atomic protocol fixtures
           source-sha: ${{ github.sha }}
           version: 1.0.0
+          large-sbom: ${{ matrix.image == 'workflow-summarize-security' }}
       - name: Verify synthetic media format through native candidate action
         if: matrix.image == 'check-test-atomic-iso'
         uses: ./.candidate-actions/check/test-atomic-iso
@@ -1030,6 +1031,29 @@ jobs:
           tag: v1.0.0
           repository: fixture/repo
           token: unused-fixture-token
+      - name: Summarize streamed synthetic SPDX above the old 32 MiB cap
+        if: matrix.image == 'workflow-summarize-security'
+        uses: ./.candidate-actions/workflow/summarize-security
+        with:
+          subject: git:${{ github.sha }}
+          sbom-outcome: ${{ steps.atomic-protocol.outcome }}
+          scan-outcome: skipped
+          sbom: ${{ steps.atomic-protocol.outputs.large-sbom }}
+          report: .build/fixtures/not-run-large-grype.json
+          output: .build/fixtures/security-large-summary.json
+      - name: Assert actual native large-SBOM summary status and input integrity
+        if: matrix.image == 'workflow-summarize-security'
+        # Functional regression: old binaries exit zero with sbom.status=error.
+        # This is not a vulnerability gate and does not invoke a real OS scanner.
+        uses: ./check/test-go
+        env:
+          ATOMIC_SUMMARY_HOSTED_FIXTURE: '1'
+          ATOMIC_SUMMARY_REPORT: .build/fixtures/security-large-summary.json
+          ATOMIC_SUMMARY_SBOM: ${{ steps.atomic-protocol.outputs.large-sbom }}
+          ATOMIC_SUMMARY_SBOM_SHA256: ${{ steps.atomic-protocol.outputs.large-sbom-sha256 }}
+          ATOMIC_SUMMARY_SUBJECT: git:${{ github.sha }}
+        with:
+          directory: workflow/summarize-security
       - name: Summarize actual native advisory findings
         if: matrix.image == 'workflow-summarize-security'
         uses: ./.candidate-actions/workflow/summarize-security

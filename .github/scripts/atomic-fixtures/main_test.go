@@ -119,7 +119,7 @@ func readJSON(t *testing.T, path string) map[string]any {
 
 func TestBundleRelationshipsAndSpaces(t *testing.T) {
 	t.Chdir(t.TempDir())
-	o := options{"fixtures with spaces", strings.Repeat("b", 40), "2.3.4", "1234", "2"}
+	o := options{Directory: "fixtures with spaces", Source: strings.Repeat("b", 40), Version: "2.3.4", Run: "1234", Attempt: "2"}
 	out, err := generate(context.Background(), o, func(_ context.Context, tree, output string) error {
 		if _, err := os.Stat(filepath.Join(tree, "niri-tomic-os/index.json")); err != nil {
 			return err
@@ -128,6 +128,12 @@ func TestBundleRelationshipsAndSpaces(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if out["large-sbom"] != "" || out["large-sbom-sha256"] != "" {
+		t.Fatal("default fixtures emitted large-SBOM outputs")
+	}
+	if _, err := os.Stat(filepath.Join(o.Directory, "security/large.spdx.json")); !os.IsNotExist(err) {
+		t.Fatal("large SBOM must remain opt-in")
 	}
 	build := readJSON(t, out["build-receipt"])
 	if build["tested"] != false || build["synthetic"] != true || build["run_id"] != "1234" {
@@ -247,7 +253,7 @@ func TestRealMedia(t *testing.T) {
 		}
 	}
 	t.Chdir(t.TempDir())
-	o := options{"real fixtures", strings.Repeat("c", 40), "1.0.0", "1", "1"}
+	o := options{Directory: "real fixtures", Source: strings.Repeat("c", 40), Version: "1.0.0", Run: "1", Attempt: "1"}
 	out, err := generate(context.Background(), o, media)
 	if err != nil {
 		t.Fatal(err)

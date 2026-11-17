@@ -10,6 +10,9 @@ inputs:
   version:
     description: Stable synthetic fixture version
     default: 1.0.0
+  large-sbom:
+    description: Opt in to a streamed synthetic SPDX document of approximately 34 MiB for summary-size qualification
+    default: 'false'
 outputs:
   iso:
     description: Raw synthetic ISO
@@ -31,6 +34,10 @@ outputs:
     description: Valid ORAS payload descriptor array
   tampered-transfer-files:
     description: Same payload name with deliberately incorrect checksum
+  large-sbom:
+    description: Workspace-relative large synthetic SPDX file, emitted only when requested
+  large-sbom-sha256:
+    description: Original large SPDX checksum, emitted only when requested
 runs:
   using: docker
   # Repository-only candidate image; never discover/publish as a catalog product.
@@ -39,3 +46,4 @@ runs:
     - --directory=${{ inputs.directory }}
     - --source-sha=${{ inputs.source-sha }}
     - --version=${{ inputs.version }}
+    - --large-sbom=${{ inputs.large-sbom }}

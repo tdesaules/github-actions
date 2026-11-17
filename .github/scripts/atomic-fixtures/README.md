@@ -16,6 +16,8 @@ was collected separately by the primary agent using the real approximately
   parent traversal, existing destinations and symlink ancestors rejected.
 - `source-sha`: exact lowercase 40-hex fixture source revision.
 - `version`: stable no-v version, default `1.0.0`.
+- `large-sbom`: optional boolean, default `false`. Only the security-summary
+  qualification row enables it; other rows do not generate the large document.
 - Receipts use actual `GITHUB_RUN_ID` and `GITHUB_RUN_ATTEMPT`. Only when both
   are absent and `GITHUB_ACTIONS` is absent do explicit fixture-local defaults
   `1`/`1` apply. Partial/malformed hosted identities fail.
@@ -62,6 +64,21 @@ an assembled index must declare those annotations before its digest is chosen.
 The fixture-only Zstandard writer emits one bounded raw block (RFC 8878);
 it uses no external compression dependency and is not a production compressor.
 These archives are separate from the synthetic OS/media receipt bundle.
+
+With `large-sbom: true`, `security/large.spdx.json` contains approximately
+34 MiB of streamed synthetic SPDX 2.3 file records. Each token is below 2 KiB;
+the helper never constructs the complete array or document in memory. Document
+metadata, unique record identifiers and the synthetic warning are deterministic.
+Outputs `large-sbom` and `large-sbom-sha256` bind the original file. Both outputs
+are omitted when the option is false.
+
+The native summary row invokes the actual candidate CLI, then the published
+Go-test action with `ATOMIC_SUMMARY_HOSTED_FIXTURE=1`. The dedicated
+`workflow/summarize-security/hosted_fixture_test.go` verifies that the candidate
+reported a clean/successful SBOM, a not-run/skipped scan, the expected subject
+and path, and unchanged source bytes. Exit zero alone cannot qualify the
+candidate: the previous binary emitted an advisory error for this size.
+This fixture tests summary document handling, not real scanning or RPM coverage.
 
 The base OCI archives contain real config/manifest/layer blobs for AMD64 and ARM64,
 with source/version and synthetic labels. Their only rootfs file is `hello.txt`;
