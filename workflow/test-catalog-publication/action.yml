@@ -12,7 +12,7 @@ inputs:
     default: ''
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-catalog-publication@sha256:049e6dd1cded3c614da2d7d70c0bcd4c3c088c99b26a0dc105fb88c49f6a7fc3
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-catalog-publication@sha256:480d65de4195c73f56eee52d554d2dac6f9c4d6b899ec14ad69e2f3e47ffd7e1
   env:
     INPUT_REGISTRY-USERNAME: ${{ inputs.registry-username }}
     INPUT_REGISTRY-PASSWORD: ${{ inputs.registry-password }}

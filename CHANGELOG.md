@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.8.0
+
+- keep native vulnerability scans advisory (b73823e)
+
+- preserve zstd index digests during publication (1a34d40)
+
+- preserve zstd index digests during publication (7423bd6)
+
+- consolidate local Atomic integration history (9d7aa76)
+
+- generate complete Atomic SBOMs from verified rootfs (ddecd4f)
+
 ## 1.7.3
 
 - mark removed activation runs as historical records (93ea400)

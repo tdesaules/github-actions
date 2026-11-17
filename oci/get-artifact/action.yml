@@ -21,7 +21,7 @@ outputs:
     description: Verified payload directory
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/oci-get-artifact@sha256:098088e730c675e702d2d022eca2d35b0dd17b53deafea06f8681df151f8adf9
+  image: docker://ghcr.io/tdesaules/github-actions/oci-get-artifact@sha256:fd2babe9935621c7f7eaf6aa06ea021b62ffdcdea385c1e430c1caa7b618b525
   env:
     INPUT_REGISTRY_PASSWORD: ${{ inputs.registry-password }}
   args:

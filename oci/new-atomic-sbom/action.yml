@@ -39,7 +39,7 @@ outputs:
 runs:
   using: docker
   # BOOTSTRAP ONLY: replace with the exact natively qualified published index.
-  image: Containerfile
+  image: docker://ghcr.io/tdesaules/github-actions/oci-new-atomic-sbom@sha256:b744ace804d9296aa27f3e7055ad49ed6405032c13dc156f313383957f8b6f7d
   env:
     INPUT_REGISTRY_USERNAME: ${{ inputs.registry-username }}
     INPUT_REGISTRY_PASSWORD: ${{ inputs.registry-password }}

@@ -32,7 +32,7 @@ outputs:
     description: Embedded source archive checksum
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-build-atomic-iso@sha256:1476efc3e0046f91e2b143bdd71d8d0eda6ee55e4d967eaee8baa1794e00078f
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-build-atomic-iso@sha256:ddadebd6768c17b1f4ecdc2c77e93a6609571d0336b6425518d086e62b78da57
   args:
     - --archive=${{ inputs.archive }}
     - --sha256=${{ inputs.sha256 }}

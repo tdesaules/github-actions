@@ -23,7 +23,7 @@ outputs:
     description: Subject-bound advisory status report
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-summarize-signatures@sha256:ba7c1eed7b7b2f5d065c82c9f43a45b66b87155065fbcea34dbcae8e6305baa5
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-summarize-signatures@sha256:b38e4a59cca845e4b7fa0cfa0aa2c191a6e33fea15fa028247043ac84b09e09d
   args:
     - --subject=${{ inputs.subject }}
     - --sign-outcome=${{ inputs.sign-outcome }}

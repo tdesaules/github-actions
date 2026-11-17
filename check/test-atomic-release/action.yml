@@ -34,7 +34,7 @@ outputs:
     description: ISO payload checksum
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/check-test-atomic-release@sha256:3e2819c041bd101e1dc0be5fbf9dcacd73fb0524e3610ca4e0cb596d1c2abbf5
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-atomic-release@sha256:dc95bbd604cff1a21e3f2731aa236930e086b3a5f31bd7f21c2ecdd2dc8eb97f
   args:
     - --qualified-directory=${{ inputs.qualified-directory }}
     - --source-sha=${{ inputs.source-sha }}

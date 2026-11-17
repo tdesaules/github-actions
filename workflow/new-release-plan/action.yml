@@ -14,7 +14,7 @@ outputs:
     description: Whether a new release is needed
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-release-plan@sha256:7d7b7886c234974c2cf3d0b947ce339245c62a4f0af69425eefe6ec7753aa9ed
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-release-plan@sha256:d4c6066c83a30bf6a7e0ca497356ed3e524c9e63a04bdab26b3d11d5d1507651
   args:
     - --config=${{ inputs.config }}
     - --output=${{ inputs.output }}

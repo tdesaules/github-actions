@@ -15,6 +15,6 @@ outputs:
     description: Verified rootfs or bsp kind
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/oci-test-component@sha256:df8ea517041b4de828f94e147c428a85af767c87b9d01188ed6c782238fb3cda
+  image: docker://ghcr.io/tdesaules/github-actions/oci-test-component@sha256:9c15a359853d4e9d3af8698da526601288e94b1e3ebd88a097ea8bba0f4c5bc4
   args:
     - --directory=${{ inputs.directory }}

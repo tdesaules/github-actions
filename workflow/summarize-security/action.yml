@@ -21,7 +21,7 @@ inputs:
     default: .build/security/summary.json
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-summarize-security@sha256:58d0e07a69015f242c90c6a3696e1c28ab8794f4def2ffb2eec293452c7e0086
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-summarize-security@sha256:f6f3f38e1843393ebcf7b194dde6257ac3bdba8a1a43742574edd2dec9e804eb
   args:
     - --subject=${{ inputs.subject }}
     - --sbom-outcome=${{ inputs.sbom-outcome }}

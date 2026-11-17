@@ -24,7 +24,7 @@ outputs:
     description: Platform directory relative to the project
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-assemble-pantavisor@sha256:b634602bcb31269ffd7d8be5f55eb81fc8e8ea97d793f3c2d158521a44502a3c
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-assemble-pantavisor@sha256:031d326811a4d5eb95ba39b79b885b289af56aa88b96eb37033fe212d2cd9e9e
   args:
     - --directory=${{ inputs.directory }}
     - --bsp=${{ inputs.bsp }}

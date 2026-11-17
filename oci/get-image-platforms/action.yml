@@ -23,7 +23,7 @@ outputs:
     description: ARM64 native manifest digest
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/oci-get-image-platforms@sha256:bbea261c7040d140d984129abaae637f709320e84022621ce528fae6fac43857
+  image: docker://ghcr.io/tdesaules/github-actions/oci-get-image-platforms@sha256:79cbc49b2c8c75daf2ae472b76dddf50fd78970b9e22cd8006178cf2590245bb
   env:
     INPUT_REGISTRY_PASSWORD: ${{ inputs.registry-password }}
   args:
