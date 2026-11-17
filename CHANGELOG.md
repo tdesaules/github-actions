@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.1
+
+- summarize complete large SBOMs with bounded memory (0e385b7)
+
 ## 1.8.0
 
 - keep native vulnerability scans advisory (b73823e)
