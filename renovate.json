@@ -16,10 +16,19 @@
   ],
   "packageRules": [
     {
-      "description": "Fedora follows its selected major version; upstream digest retention is not guaranteed",
+      "description": "Keep catalog builds on Fedora 45; upstream digest retention is not guaranteed",
       "matchDatasources": ["docker"],
       "matchPackageNames": ["quay.io/fedora/fedora", "quay.io/fedora/fedora-minimal"],
-      "pinDigests": false
+      "pinDigests": false,
+      "allowedVersions": "/^45$/"
+    },
+    {
+      "description": "Preserve the Fedora 44 ABI of the Rust/GTK consumer runtime stages",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["quay.io/fedora/fedora"],
+      "matchFileNames": ["lint/rust-gtk/Containerfile", "workflow/build-rust-gtk/Containerfile", "workflow/test-rust-gtk/Containerfile"],
+      "matchCurrentValue": "44",
+      "allowedVersions": "/^44$/"
     },
     {
       "description": "Catalogue-owned digest-only images are updated by verified publication, not upstream version discovery",
