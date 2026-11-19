@@ -1,0 +1,20 @@
+FROM quay.io/fedora/fedora:45 AS build
+# hadolint ignore=DL3041
+RUN dnf install -y golang-1.27.4-2.fc45 && dnf clean all
+ENV GOTOOLCHAIN=local
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/workflow/ ./shared/workflow/
+COPY shared/chezmoi/ ./shared/chezmoi/
+COPY check/test-chezmoi-assets/main.go ./check/test-chezmoi-assets/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./check/test-chezmoi-assets
+
+FROM quay.io/fedora/fedora:45 AS final
+# hadolint ignore=DL3041
+RUN dnf install -y --setopt=install_weak_deps=False python3 chezmoi-2.73.0-1.fc45 ca-certificates && dnf clean all
+ENV PYTHONDONTWRITEBYTECODE=1
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=build /entrypoint /entrypoint
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="check-test-chezmoi-assets" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

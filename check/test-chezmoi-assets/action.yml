@@ -1,0 +1,15 @@
+name: Check rendered release assets
+description: Check annotated dependencies with bounded HTTP requests
+inputs:
+  directory:
+    description: Trusted consumer checkout relative to the workspace
+    default: .
+  token:
+    description: Read-only GitHub API token
+    required: true
+runs:
+  using: docker
+  image: Containerfile
+  env:
+    GITHUB_TOKEN: ${{ inputs.token }}
+    INPUT_DIRECTORY: ${{ inputs.directory }}

@@ -1,0 +1,11 @@
+name: Lint rendered dotfiles
+description: Render isolated profiles and validate generated configuration
+inputs:
+  directory:
+    description: Trusted consumer checkout relative to the workspace
+    default: .
+runs:
+  using: docker
+  image: Containerfile
+  env:
+    INPUT_DIRECTORY: ${{ inputs.directory }}

@@ -1,0 +1,5 @@
+name: Validate maintenance event
+description: Reject manual maintenance outside main and unrelated events
+runs:
+  using: docker
+  image: Containerfile

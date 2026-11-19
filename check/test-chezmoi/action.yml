@@ -1,0 +1,11 @@
+name: Qualify chezmoi source
+description: Run native isolated round trips and regression tests
+inputs:
+  directory:
+    description: Trusted consumer checkout relative to the workspace
+    default: .
+runs:
+  using: docker
+  image: Containerfile
+  env:
+    INPUT_DIRECTORY: ${{ inputs.directory }}

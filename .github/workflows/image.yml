@@ -294,6 +294,56 @@ jobs:
           directory: ${{ matrix.directory }}
           image: ${{ matrix.rebuild && steps.candidate.outputs.image || matrix.reference }}
           destination: .candidate-actions/${{ matrix.directory }}
+      - name: Exercise maintenance event gate against the real event
+        if: matrix.image == 'check-test-maintenance-event'
+        id: maintenance-event
+        continue-on-error: ${{ github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/main' }}
+        uses: ./.candidate-actions/check/test-maintenance-event
+      - name: Verify maintenance event decision
+        if: matrix.image == 'check-test-maintenance-event'
+        uses: ./workflow/test-step-outcomes
+        with:
+          outcomes: ${{ toJSON(steps) }}
+          expected-failures: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && '[]' || '["maintenance-event"]' }}
+      - name: Exercise workflow-plan-chezmoi candidate
+        if: matrix.image == 'workflow-plan-chezmoi'
+        uses: ./.candidate-actions/workflow/plan-chezmoi
+        with:
+          directory: tests/fixtures/chezmoi
+          mode: development
+      - name: Exercise check-test-chezmoi-assets candidate
+        if: matrix.image == 'check-test-chezmoi-assets'
+        uses: ./.candidate-actions/check/test-chezmoi-assets
+        with:
+          directory: tests/fixtures/chezmoi
+          token: fixture-only
+      - name: Exercise lint-chezmoi candidate
+        if: matrix.image == 'lint-chezmoi'
+        uses: ./.candidate-actions/lint/chezmoi
+        with:
+          directory: tests/fixtures/chezmoi
+      - name: Exercise check-test-chezmoi candidate
+        if: matrix.image == 'check-test-chezmoi'
+        uses: ./.candidate-actions/check/test-chezmoi
+        with:
+          directory: tests/fixtures/chezmoi
+      - name: Exercise workflow-prepare-chezmoi-release candidate
+        if: matrix.image == 'workflow-prepare-chezmoi-release'
+        uses: ./.candidate-actions/workflow/prepare-chezmoi-release
+        with:
+          directory: tests/fixtures/chezmoi
+          token: fixture-only
+      - name: Exercise workflow-publish-chezmoi-release candidate
+        if: matrix.image == 'workflow-publish-chezmoi-release'
+        uses: ./.candidate-actions/workflow/publish-chezmoi-release
+        with:
+          directory: tests/fixtures/chezmoi
+          token: fixture-only
+      - name: Exercise lint-renovate candidate
+        if: matrix.image == 'lint-renovate'
+        uses: ./.candidate-actions/lint/renovate
+        with:
+          directory: tests/fixtures/chezmoi
       - name: Test native catalog validation
         if: matrix.image == 'check-test-catalog'
         uses: ./.candidate-actions/check/test-catalog

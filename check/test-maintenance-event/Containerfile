@@ -1,0 +1,17 @@
+FROM quay.io/fedora/fedora:45 AS build
+# hadolint ignore=DL3041
+RUN dnf install -y golang-1.27.4-2.fc45 && dnf clean all
+ENV GOTOOLCHAIN=local
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/workflow/ ./shared/workflow/
+COPY check/test-maintenance-event/main.go ./check/test-maintenance-event/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./check/test-maintenance-event
+
+FROM scratch AS final
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=build /entrypoint /entrypoint
+USER 65532:65532
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="check-test-maintenance-event" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only"

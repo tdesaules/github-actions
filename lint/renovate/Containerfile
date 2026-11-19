@@ -1,0 +1,55 @@
+FROM quay.io/fedora/fedora:45 AS build
+# hadolint ignore=DL3041
+RUN dnf install -y golang-1.27.4-2.fc45 && dnf clean all
+ENV GOTOOLCHAIN=local
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY shared/workflow/ ./shared/workflow/
+COPY shared/chezmoi/ ./shared/chezmoi/
+COPY lint/renovate/main.go ./lint/renovate/main.go
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./lint/renovate
+
+FROM quay.io/fedora/fedora:45 AS dependencies
+# hadolint ignore=DL3041
+RUN dnf install -y nodejs24-24.18.0-4.fc45 nodejs24-npm ca-certificates && dnf clean all \
+    && ln -s /usr/bin/node-24 /usr/local/bin/node \
+    && ln -s /usr/bin/npm-24 /usr/local/bin/npm
+WORKDIR /deps
+COPY maintenance/update-dependencies/dependencies.undici/package.json maintenance/update-dependencies/dependencies.undici/package-lock.json ./
+RUN npm ci --ignore-scripts --omit=dev --no-audit --no-fund
+WORKDIR /npm-runtime
+COPY maintenance/update-dependencies/dependencies.npm/package.json maintenance/update-dependencies/dependencies.npm/package-lock.json ./
+COPY maintenance/update-dependencies/update-npm.cjs /update-npm.cjs
+RUN npm ci --ignore-scripts --omit=dev --no-audit --no-fund \
+    && node /update-npm.cjs
+
+FROM dependencies AS tool
+# Compile the optional RE2 acceleration against the same distro Node ABI.
+# hadolint ignore=DL3041
+RUN dnf install -y nodejs24-devel-24.18.0-4.fc45 gcc-c++ make python3 && dnf clean all
+WORKDIR /renovate-install
+COPY maintenance/update-dependencies/dependencies.renovate/package.json maintenance/update-dependencies/dependencies.renovate/package-lock.json ./
+RUN npm ci --ignore-scripts --omit=dev --no-audit --no-fund
+WORKDIR /renovate-install/node_modules/re2
+RUN npm_config_nodedir=/usr ../.bin/node-gyp rebuild --jobs 2
+WORKDIR /renovate-install
+RUN mkdir -p /usr/local/renovate \
+    && cp -a node_modules/renovate/. /usr/local/renovate/ \
+    && rm -rf node_modules/renovate \
+    && cp -a node_modules /usr/local/renovate/ \
+    && ln -s /usr/bin/node-24 /usr/local/renovate/node
+COPY maintenance/update-dependencies/patch-braces.cjs /patch-braces.cjs
+COPY --from=dependencies /deps/node_modules/ /usr/local/renovate/undici-fixed/node_modules/
+COPY maintenance/update-dependencies/update-undici.cjs /update-undici.cjs
+RUN /usr/local/renovate/node /patch-braces.cjs \
+    && /usr/local/renovate/node /update-undici.cjs
+
+FROM quay.io/fedora/fedora:45 AS final
+# hadolint ignore=DL3041
+RUN dnf install -y --setopt=install_weak_deps=False nodejs24-24.18.0-4.fc45 git ca-certificates && dnf clean all
+COPY --from=tool /usr/local/renovate/ /usr/local/renovate/
+COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=build /entrypoint /entrypoint
+WORKDIR /github/workspace
+ENTRYPOINT ["/entrypoint"]
+LABEL org.opencontainers.image.title="lint-renovate" org.opencontainers.image.source="https://github.com/tdesaules/github-actions" org.opencontainers.image.licenses="GPL-3.0-only AND AGPL-3.0-only"

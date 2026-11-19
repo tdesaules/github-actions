@@ -1,0 +1,15 @@
+name: Prepare qualified source release
+description: Verify receipts and atomically publish changelog commit and annotated tag
+inputs:
+  directory:
+    description: Trusted consumer checkout relative to the workspace
+    default: .
+  token:
+    description: Shared bot App installation token
+    required: true
+runs:
+  using: docker
+  image: Containerfile
+  env:
+    CI_TOKEN: ${{ inputs.token }}
+    INPUT_DIRECTORY: ${{ inputs.directory }}
