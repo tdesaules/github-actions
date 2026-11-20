@@ -23,15 +23,15 @@ func TestCheckoutBoundaryAndFailurePropagation(t *testing.T) {
 	}
 	for _, dir := range []string{"outside", "../", root, "missing"} {
 		t.Setenv("INPUT_DIRECTORY", dir)
-		if err := Run("true"); err == nil {
+		if err := Run("sh", "-c", "exit 0"); err == nil {
 			t.Fatalf("accepted %q", dir)
 		}
 	}
 	t.Setenv("INPUT_DIRECTORY", "source with spaces")
-	if err := Run("test", "-f", "marker"); err != nil {
+	if err := Run("sh", "-c", "test -f marker"); err != nil {
 		t.Fatal(err)
 	}
-	if err := Run("false"); err == nil {
+	if err := Run("sh", "-c", "exit 1"); err == nil {
 		t.Fatal("discarded helper failure")
 	}
 }
