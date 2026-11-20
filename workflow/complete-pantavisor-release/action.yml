@@ -7,7 +7,7 @@ inputs:
   token: {description: Release App token with contents and workflow permissions, required: true}
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-complete-pantavisor-release@sha256:d43c65230b21098bcb26c8e12e148eec88c4d4cb1f8326f55b2b135b3988b6c8
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-complete-pantavisor-release@sha256:0f6dd80329231877fe2f75d3312d162adf756e9f51b69f2f797697b949139835
   env:
     INPUT_TOKEN: ${{ inputs.token }}
   args:

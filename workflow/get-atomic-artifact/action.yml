@@ -34,7 +34,7 @@ outputs:
 runs:
   using: docker
   # BOOTSTRAP ONLY: publish qualified native images before consumer activation.
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-atomic-artifact@sha256:d91d963ad97412a4e0768d7cab87f89f1dd13f09862a3742bb318d05a5ab20d6
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-atomic-artifact@sha256:d73921983c27dabf0938e05b292c5a9d9b9fc65b4bb914fbba1847a3129993ad
   env:
     INPUT_TOKEN: ${{ inputs.token }}
   args:

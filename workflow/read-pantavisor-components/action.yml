@@ -7,6 +7,6 @@ outputs:
   k0s: {description: Immutable k0s component reference}
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-read-pantavisor-components@sha256:496c9831f297e1bcf9bf493157d2edcf223692a2ade058a842e86183add03776
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-read-pantavisor-components@sha256:990aa28833dc8a68d6ccd9abe537871a8af2645071587101d96dd372efc55937
   args:
     - --file=${{ inputs.file }}

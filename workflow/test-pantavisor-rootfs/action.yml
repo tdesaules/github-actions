@@ -9,7 +9,7 @@ inputs:
     default: dist/component
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-pantavisor-rootfs@sha256:5d6fc9262946c3664441c6b3d9e5543e8304740df379323d98e44753fd28b254
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-pantavisor-rootfs@sha256:514ec87cc3a80b81abe663af656b897708d8520eab5872331087b491e37e46d3
   args:
     - --directory=${{ inputs.directory }}
     - --component=${{ inputs.component }}

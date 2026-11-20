@@ -19,7 +19,7 @@ outputs:
     description: Whether the constructed artifacts require qualification
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-pantavisor-targets@sha256:ff24878e61d8697e83637bd4e57b161bf21534143cce742d158cc51d45922e14
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-pantavisor-targets@sha256:256652fdcfa33866d7a8f60249334ddf354b943ac666e736ca7a5c06b50213c7
   args:
     - --project=${{ inputs.project }}
     - --files=${{ inputs.files }}

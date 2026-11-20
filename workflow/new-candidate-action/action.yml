@@ -15,7 +15,7 @@ inputs:
     required: true
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-candidate-action@sha256:a0e7c73342f9a27b2a2059928dd6227d32ba0709fcee933fecab5de16abc28fa
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-candidate-action@sha256:1c6e22f9394924b33d06dd09529f80dbf7d178ddbffc774dddaa6657f3b6f12b
   env:
     APP_SMOKE: ${{ inputs.application-smoke }}
   args:

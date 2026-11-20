@@ -6,6 +6,6 @@ inputs:
     default: .
 runs:
   using: docker
-  image: Containerfile
+  image: docker://ghcr.io/tdesaules/github-actions/lint-chezmoi@sha256:16422260a97998bf8fee48e04b6e28b8bfa9462cbe894439f447eb434a90d22f
   env:
     INPUT_DIRECTORY: ${{ inputs.directory }}

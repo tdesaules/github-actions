@@ -24,7 +24,7 @@ outputs:
     description: SHA-256 of the exact index manifest
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/oci-merge-image-index@sha256:8b967afefdd2231de884cce774e563ddff33fdba74bd1bc220c075b220dc0a3b
+  image: docker://ghcr.io/tdesaules/github-actions/oci-merge-image-index@sha256:e4a6c83cfc1a85fbb2c13f84c72e63ca00493dd2db5aa538a27e880d5fd81c9a
   args:
     - --sources=${{ inputs.sources }}
     - --destination=${{ inputs.destination }}

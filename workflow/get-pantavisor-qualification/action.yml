@@ -8,7 +8,7 @@ outputs:
   k0s-id: {description: Latest retained k0s profile receipt for this build}
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-pantavisor-qualification@sha256:6ba3c766c2e4745d40f4d20766219e8cb5d6ec671be780a948d779fa49b1410b
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-get-pantavisor-qualification@sha256:d3fe2d8a284024a12cde2513dece905b77366c7e5825c72ab76f501dae45003e
   env:
     INPUT_TOKEN: ${{ inputs.token }}
   args:

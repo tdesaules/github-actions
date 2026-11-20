@@ -12,7 +12,7 @@ outputs:
   image-digest: {description: Optional root image manifest digest}
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-pantavisor-artifact@sha256:05d670e05d3b7075c49c1117c4f3c8593723a2d3197201e94f29d7351393bc54
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-pantavisor-artifact@sha256:14ae3b043e3ca9cbce01cb5ffd40003c19a2f918b929ca32efb415c5509e400f
   args:
     - --directory=${{ inputs.directory }}
     - --receipt=${{ inputs.receipt }}

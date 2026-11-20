@@ -15,7 +15,7 @@ outputs:
     description: Export directory relative to the project
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-package-pantavisor-bsp@sha256:a2d0f5ecd3a6492dba3cd08e7b0a24e6107b4d1024d7e762c250a07c1008b0ad
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-package-pantavisor-bsp@sha256:2898b1d8cac2782678c18a42fde1ef2bbb3e05a6037c1a382f4dbbb1b3b1a155
   args:
     - --directory=${{ inputs.directory }}
     - --deploy-directory=${{ inputs.deploy-directory }}

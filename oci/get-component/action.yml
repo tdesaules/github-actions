@@ -20,7 +20,7 @@ outputs:
     description: Digest of component.json, distinct from the registry manifest
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/oci-get-component@sha256:0a8dd0903dd095235d53072cb8a3126a547ae9a7a99f0892ba8bdd56329a319f
+  image: docker://ghcr.io/tdesaules/github-actions/oci-get-component@sha256:dce3e65c5ee892b5c8e6b72f20dcdfb19186ccb31e64eea2652a2f49e8f2812a
   env:
     INPUT_REGISTRY-PASSWORD: ${{ inputs.registry-password }}
   args:

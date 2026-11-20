@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.9.0
+
+- keep catalog builds on Fedora 45 (ef30d11)
+
+- qualify dedicated dotfiles actions in the catalog (d8dd708)
+
+- update docker.io/library/golang:1.27.4-alpine3.24 docker digest to 70bd7dd (365296a)
+
+- update docker.io/library/ubuntu:24.04 docker digest to 73b9993 (a088312)
+
+- select publication artifacts by exact image name (804c6a2)
+
+- use shell builtins for checkout probes (6401884)
+
+- provide /tmp in the event check image (e007206)
+
+- qualify Helmfile applications with shared catalog actions (375aa94)
+
+- link Moby remediation evidence to the commit API (5b4d66b)
+
+- stabilize artifact lookup and include embedded selector source (5b22123)
+
 ## 1.8.1
 
 - summarize complete large SBOMs with bounded memory (0e385b7)

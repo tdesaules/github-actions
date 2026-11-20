@@ -34,7 +34,7 @@ outputs:
     description: Whether the archive matches its expected receipt
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-build-artifact@sha256:be91dadb8249ba32854217d5f171edb00d3a020d0a76956be2444d471e6ec437
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-test-build-artifact@sha256:984f074a85f294abc6263c3a05aa84cbd49424d6d9bb19cf6461ccf0bb549ddd
   env:
     QUALIFICATION: ${{ inputs.qualification }}
     TESTED_DIGEST: ${{ inputs.tested-digest }}

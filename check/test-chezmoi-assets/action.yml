@@ -9,7 +9,7 @@ inputs:
     required: true
 runs:
   using: docker
-  image: Containerfile
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-chezmoi-assets@sha256:7a7fcf0224e9572f4ac298c7dae8295c668da630d2ef078aa1e7e4325342cf5e
   env:
     GITHUB_TOKEN: ${{ inputs.token }}
     INPUT_DIRECTORY: ${{ inputs.directory }}

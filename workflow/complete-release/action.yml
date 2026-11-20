@@ -18,7 +18,7 @@ inputs:
     required: true
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-complete-release@sha256:15a6213c414495bd13e5e7f26f405d2d889fa9d36b2e63a0ae128c6e53205663
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-complete-release@sha256:fb39f24012b49150b817a6ba0c315b4297f02c7c6dbb7040b2e420436aec28be
   env:
     VERSION: ${{ inputs.application-version }}
     APP_DIGESTS: ${{ inputs.application-digests }}

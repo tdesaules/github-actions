@@ -6,6 +6,6 @@ inputs:
     default: .
 runs:
   using: docker
-  image: Containerfile
+  image: docker://ghcr.io/tdesaules/github-actions/lint-renovate@sha256:bfdc809c3418f75cb1b2e2006a690c449eb7b6b8ca9ce0c932b5ae2a0a137380
   env:
     INPUT_DIRECTORY: ${{ inputs.directory }}

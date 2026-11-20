@@ -6,6 +6,6 @@ inputs:
     default: '.'
 runs:
   using: docker
-  image: Containerfile
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-helmfile@sha256:fd0234159aff4b189bb7ba9f209df8cfed747a230aeb00b4f02d11b438ab7d49
   env:
     HELMFILE_TEST_ROOT: ${{ inputs.directory }}

@@ -6,6 +6,6 @@ inputs:
     default: .
 runs:
   using: docker
-  image: Containerfile
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-chezmoi@sha256:13db94311b4c4e1e413bdea059df9eb40483017fa924c223d7f6b597ec9f2239
   env:
     INPUT_DIRECTORY: ${{ inputs.directory }}

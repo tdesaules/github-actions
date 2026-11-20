@@ -34,7 +34,7 @@ outputs:
     description: Source plan artifact name
 runs:
   using: docker
-  image: Containerfile
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-plan-chezmoi@sha256:6a17f61ad80be8f4125abfa71e84a3a8897001093f8d750d8b82e71987638cc1
   env:
     INPUT_MODE: ${{ inputs.mode }}
     INPUT_DIRECTORY: ${{ inputs.directory }}

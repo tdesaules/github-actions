@@ -21,7 +21,7 @@ runs:
   env:
     PUBLICATION_IMAGE: ${{ inputs.image }}
     PUBLICATION_RECEIPTS: ${{ inputs.receipts }}
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-publication-plan@sha256:058f1aef1b4b5172cb42566eba8cb75badf6201243d1e0d498052bfecd2b75ac
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-new-publication-plan@sha256:bb776409ce9be20c2c57a19a8abb6a3802cedda3ccfe69ddad1eae8bedf3137d
   args:
     - --directory=${{ inputs.directory }}
     - --owner=${{ inputs.owner }}

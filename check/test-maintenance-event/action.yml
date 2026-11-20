@@ -2,4 +2,4 @@ name: Validate maintenance event
 description: Reject manual maintenance outside main and unrelated events
 runs:
   using: docker
-  image: Containerfile
+  image: docker://ghcr.io/tdesaules/github-actions/check-test-maintenance-event@sha256:43a93e0500c543e2d1f5470e8e7eccbda2cdb3d94ad133050140a7ba894701c7

@@ -12,7 +12,7 @@ outputs:
     description: Resulting destination transport reference
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/oci-export-image@sha256:c6483a59df5ede7d2f301261a00338817f4ad76b4472c631966ae1b53ba3c040
+  image: docker://ghcr.io/tdesaules/github-actions/oci-export-image@sha256:66dc0a944cda3f9a83cace9b1e316c80709fbaa38f1f6e0b03bc429f4effeb3d
   args:
     - --source=${{ inputs.source }}
     - --destination=${{ inputs.destination }}

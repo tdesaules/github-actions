@@ -9,7 +9,7 @@ inputs:
     required: true
 runs:
   using: docker
-  image: Containerfile
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-publish-chezmoi-release@sha256:33d866dd08b91ce3cfbb70d7eb76d5d4f5d580b26ff71876fff88485ba0e7cde
   env:
     CI_TOKEN: ${{ inputs.token }}
     INPUT_DIRECTORY: ${{ inputs.directory }}

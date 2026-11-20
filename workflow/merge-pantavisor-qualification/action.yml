@@ -7,7 +7,7 @@ inputs:
   output: {description: Combined qualification receipt, default: artifacts/qualified-receipt.json}
 runs:
   using: docker
-  image: docker://ghcr.io/tdesaules/github-actions/workflow-merge-pantavisor-qualification@sha256:805e73c8f960ddcdaf1cd0e5be96cff0e9475b396d3a4e5822a21e1912ef64f0
+  image: docker://ghcr.io/tdesaules/github-actions/workflow-merge-pantavisor-qualification@sha256:8ad959d869b6d0eb2495bfc00e1938ec51114b024a4c294bbb0827a5b7b1a1c7
   args:
     - --base=${{ inputs.base }}
     - --k0s=${{ inputs.k0s }}
