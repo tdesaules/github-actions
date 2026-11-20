@@ -130,3 +130,44 @@ func TestExpectedProducerIDValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestChangedListingRestartsFromFirstPage(t *testing.T) {
+	o := fixture()
+	o.ExpectedID = "103"
+	calls := 0
+	waits := 0
+	client := &http.Client{Transport: transport(func(r *http.Request) (*http.Response, error) {
+		calls++
+		var data any
+		switch calls {
+		case 1, 4:
+			if strings.HasSuffix(r.URL.Path, "/artifacts") {
+				t.Fatal("run identity not rechecked")
+			}
+			data = map[string]any{"id": 42, "head_sha": o.SHA, "run_attempt": 3, "repository": map[string]string{"full_name": o.Repository}}
+		case 2:
+			if r.URL.Query().Get("page") != "1" {
+				t.Fatal("expected page one")
+			}
+			data = map[string]any{"total_count": 101, "artifacts": make([]artifact, 100)}
+		case 3:
+			if r.URL.Query().Get("page") != "2" {
+				t.Fatal("expected page two")
+			}
+			data = map[string]any{"total_count": 102, "artifacts": []artifact{item(3, false)}}
+		case 5:
+			if r.URL.Query().Get("page") != "1" {
+				t.Fatal("reused inconsistent page")
+			}
+			data = map[string]any{"total_count": 1, "artifacts": []artifact{item(3, false)}}
+		default:
+			t.Fatal("unexpected request")
+		}
+		b, _ := json.Marshal(data)
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(string(b)))}, nil
+	})}
+	got, err := selectVisibleArtifact(context.Background(), client, "secret-token", o, func(context.Context, time.Duration) error { waits++; return nil })
+	if err != nil || got.ID != 103 || calls != 5 || waits != 1 {
+		t.Fatalf("got=%v err=%v calls=%d waits=%d", got, err, calls, waits)
+	}
+}

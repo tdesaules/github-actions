@@ -19,6 +19,8 @@ const api = "https://api.github.com"
 
 var errArtifactMissing = errors.New("no matching artifact in current workflow run")
 
+var errListingChanged = errors.New("artifact listing changed during pagination")
+
 type options struct {
 	Repository, RunID, SHA, Attempt, Kind, Architecture string
 	ExpectedID                                          string
@@ -155,7 +157,7 @@ func selectArtifact(ctx context.Context, client *http.Client, token string, o op
 			total = *list.Total
 		}
 		if total != *list.Total {
-			return selected{}, errors.New("artifact listing changed during pagination")
+			return selected{}, errListingChanged
 		}
 		count += len(list.Artifacts)
 		if count > total || (len(list.Artifacts) == 0 && count < total) {
@@ -229,14 +231,14 @@ func waitForVisibility(ctx context.Context, delay time.Duration) error {
 
 // Opt-in retries require an artifact ID emitted by a successful producer.
 // Each lookup revalidates identity and paginates from scratch. Only absent
-// artifacts retry: expiry, duplicates, HTTP errors and identity failures do not.
+// artifacts or a changed total retry: expiry, duplicates, HTTP errors and identity failures do not.
 func selectVisibleArtifact(ctx context.Context, client *http.Client, token string, o options, wait func(context.Context, time.Duration) error) (selected, error) {
 	for lookup := 0; lookup < 6; lookup++ {
 		if err := ctx.Err(); err != nil {
 			return selected{}, err
 		}
 		result, err := selectArtifact(ctx, client, token, o)
-		if err == nil || !errors.Is(err, errArtifactMissing) || o.ExpectedID == "" {
+		if err == nil || o.ExpectedID == "" || (!errors.Is(err, errArtifactMissing) && !errors.Is(err, errListingChanged)) {
 			return result, err
 		}
 		if lookup == 5 {
