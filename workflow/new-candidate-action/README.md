@@ -11,3 +11,5 @@ reference (`registry/repository@sha256:...`) instead generates a direct
 
 It does not pull or load images. Explicit CLI flags override `INPUT_DIRECTORY`,
 `INPUT_IMAGE` and `INPUT_DESTINATION`. Source metadata remains untouched.
+
+Application smoke mode generates an ephemeral Docker action pinned to the tested candidate. Only bastion and provision profiles are supported; test assertions live in the consumer checkout.

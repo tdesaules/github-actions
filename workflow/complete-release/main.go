@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/tdesaules/github-actions/shared/publication"
 	"github.com/tdesaules/github-actions/shared/workflow"
+	"os"
 )
 
 func run() error {
@@ -12,6 +13,9 @@ func run() error {
 	flag.Parse()
 	if flag.NArg() != 0 {
 		return fmt.Errorf("unexpected arguments")
+	}
+	if os.Getenv("VERSION") != "" && os.Getenv("APP_DIGESTS") != "" {
+		return tagApplications()
 	}
 	return publication.Finish(*directory)
 }

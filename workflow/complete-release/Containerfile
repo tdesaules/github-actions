@@ -9,6 +9,7 @@ COPY shared/catalog/ ./shared/catalog/
 COPY shared/publication/ ./shared/publication/
 COPY shared/runtime/ ./shared/runtime/
 COPY shared/workflow/ ./shared/workflow/
+COPY workflow/complete-release/application.go ./workflow/complete-release/application.go
 COPY workflow/complete-release/main.go ./workflow/complete-release/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./workflow/complete-release
 # Upstream release asset SHA-256 values verified through GitHub's release API.

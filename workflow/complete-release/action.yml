@@ -1,6 +1,15 @@
 name: Complete release
 description: Commit verified image digests and changelog, then atomically push main and a new release tag
 inputs:
+  application-version:
+    description: Stable version for an annotated application source tag
+    default: ''
+  application-digests:
+    description: JSON map of verified published application digests
+    default: ''
+  application-reused:
+    description: JSON map of requalified unchanged application digests
+    default: ''
   directory:
     description: Verified publication journal and release plan directory
     default: .build/publication
@@ -11,6 +20,9 @@ runs:
   using: docker
   image: docker://ghcr.io/tdesaules/github-actions/workflow-complete-release@sha256:15a6213c414495bd13e5e7f26f405d2d889fa9d36b2e63a0ae128c6e53205663
   env:
+    VERSION: ${{ inputs.application-version }}
+    APP_DIGESTS: ${{ inputs.application-digests }}
+    REUSED_DIGESTS: ${{ inputs.application-reused }}
     INPUT_TOKEN: ${{ inputs.token }}
   args:
     - --directory=${{ inputs.directory }}

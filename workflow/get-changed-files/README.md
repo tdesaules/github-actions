@@ -19,3 +19,5 @@ Rerunning an older action digest cannot exercise this correction; use the publis
 
 Its independent scratch image contains Git and a fixed Go executable. Published
 with `1.0.1`, it is called directly by `check` before checks and matrix selection.
+
+Helm chart templates are excluded from raw YAML lint when their owning chart has Chart.yaml; render them through check/test-helmfile.

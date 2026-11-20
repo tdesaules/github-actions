@@ -294,6 +294,11 @@ jobs:
           directory: ${{ matrix.directory }}
           image: ${{ matrix.rebuild && steps.candidate.outputs.image || matrix.reference }}
           destination: .candidate-actions/${{ matrix.directory }}
+      - name: Exercise native Helmfile validation tools
+        if: matrix.image == 'check-test-helmfile'
+        uses: ./.candidate-actions/check/test-helmfile
+        with:
+          directory: check/test-helmfile/fixtures
       - name: Exercise maintenance event gate against the real event
         if: matrix.image == 'check-test-maintenance-event'
         id: maintenance-event

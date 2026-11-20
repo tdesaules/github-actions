@@ -57,3 +57,21 @@ func TestRegistryCandidateIsPulledByExactDigest(t *testing.T) {
 		t.Fatal("registry candidate unexpectedly requires a build")
 	}
 }
+
+func TestApplicationSmokeUsesTheCandidate(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("APP_SMOKE", "bastion")
+	ref := "fixture.example/bastion@sha256:" + strings.Repeat("b", 64)
+	args := []string{"--directory=.", "--destination=.candidate", "--image=" + ref}
+	if e := execute(args); e != nil {
+		t.Fatal(e)
+	}
+	b, _ := os.ReadFile(".candidate/action.yml")
+	if !strings.Contains(string(b), ref) || !strings.Contains(string(b), "/github/workspace/.github/scripts/smoke-bastion.py") {
+		t.Fatal(string(b))
+	}
+	t.Setenv("APP_SMOKE", "unknown")
+	if execute(args) == nil {
+		t.Fatal("accepted unknown smoke operation")
+	}
+}

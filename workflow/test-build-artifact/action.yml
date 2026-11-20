@@ -1,6 +1,12 @@
 name: Test build artifact
 description: Verify a downloaded untested archive against its build receipt and expected matrix context
 inputs:
+  qualification:
+    description: Post-test receipt to write with tested-digest or verify without it
+    default: ''
+  tested-digest:
+    description: Manifest of the candidate that passed functional tests
+    default: ''
   archive:
     description: Downloaded OCI archive path
     required: true
@@ -20,6 +26,8 @@ inputs:
     description: Expected candidate version
     required: true
 outputs:
+  digest:
+    description: Qualified application manifest when qualification is requested
   archive-sha256:
     description: Verified archive SHA-256
   verified:
@@ -27,6 +35,9 @@ outputs:
 runs:
   using: docker
   image: docker://ghcr.io/tdesaules/github-actions/workflow-test-build-artifact@sha256:be91dadb8249ba32854217d5f171edb00d3a020d0a76956be2444d471e6ec437
+  env:
+    QUALIFICATION: ${{ inputs.qualification }}
+    TESTED_DIGEST: ${{ inputs.tested-digest }}
   args:
     - --archive=${{ inputs.archive }}
     - --receipt=${{ inputs.receipt }}

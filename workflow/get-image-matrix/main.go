@@ -340,6 +340,9 @@ func run() error {
 	if err := json.Unmarshal([]byte(*files), &paths); err != nil || paths == nil {
 		return fmt.Errorf("files must be a JSON array")
 	}
+	if definition := os.Getenv("APPLICATION_DEFINITION"); definition != "" {
+		return applicationPlan(definition, *repository, *event, *ref, paths, *full)
+	}
 	head, err := workflow.Git("rev-parse", "HEAD")
 	if err != nil {
 		return err

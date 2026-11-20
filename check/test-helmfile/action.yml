@@ -1,0 +1,11 @@
+name: Test Helmfile platform
+description: Run the consumer Helmfile render contracts and Python unit suite without cluster access
+inputs:
+  directory:
+    description: Consumer project directory containing tests/validate.py
+    default: '.'
+runs:
+  using: docker
+  image: Containerfile
+  env:
+    HELMFILE_TEST_ROOT: ${{ inputs.directory }}

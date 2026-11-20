@@ -17,3 +17,5 @@ retained licenses. The release job bootstraps this source implementation until
 its new immutable image is published; the older published image required signatures.
 Real-Git regression tests cover success, concurrent advancement and rejected
 atomic pushes. These local tests do not claim a hosted interruption campaign.
+
+Application mode verifies the complete digest map against fresh qualification receipts or requalified reused subjects before tagging the exact main revision.

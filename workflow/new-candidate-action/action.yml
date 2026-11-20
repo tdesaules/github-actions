@@ -1,9 +1,12 @@
 name: New candidate action
 description: Prepare an action to use a candidate image without changing its source metadata
 inputs:
+  application-smoke:
+    description: Fixed smoke definition for the bastion or provision runtime
+    default: ''
   directory:
-    description: Source action directory
-    required: true
+    description: Source action directory (unused with application-smoke)
+    default: '.'
   image:
     description: Immutable registry digest or already loaded localhost candidate tag
     required: true
@@ -13,6 +16,8 @@ inputs:
 runs:
   using: docker
   image: docker://ghcr.io/tdesaules/github-actions/workflow-new-candidate-action@sha256:a0e7c73342f9a27b2a2059928dd6227d32ba0709fcee933fecab5de16abc28fa
+  env:
+    APP_SMOKE: ${{ inputs.application-smoke }}
   args:
     - --directory=${{ inputs.directory }}
     - --image=${{ inputs.image }}

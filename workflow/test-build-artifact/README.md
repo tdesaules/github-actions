@@ -8,3 +8,5 @@ Inputs: `archive`, `receipt`, `image`, `architecture`, `revision`, `version`.
 Outputs `verified` and `archive-sha256`. Explicit CLI flags override `INPUT_*`.
 This fixed Go scratch image does not qualify the image or rebuild anything.
 Published in `1.2.0`, it checks the archive both before and after qualification.
+
+After a successful runtime step, qualification plus tested-digest writes a tested receipt. Supply qualification alone during promotion to rehash the archive and require the same tested subject.

@@ -80,3 +80,5 @@ builds this control image on AMD64 and invokes it through the private candidate
 registry. Tag validation still invokes the published digest without rebuilding.
 After publication, remove the three selector bootstrap steps, restore the direct
 `uses: ./workflow/get-image-matrix` call, and remove the temporary tag fallback.
+
+Application mode discovers oci/*/Containerfile, accepts the shared changed-file list and a public environment definition, and distinguishes build, requalification and advisory work.

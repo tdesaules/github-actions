@@ -39,7 +39,11 @@ func classify(paths, tracked []string, full bool) map[string][]string {
 		kinds := []string{}
 		switch ext {
 		case ".yml", ".yaml":
-			kinds = append(kinds, "yaml")
+			chart, _, inside := strings.Cut(p, "/templates/")
+			_, chartErr := os.Stat(filepath.Join(chart, "Chart.yaml"))
+			if !inside || chartErr != nil {
+				kinds = append(kinds, "yaml")
+			}
 			if strings.HasPrefix(p, ".github/workflows/") {
 				kinds = append(kinds, "actionlint")
 			}

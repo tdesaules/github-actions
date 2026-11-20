@@ -33,10 +33,18 @@ func execute(args []string) error {
 	if err != nil {
 		return err
 	}
-	if source == target || strings.HasPrefix(source, target+string(filepath.Separator)) || strings.HasPrefix(target, source+string(filepath.Separator)) {
+	if os.Getenv("APP_SMOKE") == "" && (source == target || strings.HasPrefix(source, target+string(filepath.Separator)) || strings.HasPrefix(target, source+string(filepath.Separator))) {
 		return errors.New("candidate directory must be separate from the source action")
 	}
-	data, err := os.ReadFile(filepath.Join(source, "action.yml"))
+	var data []byte
+	if profile := os.Getenv("APP_SMOKE"); profile != "" {
+		if profile != "bastion" && profile != "provision" {
+			return errors.New("unknown application smoke profile")
+		}
+		data = []byte("name: Qualify " + profile + "\ndescription: Exercise the exact application runtime\nruns:\n  using: docker\n  entrypoint: /opt/venv/bin/python\n  args:\n    - /github/workspace/.github/scripts/smoke-" + profile + ".py\n")
+	} else {
+		data, err = os.ReadFile(filepath.Join(source, "action.yml"))
+	}
 	if err != nil {
 		return err
 	}
