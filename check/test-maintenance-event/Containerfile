@@ -7,9 +7,11 @@ COPY go.mod go.sum ./
 COPY shared/workflow/ ./shared/workflow/
 COPY check/test-maintenance-event/main.go ./check/test-maintenance-event/main.go
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoint ./check/test-maintenance-event
+RUN mkdir -p /runtime/tmp && chmod 1777 /runtime/tmp
 
 FROM scratch AS final
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
+COPY --from=build /runtime/ /
 COPY --from=build /entrypoint /entrypoint
 USER 65532:65532
 WORKDIR /github/workspace
