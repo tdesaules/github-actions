@@ -64,7 +64,7 @@ func TestPublicationPlannerActivationPreservesVerification(t *testing.T) {
 		}
 	}
 	download := steps["Download tested matrix artifacts"]["with"].(map[string]any)
-	if download["run-id"] != "${{ github.run_id }}" || download["pattern"] != "oci-${{ inputs.image }}-*-${{ github.run_id }}" || download["artifact-ids"] != nil {
-		t.Fatal("publication must download only this run's qualification artifacts")
+	if download["run-id"] != "${{ github.run_id }}" || download["pattern"] != "oci-${{ inputs.image }}-{amd64,arm64}-${{ github.run_id }}" || download["artifact-ids"] != nil {
+		t.Fatal("publication must download only the selected image's two native artifacts from this run")
 	}
 }
