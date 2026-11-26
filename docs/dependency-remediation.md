@@ -40,8 +40,9 @@ architectures sur GitHub. Aucune exclusion de ces avis n'est ajoutée.
 ## Revue ciblée de GO-2026-4887
 
 Cet avis concerne le traitement des requêtes par le plugin d'autorisation du
-daemon Docker. Le [correctif amont](https://api.github.com/repos/moby/moby/commits/e89edb19ad7de0407a5d31e3111cb01aa10b5a38)
-modifie `pkg/authorization/authz.go`. L'avis Go affecte tout le module, sans liste
+daemon Docker. Le correctif amont modifie
+[`pkg/authorization/authz.go`](https://raw.githubusercontent.com/moby/moby/e89edb19ad7de0407a5d31e3111cb01aa10b5a38/pkg/authorization/authz.go).
+L'avis Go affecte tout le module, sans liste
 de packages ou de symboles, y compris ses clients qui n'embarquent pas ce code.
 
 `grype-review.json` décrit cette analyse. `scripts/scan_review.py` la
