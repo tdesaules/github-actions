@@ -12,7 +12,7 @@ RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags='-s -w' -o /entrypoi
 FROM quay.io/fedora/fedora:44 AS final
 # Fedora 44 builds preserve the consumer's libc/GTK ABI baseline.
 # hadolint ignore=DL3041
-RUN dnf install -y --setopt=install_weak_deps=False rust-1.99.1-2.fc44 cargo-1.99.1-2.fc44 gcc gtk4-devel pkgconf-pkg-config git ca-certificates \
+RUN dnf install -y --setopt=install_weak_deps=False rust-1.100.0-1.fc44 cargo-1.100.0-1.fc44 gcc gtk4-devel pkgconf-pkg-config git ca-certificates \
     && dnf clean all
 COPY --from=build /entrypoint /entrypoint
 COPY LICENSE /usr/share/licenses/github-actions/LICENSE
